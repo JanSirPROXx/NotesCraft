@@ -142,3 +142,68 @@ import Testing
     samples: [Point(0, 0), Point(20, 4), Point(80, 2)].map { Sample(point: $0) }, tool: .shapes)
   #expect(Editing.shape(from: line).samples.count == 2)
 }
+
+@Test func heldCircleIsRoundAndResizesWithoutMovingItsCenter() throws {
+  let raw = Stroke(
+    samples: (0...48).map { i in
+      let angle = Double(i) / 48 * 2 * Double.pi
+      return Sample(point: Point(100 + 42 * cos(angle), 110 + 38 * sin(angle)))
+    })
+  let circle = try #require(InkGestures.heldShape(raw))
+  #expect(abs(circle.bounds.width - circle.bounds.height) < 0.001)
+  let resized = InkGestures.resizeHeldShape(circle, from: Point(140, 110), to: Point(180, 110))
+  #expect(
+    abs((resized.bounds.width - resized.width) / (circle.bounds.width - circle.width) - 2) < 0.01)
+  #expect(abs(resized.bounds.x + resized.bounds.width / 2 - 100) < 0.01)
+  let curve = Stroke(
+    samples: (0..<20).map { Sample(point: Point(Double($0) * 5, sin(Double($0) * 0.3) * 30)) })
+  #expect(InkGestures.heldShape(curve) == nil)
+}
+
+@Test func scribbleErasesIntersectedInkButKeepsOrdinaryHandwriting() {
+  let scratch = (0...8).map { Point($0.isMultiple(of: 2) ? 20 : 100, 30 + Double($0) * 4) }
+  let target = Stroke(samples: [Sample(point: Point(60, 0)), Sample(point: Point(60, 100))])
+  let other = Stroke(samples: [Sample(point: Point(200, 0)), Sample(point: Point(200, 100))])
+  #expect(InkGestures.isScratch(scratch))
+  #expect(InkGestures.scratchTargets(scratch, strokes: [target, other]) == [target.id])
+  let circle = (0...64).map {
+    Point(50 + 30 * cos(Double($0) / 64 * 2 * .pi), 50 + 30 * sin(Double($0) / 64 * 2 * .pi))
+  }
+  #expect(!InkGestures.isScratch(circle))
+  #expect(!InkGestures.isScratch([Point(0, 0), Point(100, 0)]))
+}
+
+@Test func lassoTranslationMovesSelectedObjectsTogetherAndPreservesOthers() {
+  var page = Page()
+  let stroke = Stroke(samples: [Sample(point: Point(20, 30)), Sample(point: Point(60, 80))])
+  let other = Stroke(samples: [Sample(point: Point(300, 400))])
+  let text = TextBox(origin: Point(30, 50), text: "Keep formatting")
+  let image = PageAsset(filename: "image.png", frame: Rect(x: 60, y: 90, width: 100, height: 80))
+  page.strokes = [stroke, other]
+  page.texts = [text]
+  page.images = [image]
+  let ids: Set<UUID> = [stroke.id, text.id, image.id]
+  #expect(InkGestures.selectionContains(Point(40, 60), page: page, ids: ids))
+  #expect(!InkGestures.selectionContains(Point(400, 500), page: page, ids: ids))
+  let changed = InkGestures.translate(page, ids: ids, by: Point(-12, 24))
+  #expect(changed.strokes[0].samples[0].point == Point(8, 54))
+  #expect(changed.texts[0].origin == Point(18, 74))
+  #expect(changed.images[0].frame.x == 48)
+  #expect(changed.images[0].frame.y == 114)
+  #expect(changed.images[0].frame.width == image.frame.width)
+  #expect(changed.strokes[1] == other)
+  #expect(changed.id == page.id)
+}
+
+@Test func continuedPageCopiesPaperAndPDFDimensionsWithoutCopyingContent() {
+  var previous = Page(paper: Paper(size: .letter, pattern: .dotted, landscape: true))
+  previous.backgroundPDF = "original.pdf"
+  previous.backgroundSize = Point(900, 1200)
+  previous.strokes = [Stroke(samples: [Sample(point: Point(20, 30))])]
+  let next = InkGestures.blankPage(matching: previous)
+  #expect(next.id != previous.id)
+  #expect(next.paper == previous.paper)
+  #expect(next.dimensions == previous.dimensions)
+  #expect(next.backgroundPDF == nil)
+  #expect(next.strokes.isEmpty)
+}

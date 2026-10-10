@@ -198,3 +198,177 @@ public enum Editing {
   }
 
 }
+
+public enum InkGestures {
+  public static func heldShape(_ stroke: Stroke) -> Stroke? {
+    guard stroke.samples.count >= 8, let first = stroke.samples.first,
+      let last = stroke.samples.last
+    else { return nil }
+    let b = stroke.bounds
+    let diagonal = hypot(b.width, b.height)
+    guard diagonal > 24 else { return nil }
+    let closed = first.point.distance(to: last.point) < diagonal * 0.25
+    if !closed {
+      let length = first.point.distance(to: last.point)
+      guard length > 24,
+        stroke.samples.allSatisfy({
+          Editing.distance($0.point, toSegmentFrom: first.point, to: last.point) < length * 0.12
+        })
+      else { return nil }
+      var result = stroke
+      result.samples = [first, last]
+      return result
+    }
+    let center = Point(b.x + b.width / 2, b.y + b.height / 2)
+    let rx = max(1, (b.width - stroke.width) / 2)
+    let ry = max(1, (b.height - stroke.width) / 2)
+    let error =
+      stroke.samples.reduce(0.0) {
+        $0 + abs(hypot(($1.point.x - center.x) / rx, ($1.point.y - center.y) / ry) - 1)
+      } / Double(stroke.samples.count)
+    if error < 0.16 {
+      var result = stroke
+      let circular = rx / ry > 0.8 && rx / ry < 1.25
+      let xRadius = circular ? (rx + ry) / 2 : rx
+      let yRadius = circular ? xRadius : ry
+      result.samples = (0...64).map { i in
+        let angle = Double(i) / 64 * 2 * Double.pi
+        return Sample(
+          point: Point(center.x + xRadius * cos(angle), center.y + yRadius * sin(angle)))
+      }
+      return result
+    }
+    let result = Editing.shape(from: stroke)
+    guard (4...9).contains(result.samples.count) else { return nil }
+    return result
+  }
+
+  public static func resizeHeldShape(_ stroke: Stroke, from start: Point, to end: Point) -> Stroke {
+    var result = stroke
+    guard let first = stroke.samples.first else { return result }
+    if stroke.samples.count == 2 {
+      result.samples[1].point = end
+    } else {
+      let b = stroke.bounds
+      let center = Point(b.x + b.width / 2, b.y + b.height / 2)
+      let factor = min(20, max(0.05, end.distance(to: center) / max(1, start.distance(to: center))))
+      result.samples = stroke.samples.map {
+        var sample = $0
+        sample.point = Point(
+          center.x + ($0.point.x - center.x) * factor,
+          center.y + ($0.point.y - center.y) * factor)
+        return sample
+      }
+    }
+    result.samples[0].pressure = first.pressure
+    return result
+  }
+
+  // Require several broad reversals; ordinary loops and short handwriting must remain ink.
+  public static func isScratch(_ points: [Point]) -> Bool {
+    guard let first = points.first, points.count >= 7 else { return false }
+    var reduced = [first]
+    for point in points.dropFirst() where point.distance(to: reduced.last!) >= 8 {
+      reduced.append(point)
+    }
+    guard reduced.count >= 7 else { return false }
+    var reversals = 0
+    var length = 0.0
+    for i in 1..<reduced.count {
+      let a = reduced[i - 1]
+      let b = reduced[i]
+      length += a.distance(to: b)
+      if i > 1 {
+        let previous = reduced[i - 2]
+        let ux = a.x - previous.x
+        let uy = a.y - previous.y
+        let vx = b.x - a.x
+        let vy = b.y - a.y
+        if (ux * vx + uy * vy) / max(1, hypot(ux, uy) * hypot(vx, vy)) < -0.65 {
+          reversals += 1
+        }
+      }
+    }
+    let xs = reduced.map(\.x)
+    let ys = reduced.map(\.y)
+    let width = xs.max()! - xs.min()!
+    let height = ys.max()! - ys.min()!
+    return reversals >= 4 && min(width, height) >= 8 && length > 120
+      && length / max(1, hypot(width, height)) > 3
+  }
+
+  public static func scratchTargets(_ points: [Point], strokes: [Stroke]) -> Set<UUID> {
+    guard isScratch(points) else { return [] }
+    return Set(
+      strokes.filter { stroke in
+        let strokeSegments = zip(stroke.samples, stroke.samples.dropFirst())
+        let scratchSegments = Array(zip(points, points.dropFirst()))
+        let radius = max(8, stroke.width * 2)
+        return stroke.samples.contains { sample in
+          scratchSegments.contains { a, b in
+            Editing.distance(sample.point, toSegmentFrom: a, to: b) < radius
+          }
+        }
+          || strokeSegments.contains { a, b in
+            scratchSegments.contains { c, d in
+              segmentsIntersect(a.point, b.point, c, d)
+                || Editing.distance(c, toSegmentFrom: a.point, to: b.point) < radius
+                || Editing.distance(d, toSegmentFrom: a.point, to: b.point) < radius
+            }
+          }
+      }.map(\.id))
+  }
+  private static func segmentsIntersect(_ a: Point, _ b: Point, _ c: Point, _ d: Point) -> Bool {
+    let rx = b.x - a.x
+    let ry = b.y - a.y
+    let sx = d.x - c.x
+    let sy = d.y - c.y
+    let cross = rx * sy - ry * sx
+    guard abs(cross) > 0.00001 else { return false }
+    let qx = c.x - a.x
+    let qy = c.y - a.y
+    let t = (qx * sy - qy * sx) / cross
+    let u = (qx * ry - qy * rx) / cross
+    return (0...1).contains(t) && (0...1).contains(u)
+  }
+
+  public static func selectionContains(_ point: Point, page: Page, ids: Set<UUID>) -> Bool {
+    let bounds =
+      page.strokes.filter { ids.contains($0.id) }.map(\.bounds)
+      + page.images.filter { ids.contains($0.id) }.map(\.frame)
+      + page.texts.filter { ids.contains($0.id) }.map(\.bounds)
+    guard let first = bounds.first else { return false }
+    let minX = bounds.reduce(first.x) { min($0, $1.x) } - 8
+    let minY = bounds.reduce(first.y) { min($0, $1.y) } - 8
+    let maxX = bounds.reduce(first.x + first.width) { max($0, $1.x + $1.width) } + 8
+    let maxY = bounds.reduce(first.y + first.height) { max($0, $1.y + $1.height) } + 8
+    return Rect(x: minX, y: minY, width: maxX - minX, height: maxY - minY).contains(point)
+  }
+
+  public static func translate(_ page: Page, ids: Set<UUID>, by delta: Point) -> Page {
+    var result = page
+    for i in result.strokes.indices where ids.contains(result.strokes[i].id) {
+      result.strokes[i].samples = result.strokes[i].samples.map {
+        var sample = $0
+        sample.point.x += delta.x
+        sample.point.y += delta.y
+        return sample
+      }
+    }
+    for i in result.images.indices where ids.contains(result.images[i].id) {
+      result.images[i].frame.x += delta.x
+      result.images[i].frame.y += delta.y
+    }
+    for i in result.texts.indices where ids.contains(result.texts[i].id) {
+      result.texts[i].origin.x += delta.x
+      result.texts[i].origin.y += delta.y
+    }
+    return result
+  }
+
+  public static func blankPage(matching previous: Page) -> Page {
+    var page = Page(paper: previous.paper)
+    page.backgroundSize = previous.dimensions
+    return page
+  }
+}
