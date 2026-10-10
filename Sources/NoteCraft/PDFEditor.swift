@@ -7,11 +7,14 @@ import SwiftUI
     let result = PDFDocument()
     for (index, page) in package.notebook.pages.enumerated() {
       let source: PDFPage
-      if let name = page.backgroundPDF, let bytes = package.assets[name],
-        let original = PDFDocument(data: bytes),
-        let originalPage = original.page(at: page.backgroundPage ?? 0),
-        let copy = originalPage.copy() as? PDFPage
-      {
+      if let name = page.backgroundPDF {
+        guard let bytes = package.assets[name], let original = PDFDocument(data: bytes) else {
+          throw PackageError.invalidPackage
+        }
+        guard !original.isLocked else { throw PackageError.lockedPDF }
+        guard let originalPage = original.page(at: page.backgroundPage ?? 0),
+          let copy = originalPage.copy() as? PDFPage
+        else { throw PackageError.invalidPackage }
         source = copy
       } else {
         let blank = NotebookPackage(notebook: Notebook(pages: [Page(paper: page.paper)]))

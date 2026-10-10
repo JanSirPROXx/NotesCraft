@@ -132,3 +132,24 @@ import UniformTypeIdentifiers
   let retainedBounds = try inkBounds(retained)
   #expect(directBounds == retainedBounds)
 }
+
+@MainActor @Test func lockedPDFsAreRejectedWithoutChangingTheirBytes() async throws {
+  let original = try #require(PDFDocument(data: PageRenderer.export(NotebookPackage())))
+  let encrypted = try #require(
+    original.dataRepresentation(options: [
+      PDFDocumentWriteOption.userPasswordOption: "secret",
+      PDFDocumentWriteOption.ownerPasswordOption: "owner",
+    ]))
+  #expect(PDFDocument(data: encrypted)?.isLocked == true)
+  let url = FileManager.default.temporaryDirectory.appendingPathComponent(
+    UUID().uuidString + ".pdf")
+  try encrypted.write(to: url)
+  defer { try? FileManager.default.removeItem(at: url) }
+  await #expect(throws: PackageError.self) { try await ImportEngine().pdf(url) }
+  var page = Page()
+  page.backgroundPDF = "locked.pdf"
+  let package = NotebookPackage(
+    notebook: Notebook(pages: [page]), assets: ["locked.pdf": encrypted])
+  #expect(throws: PackageError.self) { try PDFEditor.export(package) }
+  #expect(try Data(contentsOf: url) == encrypted)
+}

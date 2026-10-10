@@ -5,8 +5,10 @@ public enum PackageError: LocalizedError {
   case unsupportedVersion(Int)
   case invalidAsset(String)
   case conflict
+  case lockedPDF
   public var errorDescription: String? {
     switch self {
+    case .lockedPDF: "This PDF is locked. Unlock it in a PDF editor before annotating it."
     case .invalidPackage: "The notebook package is missing or contains invalid data."
     case .unsupportedVersion(let v):
       "This notebook uses format version \(v), which this app cannot open."

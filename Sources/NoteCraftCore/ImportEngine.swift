@@ -21,6 +21,7 @@ public actor ImportEngine {
     guard let provider = CGDataProvider(data: data as CFData), let pdf = CGPDFDocument(provider),
       pdf.numberOfPages > 0
     else { throw PackageError.invalidPackage }
+    guard pdf.isUnlocked else { throw PackageError.lockedPDF }
     let name = UUID().uuidString + ".pdf"
     let pages = try (1...pdf.numberOfPages).map { index -> Page in
       guard let source = pdf.page(at: index) else { throw PackageError.invalidPackage }

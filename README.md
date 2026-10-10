@@ -87,8 +87,9 @@ still need device measurement. PDF rendering/export happens on the main actor an
 large documents need profiling. PDF saves and editable sidecars are separate coordinated
 writes, not a single transaction; a mismatched sidecar is ignored on reopen. PDFs containing
 images or filled shapes use a generated visual page with preserved native annotations.
-Encrypted PDFs, advanced forms, outline/destination preservation and provider-specific
-conflict recovery need further work. Simulator UI tests exercise folder selection, notebook creation, finger drawing and reopening.
+Locked PDFs are rejected without changing the original; password entry is pending.
+Advanced forms, outline/destination preservation and provider-specific conflict recovery
+need further work. Simulator UI tests exercise folder selection, notebook creation, finger drawing and reopening.
 Automated tests also cover existing-file protection,
 external-change detection, editable PDF round trips and canvas rendering.
 
