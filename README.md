@@ -35,11 +35,11 @@ original `.md` file, preserving wiki links as text. Markdown preview uses Apple'
 renderer, rather than Obsidian-specific plugins. Opening an image creates a separate
 editable notebook, preserving the image file.
 
-Draw with one finger or Apple Pencil. The first Pencil contact enables Pencil-only ink;
-fingers then navigate. Pencil owns its active stroke, other contacts cannot replace it,
+By default only Apple Pencil draws; one finger scrolls notebooks or pans whiteboards.
+Finger drawing can be enabled explicitly in the overflow menu. The first Pencil contact
+restores Pencil-only ink; fingers then navigate. Pencil owns its active stroke, other contacts cannot replace it,
 and scrolling/pinch gestures are suspended while the Pencil is down. Broad direct
-contacts are filtered. Disable Apple Pencil only in the overflow menu to draw with fingers
-again. Without Pencil-only mode, two fingers scroll while drawing; one finger scrolls in
+contacts are filtered. Disable Apple Pencil only in the overflow menu to draw with fingers. Without Pencil-only mode, two fingers scroll while drawing; one finger scrolls in
 read-only mode. Double-tap a supported Pencil to switch between the eraser and the previous
 tool.
 

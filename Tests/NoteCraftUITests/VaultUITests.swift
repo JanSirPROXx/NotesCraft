@@ -47,6 +47,14 @@ final class VaultUITests: XCTestCase {
     canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.25)).press(
       forDuration: 0.05,
       thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.35)))
+    XCTAssertEqual(canvas.value as? String, "0 strokes", "Finger input must navigate by default")
+    app.buttons["More"].tap()
+    let pencilOnly = app.descendants(matching: .any)["Apple Pencil only"].firstMatch
+    XCTAssertTrue(pencilOnly.waitForExistence(timeout: 5))
+    pencilOnly.tap()
+    canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.25)).press(
+      forDuration: 0.05,
+      thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.35)))
     XCTAssertEqual(canvas.value as? String, "1 strokes")
     capture(app, name: "Notebook after finger drawing")
     app.buttons["Documents"].tap()

@@ -47,7 +47,7 @@ struct Workspace: View {
   @State private var highlighterOnly = false
   @State private var autoDeselect = false
   @State private var straightHighlight = false
-  @AppStorage("pencilOnly") private var pencilOnly = false
+  @AppStorage("pencilOnlyDrawing") private var pencilOnly = true
   @AppStorage("holdToShape") private var holdToShape = true
   @AppStorage("scratchToErase") private var scratchToErase = true
   @State private var pagePullProgress = 0.0
