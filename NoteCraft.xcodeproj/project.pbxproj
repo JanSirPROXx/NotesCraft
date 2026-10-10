@@ -7,15 +7,23 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0E2795E90A38662D48D1EB94 /* Library.swift in Sources */ = {isa = PBXBuildFile; fileRef = 940A74F57C8C2CF21AC1D574 /* Library.swift */; };
 		0E286A03829BC9BE229C59DE /* Workspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60AAD7C60FE3807BE65F423F /* Workspace.swift */; };
+		13C2D67D2687F7882F5C0D44 /* ImageHandles.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEDE7BBF20C38FFBD70C07C6 /* ImageHandles.swift */; };
 		1847B6051A23D921B4FC3E07 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAC464B97F48428A387BD481 /* Models.swift */; };
+		1B974C057F8DABA631C1EE8E /* CoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06224446505127FB574CE719 /* CoreTests.swift */; };
 		244957FB1659F088F082F35F /* NoteCraftCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		280821F0F24531E9EBB718C4 /* NoteCraftCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		2F8CD8EA4BCD64BD87624623 /* Renderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224B6213A14759EFA003EB49 /* Renderer.swift */; };
+		3138C2BB8C6C9F38597468C0 /* DocumentScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = C34A621480C559D993C764C4 /* DocumentScanner.swift */; };
 		3EFD1D73D2E02ACE21E09D06 /* NativeCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6961F7917F77CAD924567EC6 /* NativeCanvas.swift */; };
 		5A0E432B5DBABD77470F7982 /* Editing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DFF298F863075A387BD1348 /* Editing.swift */; };
 		70983F5CE1C7B37D2D003C68 /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAEDCF2464F505B39B0EDDB7 /* Storage.swift */; };
 		8EC037F53FE3B30C5EC3B79F /* NoteCraftCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */; };
+		AFCA6FA4889F0886ED4ABB5F /* ImportEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7498B04DDA06141A375AD880 /* ImportEngine.swift */; };
+		B2DBDF67E420DB0AD28ED6AA /* DocumentTabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 919701AEA626AAF8EFCA7070 /* DocumentTabs.swift */; };
 		C89409F71FE8853E13F8E328 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB364BB9C08BDF203F68B72A /* App.swift */; };
+		DFD70495D78EC158F0FA15F0 /* NoteCraftCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -26,9 +34,27 @@
 			remoteGlobalIDString = 53849A59B7FDB2A200D75D2C;
 			remoteInfo = NoteCraftCore;
 		};
+		D4AA67A5FD799EBB0A039F60 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9B0E8B0E05415D248315EBAE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 53849A59B7FDB2A200D75D2C;
+			remoteInfo = NoteCraftCore;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		0D73AD2B04467C0D1C872469 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				280821F0F24531E9EBB718C4 /* NoteCraftCore.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		17AEDB749282450E89707ED5 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -43,18 +69,33 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		06224446505127FB574CE719 /* CoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreTests.swift; sourceTree = "<group>"; };
 		157E94B041AAC1E2E6506F3D /* NoteCraft.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NoteCraft.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		224B6213A14759EFA003EB49 /* Renderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Renderer.swift; sourceTree = "<group>"; };
 		4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = NoteCraftCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		60AAD7C60FE3807BE65F423F /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
 		6961F7917F77CAD924567EC6 /* NativeCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCanvas.swift; sourceTree = "<group>"; };
+		7498B04DDA06141A375AD880 /* ImportEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportEngine.swift; sourceTree = "<group>"; };
 		8DFF298F863075A387BD1348 /* Editing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Editing.swift; sourceTree = "<group>"; };
+		919701AEA626AAF8EFCA7070 /* DocumentTabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentTabs.swift; sourceTree = "<group>"; };
+		940A74F57C8C2CF21AC1D574 /* Library.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Library.swift; sourceTree = "<group>"; };
+		94C1C0961B9A833880D81FB8 /* NoteCraftCoreTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NoteCraftCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAC464B97F48428A387BD481 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		BAEDCF2464F505B39B0EDDB7 /* Storage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Storage.swift; sourceTree = "<group>"; };
 		BB364BB9C08BDF203F68B72A /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		C34A621480C559D993C764C4 /* DocumentScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentScanner.swift; sourceTree = "<group>"; };
+		DEDE7BBF20C38FFBD70C07C6 /* ImageHandles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageHandles.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		182F64FB4EB3CEA9F47C5FCD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DFD70495D78EC158F0FA15F0 /* NoteCraftCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B6CC9812A4145327B35A8510 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -70,6 +111,7 @@
 			isa = PBXGroup;
 			children = (
 				8DFF298F863075A387BD1348 /* Editing.swift */,
+				7498B04DDA06141A375AD880 /* ImportEngine.swift */,
 				AAC464B97F48428A387BD481 /* Models.swift */,
 				BAEDCF2464F505B39B0EDDB7 /* Storage.swift */,
 			);
@@ -77,10 +119,23 @@
 			path = Sources/NoteCraftCore;
 			sourceTree = "<group>";
 		};
+		567B1279EBA5AD14B4C107BC /* NoteCraftCoreTests */ = {
+			isa = PBXGroup;
+			children = (
+				06224446505127FB574CE719 /* CoreTests.swift */,
+			);
+			name = NoteCraftCoreTests;
+			path = Tests/NoteCraftCoreTests;
+			sourceTree = "<group>";
+		};
 		9EA4318C506E2DB7ACAE7E24 /* NoteCraft */ = {
 			isa = PBXGroup;
 			children = (
 				BB364BB9C08BDF203F68B72A /* App.swift */,
+				C34A621480C559D993C764C4 /* DocumentScanner.swift */,
+				919701AEA626AAF8EFCA7070 /* DocumentTabs.swift */,
+				DEDE7BBF20C38FFBD70C07C6 /* ImageHandles.swift */,
+				940A74F57C8C2CF21AC1D574 /* Library.swift */,
 				6961F7917F77CAD924567EC6 /* NativeCanvas.swift */,
 				224B6213A14759EFA003EB49 /* Renderer.swift */,
 				60AAD7C60FE3807BE65F423F /* Workspace.swift */,
@@ -94,6 +149,7 @@
 			children = (
 				9EA4318C506E2DB7ACAE7E24 /* NoteCraft */,
 				064390D5E72308DD61EE33B6 /* NoteCraftCore */,
+				567B1279EBA5AD14B4C107BC /* NoteCraftCoreTests */,
 				C4349EAD45EFB3F427B26487 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -103,6 +159,7 @@
 			children = (
 				157E94B041AAC1E2E6506F3D /* NoteCraft.app */,
 				4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */,
+				94C1C0961B9A833880D81FB8 /* NoteCraftCoreTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -129,6 +186,26 @@
 			productName = NoteCraft;
 			productReference = 157E94B041AAC1E2E6506F3D /* NoteCraft.app */;
 			productType = "com.apple.product-type.application";
+		};
+		44D5DBA70B2E643F71A388A9 /* NoteCraftCoreTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BD8B9A4E667688BFA5D990B4 /* Build configuration list for PBXNativeTarget "NoteCraftCoreTests" */;
+			buildPhases = (
+				1A2BC91573B329F000A26832 /* Sources */,
+				182F64FB4EB3CEA9F47C5FCD /* Frameworks */,
+				0D73AD2B04467C0D1C872469 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5B30EEEAE074CC8C7E1A907B /* PBXTargetDependency */,
+			);
+			name = NoteCraftCoreTests;
+			packageProductDependencies = (
+			);
+			productName = NoteCraftCoreTests;
+			productReference = 94C1C0961B9A833880D81FB8 /* NoteCraftCoreTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		53849A59B7FDB2A200D75D2C /* NoteCraftCore */ = {
 			isa = PBXNativeTarget;
@@ -159,6 +236,9 @@
 					432F61E7C7276151B8695075 = {
 						ProvisioningStyle = Automatic;
 					};
+					44D5DBA70B2E643F71A388A9 = {
+						ProvisioningStyle = Automatic;
+					};
 					53849A59B7FDB2A200D75D2C = {
 						ProvisioningStyle = Automatic;
 					};
@@ -180,16 +260,26 @@
 			targets = (
 				432F61E7C7276151B8695075 /* NoteCraft */,
 				53849A59B7FDB2A200D75D2C /* NoteCraftCore */,
+				44D5DBA70B2E643F71A388A9 /* NoteCraftCoreTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		1A2BC91573B329F000A26832 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1B974C057F8DABA631C1EE8E /* CoreTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		332E5B6D1F359348F860B122 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				5A0E432B5DBABD77470F7982 /* Editing.swift in Sources */,
+				AFCA6FA4889F0886ED4ABB5F /* ImportEngine.swift in Sources */,
 				1847B6051A23D921B4FC3E07 /* Models.swift in Sources */,
 				70983F5CE1C7B37D2D003C68 /* Storage.swift in Sources */,
 			);
@@ -200,6 +290,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				C89409F71FE8853E13F8E328 /* App.swift in Sources */,
+				3138C2BB8C6C9F38597468C0 /* DocumentScanner.swift in Sources */,
+				B2DBDF67E420DB0AD28ED6AA /* DocumentTabs.swift in Sources */,
+				13C2D67D2687F7882F5C0D44 /* ImageHandles.swift in Sources */,
+				0E2795E90A38662D48D1EB94 /* Library.swift in Sources */,
 				3EFD1D73D2E02ACE21E09D06 /* NativeCanvas.swift in Sources */,
 				2F8CD8EA4BCD64BD87624623 /* Renderer.swift in Sources */,
 				0E286A03829BC9BE229C59DE /* Workspace.swift in Sources */,
@@ -213,6 +307,11 @@
 			isa = PBXTargetDependency;
 			target = 53849A59B7FDB2A200D75D2C /* NoteCraftCore */;
 			targetProxy = 1E8503E5F2DBFA2207556AD3 /* PBXContainerItemProxy */;
+		};
+		5B30EEEAE074CC8C7E1A907B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 53849A59B7FDB2A200D75D2C /* NoteCraftCore */;
+			targetProxy = D4AA67A5FD799EBB0A039F60 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -276,6 +375,25 @@
 				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
+		};
+		74C8BCC168A90269BF08AB77 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.notecraft.NoteCraftCoreTests;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
 		};
 		846A77D5E8E0B973E13DD165 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -387,6 +505,25 @@
 			};
 			name = Debug;
 		};
+		DC0A74CD745B7FD9ED3A5706 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.notecraft.NoteCraftCoreTests;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		E918CF705C3D51EEEB682ED9 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -471,6 +608,15 @@
 			buildConfigurations = (
 				E918CF705C3D51EEEB682ED9 /* Debug */,
 				645F8C08AD91245324A8DA2F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BD8B9A4E667688BFA5D990B4 /* Build configuration list for PBXNativeTarget "NoteCraftCoreTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				74C8BCC168A90269BF08AB77 /* Debug */,
+				DC0A74CD745B7FD9ED3A5706 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

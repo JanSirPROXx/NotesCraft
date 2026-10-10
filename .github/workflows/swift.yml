@@ -1,0 +1,15 @@
+name: Native builds and tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Core and PDF rendering tests
+        run: swift test
+      - name: macOS application and Xcode tests
+        run: xcodebuild -project NoteCraft.xcodeproj -scheme NoteCraft -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test
+      - name: iPad simulator application
+        run: xcodebuild -project NoteCraft.xcodeproj -scheme NoteCraft -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build

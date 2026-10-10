@@ -39,6 +39,7 @@ targets:
     info:
       path: Config/Info.plist
       properties:
+        NSCameraUsageDescription: Scan paper documents into a notebook.
         CFBundleDocumentTypes:
           - CFBundleTypeName: NoteCraft Notebook
             CFBundleTypeRole: Editor
@@ -51,3 +52,18 @@ targets:
             UTTypeConformsTo: [com.apple.package]
             UTTypeTagSpecification:
               public.filename-extension: [notecraft]
+
+  NoteCraftCoreTests:
+    type: bundle.unit-test
+    supportedDestinations: [iOS, macOS]
+    sources: [Tests/NoteCraftCoreTests]
+    dependencies:
+      - target: NoteCraftCore
+schemes:
+  NoteCraft:
+    build:
+      targets:
+        NoteCraft: all
+        NoteCraftCoreTests: [test]
+    test:
+      targets: [NoteCraftCoreTests]
