@@ -13,3 +13,9 @@ are rejected rather than silently discarded. Revision is incremented on document
 SwiftUI DocumentGroup and FileDocument own coordinated loading, autosave and security
 scope in the app. PackageStore offers coordinated atomic explicit writes, with an optional
 expected revision that prevents overwriting concurrent changes. No account or server is used.
+
+Optional fields extend version 1 compatibly: pages may include `backgroundSize` for
+non-standard/rotated PDF dimensions, strokes may include `fillColor`, and text boxes
+may include `fontName`, `alignment`, `background`, `border` and `boxWidth`. Missing
+optional fields retain default rendering. Asset paths may not traverse directories.
+Invalid geometry, empty notebooks, missing media and future versions are rejected.
