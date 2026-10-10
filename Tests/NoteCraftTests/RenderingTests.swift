@@ -81,3 +81,54 @@ import UniformTypeIdentifiers
   #expect(image.width == 400)
   #expect(image.height == 200)
 }
+
+@MainActor @Test func retainedCanvasMatchesDirectRenderingAtZoom() throws {
+  var page = Page(paper: Paper(pattern: .blank))
+  page.strokes = [
+    Stroke(
+      samples: [Sample(point: Point(50, 60)), Sample(point: Point(180, 60))], color: .blue, width: 3
+    )
+  ]
+  func context() throws -> CGContext {
+    let c = try #require(
+      CGContext(
+        data: nil, width: 1190, height: 1684, bitsPerComponent: 8, bytesPerRow: 0,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    c.translateBy(x: 0, y: 1684)
+    c.scaleBy(x: 1, y: -1)
+    return c
+  }
+  let direct = try context()
+  direct.scaleBy(x: 2, y: 2)
+  PageRenderer.render(page, assets: [:], in: direct)
+  let retained = try context()
+  let view = DrawingView(frame: CGRect(x: 0, y: 0, width: 1190, height: 1684))
+  let configuration = CanvasConfiguration(
+    page: page, assets: [:], tool: .pen, color: .blue, width: 3, style: .ballpoint,
+    pencilOnly: false, selection: [], onStroke: { _ in }, onGesture: { _ in }, onTap: { _ in })
+  view.configuration = configuration
+  view.paint(configuration, retained)
+  func inkBounds(_ c: CGContext) throws -> CGRect {
+    let bytes = try #require(c.data).assumingMemoryBound(to: UInt8.self)
+    var minX = c.width
+    var minY = c.height
+    var maxX = 0
+    var maxY = 0
+    for y in 0..<c.height {
+      for x in 0..<c.width {
+        let offset = y * c.bytesPerRow + x * 4
+        if bytes[offset] < 150 && bytes[offset + 2] > 150 {
+          minX = min(minX, x)
+          maxX = max(maxX, x)
+          minY = min(minY, y)
+          maxY = max(maxY, y)
+        }
+      }
+    }
+    return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+  }
+  let directBounds = try inkBounds(direct)
+  let retainedBounds = try inkBounds(retained)
+  #expect(directBounds == retainedBounds)
+}

@@ -28,6 +28,7 @@ import SwiftUI
       didSet { if oldValue?.page != configuration?.page { cachedPage = nil } }
     }
     var cachedPage: CGLayer?
+    var cachedResolution = 0.0
     var samples: [Sample] = []
     var predictedSamples: [Sample] = []
     override var isFlipped: Bool { true }
@@ -82,6 +83,7 @@ import SwiftUI
       didSet { if oldValue?.page != configuration?.page { cachedPage = nil } }
     }
     var cachedPage: CGLayer?
+    var cachedResolution = 0.0
     var samples: [Sample] = []
     var predictedSamples: [Sample] = []
     override func draw(_ rect: CGRect) {
@@ -155,18 +157,24 @@ extension DrawingView {
     let scale = bounds.width / configuration.page.dimensions.x
     c.saveGState()
     c.scaleBy(x: scale, y: scale)
-    // Retained ink is cached so pointer updates only render the active stroke.
+    // Cache at the effective display resolution so zoom and Retina scaling do not soften retained ink.
+    let dimensions = configuration.page.dimensions
+    let resolution = min(hypot(c.ctm.a, c.ctm.b), 4096 / max(dimensions.x, dimensions.y))
+    if abs(resolution - cachedResolution) > 0.001 { cachedPage = nil }
     if cachedPage == nil,
       let layer = CGLayer(
-        c,
-        size: CGSize(
-          width: configuration.page.dimensions.x, height: configuration.page.dimensions.y),
-        auxiliaryInfo: nil), let context = layer.context
+        c, size: CGSize(width: dimensions.x * resolution, height: dimensions.y * resolution),
+        auxiliaryInfo: nil),
+      let context = layer.context
     {
+      context.scaleBy(x: resolution, y: resolution)
       PageRenderer.render(configuration.page, assets: configuration.assets, in: context)
       cachedPage = layer
+      cachedResolution = resolution
     }
-    if let cachedPage { c.draw(cachedPage, at: .zero) }
+    if let cachedPage {
+      c.draw(cachedPage, in: CGRect(x: 0, y: 0, width: dimensions.x, height: dimensions.y))
+    }
     if !samples.isEmpty {
       if configuration.tool == .lasso {
         c.setStrokeColor(PageRenderer.color(.blue))

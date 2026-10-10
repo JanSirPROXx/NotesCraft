@@ -6,7 +6,7 @@ jobs:
   verify:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Core and PDF rendering tests
         run: swift test
       - name: macOS application and Xcode tests
