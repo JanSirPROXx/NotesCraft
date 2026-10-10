@@ -64,7 +64,8 @@ public struct PageAsset: Codable, Equatable, Identifiable, Sendable {
 }
 public struct Page: Codable, Equatable, Identifiable, Sendable {
     public var id = UUID(); public var paper: Paper; public var strokes: [Stroke] = []; public var texts: [TextBox] = []; public var images: [PageAsset] = []
-    public var backgroundPDF: String?; public var backgroundPage: Int?; public var bookmarked = false
+    public var backgroundPDF: String?; public var backgroundPage: Int?; public var backgroundSize: Point?; public var bookmarked = false
+    public var dimensions: Point { backgroundSize ?? paper.dimensions }
     public init(paper: Paper = Paper()) { self.paper = paper }
 }
 public struct Notebook: Codable, Equatable, Sendable {
