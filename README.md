@@ -22,7 +22,12 @@ Requires Xcode 16 or newer with Swift 6, macOS 14 / iPadOS 17 or newer.
 
 On both Mac and iPad, choose a storage folder first. The Documents library shows the
 folder's existing files and subfolders, with a dark sidebar, favorites, search, grid/list
-views and document previews. New creates notebooks, whiteboards, Markdown documents or
+views and document previews. Each item has a visible actions menu for rename, move,
+duplicate and Move to Trash. Breadcrumbs navigate parent folders; sorting and grid/list
+choice persist. Trash stores files and folders inside `.notecraft-trash` in the selected
+vault. Restore returns an item to its original path and refuses to replace existing files.
+Permanent deletion and Empty Trash have confirmation dialogs. Moving a PDF also moves
+its editable sidecar; open sessions and favorites follow renamed/moved paths. New creates notebooks, whiteboards, Markdown documents or
 folders in the current directory; Import copies files into that directory. A remembered
 folder can be opened explicitly on the next launch. Connecting a vault does not import,
 convert or rewrite its existing files.
@@ -73,10 +78,19 @@ be imported from Files or Photos, dropped as file URLs, moved, pinched and rotat
 
 The thumbnail button reveals pages and bookmarks; its context menu inserts, duplicates,
 reorders and deletes pages. Horizontal navigation snaps to one page. The plus button opens paper templates.
-Use the overflow menu for page direction, import, scan, paste and input settings.
+Use the overflow menu for page direction, import, scan, paste, PDF forms and input settings.
+Navigate document opens a page-number jump, bookmarks and a PDF table of contents.
+PDF export retains outlines and remaps internal links after page reordering; links to
+removed pages are disabled. Export current page creates a separate one-page PDF.
+Fill PDF forms edits text fields, choices and checkboxes on the current page as an undoable
+change. Read-only fields, radio buttons and signatures are not edited.
+Password-protected PDFs prompt for a password and create an unlocked working PDF copy,
+leaving the encrypted original unchanged. Passwords are not stored.
 iPad scanning uses VisionKit on supported physical hardware. Read-only mode follows PDF
 links. PDF import appends backgrounds with original dimensions; multi-page PDF export
 retains vector ink, text and the original PDF backgrounds. Search covers text boxes and embedded PDF text, with page results and highlighted matches.
+
+<img src="docs/screenshots/trash.png" width="760" alt="Recoverable trash with Restore and Undo on iPad">
 
 ## Architecture
 
@@ -106,9 +120,10 @@ still need device measurement. PDF rendering/export happens on the main actor an
 large documents need profiling. PDF saves and editable sidecars are separate coordinated
 writes, not a single transaction; a mismatched sidecar is ignored on reopen. PDFs containing
 images or filled shapes use a generated visual page with preserved native annotations.
-Locked PDFs are rejected without changing the original; password entry is pending.
-Advanced forms, outline/destination preservation and provider-specific conflict recovery
-need further work. Simulator UI tests exercise folder selection, notebook creation,
+Encrypted originals remain unchanged; editing uses an explicitly unlocked copy.
+Advanced forms (including radio groups, signatures and scripted calculations), destinations
+in unusual rotated PDFs with generated appearance pages and provider-specific conflict
+recovery need further work. Simulator UI tests exercise folder selection, notebook creation,
 finger drawing, erasing, undo, continued-page creation and reopening.
 Automated tests also cover existing-file protection,
 external-change detection, editable PDF round trips and canvas rendering.

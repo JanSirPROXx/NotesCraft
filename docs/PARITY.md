@@ -4,7 +4,7 @@ This is an independently implemented local notebook app. Visual references infor
 layout; no proprietary Goodnotes code, artwork or services are used. Full 1:1 parity
 has not been established.
 
-## Implemented in this iteration
+## Implemented
 
 - Direct lasso corner resize, rotation handle and a nearby selection menu. Mixed groups
   transform around a shared center; each gesture creates one undo operation.
@@ -14,16 +14,24 @@ has not been established.
 - Thumbnail actions to insert, duplicate, reorder, bookmark and delete pages.
 - Horizontal page snapping and PDF/typed-text search with page navigation and highlights.
 - Pencil-only drawing remains the default; fingers navigate.
+- Library rename, move, duplicate, recoverable trash, restore, permanent deletion and
+  Empty Trash; PDF sidecars and open sessions follow file operations.
+- Visible file actions, folder breadcrumbs, persistent view/sort settings and trash undo.
+- Horizontal pages fit the viewport height; status labels use an explicit contrasting color.
+- Password entry opens a separate unlocked PDF copy. Page-number navigation, bookmarks,
+  PDF table of contents, single-page export and basic form filling are available.
+- Export preserves outlines and remaps internal link destinations after page reordering;
+  links/outline leaves targeting removed pages are disabled/omitted.
 
 ## Remaining before claiming parity
 
 - Physical iPad verification of Pencil pressure/tilt, palm rejection, double tap,
   scrolling while the hand rests on screen, shape holds and latency at 120 Hz.
-- Library rename, move, duplicate and recoverable trash, including PDF sidecars and
-  open-document sessions. Folder/file browsing and creation already work.
+- Renaming/moving Markdown files does not rewrite wiki links in other vault notes.
 - Handwriting recognition/search, OCR for scanned PDFs and searchable handwriting export.
-- Password entry for encrypted PDFs; advanced PDF forms, outlines and destination
-  preservation; large-document rendering/import/export profiling.
+- Advanced PDF forms: radio groups, signatures, shared-field behavior and scripted
+  calculations. Destination geometry in rotated PDFs with generated appearance pages
+  and large-document rendering/import/export profiling.
 - Provider-specific conflict recovery and a recoverable PDF/sidecar save transaction.
 - Broader editing parity such as audio recording/playback, image cropping, richer text
   formatting, study sets and more template/cover customization.
@@ -39,5 +47,6 @@ Swift tests cover group geometry, rotated text/PDF round trips, reusable element
 persistence and collision-safe insertion, page cloning, PDF search, vault conflicts,
 drawing input and export. Native UI coverage exercises folder selection, default
 finger navigation, opt-in finger ink, erase/undo, reopen, pull-to-add-page, thumbnail
-duplication, horizontal snapping and whiteboard drawing/zoom. Simulator input does
+duplication, horizontal snapping, library rename/duplicate/trash/restore, page-number
+navigation and whiteboard drawing/zoom. Simulator input does
 not establish physical Pencil or palm behavior.

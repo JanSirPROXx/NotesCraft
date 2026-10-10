@@ -35,3 +35,10 @@ Text rotation is stored in radians around the layout box center; absent values m
 Named elements live in the app support directory as `Elements.json`, independently of vaults.
 Each element stores selected objects and required image bytes. Insertion allocates fresh
 object identifiers and asset filenames so existing vault media is never replaced.
+
+The vault-local hidden `.notecraft-trash` directory contains UUID folders. Each has an
+`info.json` with original relative path and deletion date, plus the original file/package
+and an adjacent PDF sidecar when present. Restore checks vault containment and refuses
+collisions. Trash is not automatically purged. Moving a file and sidecar uses coordinated
+operations with rollback on ordinary errors; a provider failure or crash can still require
+recovery. Hidden Obsidian folders are not listed or rewritten by connecting a vault.
