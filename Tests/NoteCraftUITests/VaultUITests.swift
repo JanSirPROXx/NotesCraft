@@ -9,8 +9,13 @@ final class VaultUITests: XCTestCase {
     app.launch()
     XCTAssertTrue(app.buttons["chooseStorageFolder"].waitForExistence(timeout: 10))
     app.buttons["chooseStorageFolder"].tap()
-    XCTAssertTrue(app.buttons["Open"].waitForExistence(timeout: 15))
-    app.cells["DOC.sidebar.item.On My iPad"].tap()
+    let localStorage = app.cells["DOC.sidebar.item.On My iPad"]
+    if !localStorage.waitForExistence(timeout: 15) {
+      let browse = app.buttons["Browse"].firstMatch
+      if browse.exists { browse.tap() }
+    }
+    XCTAssertTrue(localStorage.waitForExistence(timeout: 30), app.debugDescription)
+    localStorage.tap()
     app.buttons["New Folder"].tap()
     let field = app.textViews["DOC.inlineRenameField"]
     XCTAssertTrue(field.waitForExistence(timeout: 10))
@@ -27,7 +32,7 @@ final class VaultUITests: XCTestCase {
     let tappable = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "hittable == true"), object: open)
     XCTAssertEqual(XCTWaiter.wait(for: [tappable], timeout: 20), .completed, app.debugDescription)
-    open.tap()
+    open.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20), app.debugDescription)
     XCUIDevice.shared.orientation = .landscapeLeft
     app.buttons["New"].tap()

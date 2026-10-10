@@ -21,4 +21,11 @@ jobs:
         timeout-minutes: 12
         run: |
           ipad_simulator_id="$(xcrun simctl list devices available --json | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(d["udid"] for group in devices.values() for d in group if "iPad" in d["name"]))')"
-          xcodebuild -project NoteCraft.xcodeproj -scheme NoteCraft-iPad -destination "platform=iOS Simulator,id=$ipad_simulator_id" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test
+          xcodebuild -project NoteCraft.xcodeproj -scheme NoteCraft-iPad -destination "platform=iOS Simulator,id=$ipad_simulator_id" -parallel-testing-enabled NO -resultBundlePath TestResults/iPad.xcresult CODE_SIGNING_ALLOWED=NO test
+      - name: Save iPad UI diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ipad-test-results
+          path: TestResults/iPad.xcresult
+          if-no-files-found: ignore
