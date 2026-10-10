@@ -170,7 +170,9 @@ public struct Page: Codable, Equatable, Identifiable, Sendable {
   public var dimensions: Point { backgroundSize ?? paper.dimensions }
   public init(paper: Paper = Paper()) { self.paper = paper }
 }
+public enum NotebookKind: String, Codable, Sendable { case notebook, whiteboard }
 public struct Notebook: Codable, Equatable, Sendable {
+  public var kind: NotebookKind?
   public var id = UUID()
   public var title: String
   public var pages: [Page]
@@ -180,7 +182,7 @@ public struct Notebook: Codable, Equatable, Sendable {
     self.pages = pages
   }
 }
-public struct ViewTransform: Sendable {
+public struct ViewTransform: Sendable, Equatable {
   public var scale: Double
   public var offset: Point
   public init(scale: Double, offset: Point) {

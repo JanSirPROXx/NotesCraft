@@ -101,7 +101,7 @@ public struct NotebookPackage: Sendable {
   }
 }
 
-// System document APIs own coordination in the app. This actor supports explicit package I/O and conflict-safe tooling.
+// Coordination and revision checks also protect explicit vault saves from competing writers.
 public actor PackageStore {
   public init() {}
   public func read(from url: URL) throws -> NotebookPackage {
