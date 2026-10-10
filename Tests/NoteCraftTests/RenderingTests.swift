@@ -131,6 +131,26 @@ import UniformTypeIdentifiers
   let directBounds = try inkBounds(direct)
   let retainedBounds = try inkBounds(retained)
   #expect(directBounds == retainedBounds)
+  var movingConfiguration = configuration
+  movingConfiguration.tool = .lasso
+  movingConfiguration.selection = [page.strokes[0].id]
+  view.configuration = movingConfiguration
+  view.resetInput()
+  view.accept(Sample(point: Point(50, 60)))
+  view.accept(Sample(point: Point(50, 100)))
+  view.paint(movingConfiguration, try context())
+  let stationaryLayer = try #require(view.cachedPage)
+  view.accept(Sample(point: Point(80, 120)))
+  let moved = try context()
+  view.paint(movingConfiguration, moved)
+  #expect(view.cachedPage === stationaryLayer)
+  let bytes = try #require(moved.data).assumingMemoryBound(to: UInt8.self)
+  func isBlue(_ point: Point) -> Bool {
+    let offset = Int(point.y * 2) * moved.bytesPerRow + Int(point.x * 2) * 4
+    return bytes[offset] < 150 && bytes[offset + 2] > 150
+  }
+  #expect(!isBlue(Point(140, 60)))
+  #expect(isBlue(Point(140, 120)))
 }
 
 @MainActor @Test func lockedPDFsAreRejectedWithoutChangingTheirBytes() async throws {
@@ -152,4 +172,40 @@ import UniformTypeIdentifiers
     notebook: Notebook(pages: [page]), assets: ["locked.pdf": encrypted])
   #expect(throws: PackageError.self) { try PDFEditor.export(package) }
   #expect(try Data(contentsOf: url) == encrypted)
+}
+
+@MainActor @Test func nativeCanvasHoldAndLassoCommitOnlyOnRelease() async throws {
+  let view = DrawingView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
+  var committed: Stroke?
+  var translation: Point?
+  var page = Page()
+  let selected = Stroke(samples: [Sample(point: Point(30, 30)), Sample(point: Point(70, 70))])
+  page.strokes = [selected]
+  view.configuration = CanvasConfiguration(
+    page: page, assets: [:], tool: .pen, color: .ink,
+    width: 2, style: .ballpoint, pencilOnly: false, selection: [],
+    onStroke: { committed = $0 }, onGesture: { _ in }, onTap: { _ in },
+    onTranslateSelection: { translation = $0 })
+  for i in 0...48 {
+    let angle = Double(i) / 48 * 2 * Double.pi
+    view.accept(Sample(point: Point(100 + 40 * cos(angle), 100 + 40 * sin(angle))))
+  }
+  let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+  while view.input.held == nil && ContinuousClock.now < deadline {
+    try await Task.sleep(for: .milliseconds(50))
+  }
+  #expect(view.input.held != nil)
+  #expect(committed == nil)
+  view.accept(Sample(point: Point(180, 100)))
+  view.finish()
+  let shape = try #require(committed)
+  #expect(abs(shape.bounds.width - 162) < 1)
+  view.configuration?.tool = .lasso
+  view.configuration?.selection = [selected.id]
+  view.accept(Sample(point: Point(50, 50)))
+  view.accept(Sample(point: Point(100, 120)))
+  #expect(translation == nil)
+  view.finish()
+  #expect(translation == Point(50, 70))
+  #expect(view.configuration?.page.strokes == [selected])
 }

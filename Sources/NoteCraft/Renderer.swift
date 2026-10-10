@@ -23,26 +23,33 @@ import SwiftUI
     return document
   }
   static func render(
-    _ page: Page, assets: [String: Data], in c: CGContext, includePDFAnnotations: Bool = true
+    _ page: Page, assets: [String: Data], in c: CGContext, includePDFAnnotations: Bool = true,
+    includeBackground: Bool = true
   ) {
-    let size = page.dimensions
-    c.setFillColor(CGColor(gray: 1, alpha: 1))
-    c.fill(CGRect(x: 0, y: 0, width: size.x, height: size.y))
-    if let name = page.backgroundPDF, let data = assets[name],
-      let pdf = document(data), let p = pdf.page(at: page.backgroundPage ?? 0),
-      let reference = p.pageRef
-    {
-      c.saveGState()
-      c.translateBy(x: 0, y: size.y)
-      c.scaleBy(x: 1, y: -1)
-      c.concatenate(
-        reference.getDrawingTransform(
-          .mediaBox, rect: CGRect(x: 0, y: 0, width: size.x, height: size.y), rotate: 0,
-          preserveAspectRatio: true))
-      if includePDFAnnotations { p.draw(with: .mediaBox, to: c) } else { c.drawPDFPage(reference) }
-      c.restoreGState()
-    } else {
-      paper(page.paper, in: c)
+    if includeBackground {
+      let size = page.dimensions
+      c.setFillColor(CGColor(gray: 1, alpha: 1))
+      c.fill(CGRect(x: 0, y: 0, width: size.x, height: size.y))
+      if let name = page.backgroundPDF, let data = assets[name],
+        let pdf = document(data), let p = pdf.page(at: page.backgroundPage ?? 0),
+        let reference = p.pageRef
+      {
+        c.saveGState()
+        c.translateBy(x: 0, y: size.y)
+        c.scaleBy(x: 1, y: -1)
+        c.concatenate(
+          reference.getDrawingTransform(
+            .mediaBox, rect: CGRect(x: 0, y: 0, width: size.x, height: size.y), rotate: 0,
+            preserveAspectRatio: true))
+        if includePDFAnnotations {
+          p.draw(with: .mediaBox, to: c)
+        } else {
+          c.drawPDFPage(reference)
+        }
+        c.restoreGState()
+      } else {
+        paper(page.paper, in: c)
+      }
     }
     for image in page.images {
       guard let data = assets[image.filename],

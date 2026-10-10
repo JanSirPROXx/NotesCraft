@@ -34,25 +34,46 @@ final class VaultUITests: XCTestCase {
     XCTAssertEqual(XCTWaiter.wait(for: [tappable], timeout: 20), .completed, app.debugDescription)
     open.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20), app.debugDescription)
-    XCUIDevice.shared.orientation = .landscapeLeft
     app.buttons["New"].tap()
+    XCTAssertTrue(app.buttons["Notebook"].waitForExistence(timeout: 10))
     app.buttons["Notebook"].tap()
     XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 10))
     XCTAssertTrue(app.buttons["Create"].isEnabled)
     app.buttons["Create"].tap()
+    XCUIDevice.shared.orientation = .landscapeLeft
     let canvas = app.descendants(matching: .any)["drawingCanvas"].firstMatch
     XCTAssertTrue(canvas.waitForExistence(timeout: 10))
     XCTAssertEqual(canvas.value as? String, "0 strokes")
     canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.25)).press(
       forDuration: 0.05,
       thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.35)))
-    XCTAssertTrue(NSPredicate(format: "value == %@", "1 strokes").evaluate(with: canvas))
+    XCTAssertEqual(canvas.value as? String, "1 strokes")
     capture(app, name: "Notebook after finger drawing")
     app.buttons["Documents"].tap()
     XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 10))
     app.buttons["Untitled Notebook"].firstMatch.tap()
     XCTAssertTrue(canvas.waitForExistence(timeout: 10))
     XCTAssertEqual(canvas.value as? String, "1 strokes")
+    app.buttons["Eraser"].tap()
+    canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.25)).press(
+      forDuration: 0.05,
+      thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.35)))
+    XCTAssertEqual(canvas.value as? String, "0 strokes")
+    app.buttons["Undo"].tap()
+    XCTAssertEqual(canvas.value as? String, "1 strokes")
+    app.buttons["Read only"].tap()
+    let pageCount = app.staticTexts["pageCount"]
+    XCTAssertEqual(pageCount.label, "1 page")
+    let pageScroll = app.scrollViews["notebookScrollView"]
+    XCTAssertTrue(pageScroll.exists)
+    let bottom = pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.9))
+    let top = pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.05))
+    bottom.press(forDuration: 0.05, thenDragTo: top)
+    bottom.press(forDuration: 0.05, thenDragTo: top, withVelocity: .slow, thenHoldForDuration: 0.8)
+    let addedPage = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "label == '2 pages'"), object: pageCount)
+    XCTAssertEqual(XCTWaiter.wait(for: [addedPage], timeout: 5), .completed, app.debugDescription)
+    capture(app, name: "Continued page after pulling past the end")
     app.buttons["Documents"].tap()
     XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 10))
     capture(app, name: "Documents library")

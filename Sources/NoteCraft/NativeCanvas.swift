@@ -15,6 +15,14 @@ import SwiftUI
   var onTap: (Point) -> Void
   var viewport: ViewTransform? = nil
   var onViewportChange: ((ViewTransform) -> Void)? = nil
+  var onTranslateSelection: ((Point) -> Void)? = nil
+  var onPencilDetected: (() -> Void)? = nil
+  var onToggleEraser: (() -> Void)? = nil
+  var onAppendPage: (() -> Void)? = nil
+  var onPagePull: ((Double) -> Void)? = nil
+  var holdToShape = true
+  var eraserMode: EraserMode = .stroke
+  var highlighterOnly = false
 }
 #if os(macOS)
   struct NativeCanvas: NSViewRepresentable {
@@ -31,11 +39,14 @@ import SwiftUI
   }
   @MainActor final class DrawingView: NSView {
     var configuration: CanvasConfiguration? {
-      didSet { if oldValue?.page != configuration?.page { cachedPage = nil } }
+      didSet {
+        if oldValue?.page != configuration?.page { cachedPage = nil }
+      }
     }
     var cachedPage: CGLayer?
     var cachedResolution = 0.0
     var cachedViewport: ViewTransform?
+    let input = CanvasInputState()
     var samples: [Sample] = []
     var predictedSamples: [Sample] = []
     override var isFlipped: Bool { true }
@@ -46,8 +57,7 @@ import SwiftUI
     }
     override func mouseDown(with event: NSEvent) {
       window?.makeFirstResponder(self)
-      samples = []
-      predictedSamples = []
+      resetInput()
       append(event)
       needsDisplay = true
     }
@@ -60,7 +70,36 @@ import SwiftUI
       finish()
       needsDisplay = true
     }
+    private var pullDistance = 0.0
+    private var pullStarted: TimeInterval?
+    private var pullTriggered = false
     override func scrollWheel(with event: NSEvent) {
+      if configuration?.onAppendPage != nil, let scroll = enclosingScrollView,
+        let content = scroll.documentView
+      {
+        if event.phase == .began {
+          pullDistance = 0
+          pullStarted = nil
+          pullTriggered = false
+        }
+        let bottom = scroll.contentView.bounds.maxY >= content.bounds.maxY - 2
+        if bottom && event.scrollingDeltaY < 0 && !pullTriggered && event.momentumPhase.isEmpty {
+          pullDistance -= event.scrollingDeltaY
+          let now = ProcessInfo.processInfo.systemUptime
+          if pullStarted == nil { pullStarted = now }
+          let progress = min(1, min(pullDistance / 100, (now - (pullStarted ?? now)) / 0.45))
+          configuration?.onPagePull?(progress)
+          if progress >= 1 {
+            pullTriggered = true
+            configuration?.onAppendPage?()
+          }
+        } else if !bottom || event.scrollingDeltaY > 0 {
+          pullDistance = 0
+          pullStarted = nil
+          configuration?.onPagePull?(0)
+        }
+        if event.phase == .ended || event.phase == .cancelled { configuration?.onPagePull?(0) }
+      }
       guard var viewport = configuration?.viewport else {
         super.scrollWheel(with: event)
         return
@@ -86,7 +125,7 @@ import SwiftUI
       guard let configuration else { return }
       let p = convert(event.locationInWindow, from: nil)
       let scale = bounds.width / configuration.page.dimensions.x
-      samples.append(
+      accept(
         Sample(
           point: configuration.viewport?.documentPoint(Point(p.x, p.y))
             ?? Point(p.x / scale, p.y / scale),
@@ -98,9 +137,12 @@ import SwiftUI
     var configuration: CanvasConfiguration
     func makeUIView(context: Context) -> DrawingView {
       let view = DrawingView()
-      view.isMultipleTouchEnabled = false
+      view.isMultipleTouchEnabled = true
       view.backgroundColor = .white
       view.contentScaleFactor = UIScreen.main.scale
+      let pencil = UIPencilInteraction()
+      pencil.delegate = view
+      view.addInteraction(pencil)
       return view
     }
     func updateUIView(_ view: DrawingView, context: Context) {
@@ -114,88 +156,184 @@ import SwiftUI
       view.setNeedsDisplay()
     }
   }
-  @MainActor final class DrawingView: UIView {
+  @MainActor
+  final class DrawingView: UIView, UIPencilInteractionDelegate, UIGestureRecognizerDelegate {
     var configuration: CanvasConfiguration? {
-      didSet { if oldValue?.page != configuration?.page { cachedPage = nil } }
+      didSet {
+        if oldValue?.page != configuration?.page { cachedPage = nil }
+        #if os(iOS)
+          if oldValue?.pencilOnly == true && configuration?.pencilOnly == false {
+            pencilSeen = false
+          }
+        #endif
+      }
     }
     var cachedPage: CGLayer?
     var cachedResolution = 0.0
     var cachedViewport: ViewTransform?
+    let input = CanvasInputState()
     var samples: [Sample] = []
     var predictedSamples: [Sample] = []
     override func draw(_ rect: CGRect) {
       guard let c = UIGraphicsGetCurrentContext(), let configuration else { return }
       paint(configuration, c)
     }
+    private var activeTouch: UITouch?
+    private var pencilSeen = false
+    private var pullStarted: TimeInterval?
+    private var pullTriggered = false
+    private weak var observedScroll: UIScrollView?
+    func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {
+      configuration?.onToggleEraser?()
+    }
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-      guard let touch = touches.first, let configuration,
-        configuration.tool == .readOnly || !configuration.pencilOnly || touch.type == .pencil
-      else { return }
-      samples = []
-      predictedSamples = []
-      append(touch)
+      guard let configuration else { return }
+      let pencil = touches.first { $0.type == .pencil }
+      if let pencil {
+        pencilSeen = true
+        configuration.onPencilDetected?()
+        resetInput()
+        activeTouch = pencil
+        configureScrolling()
+      } else {
+        guard activeTouch == nil,
+          configuration.tool == .readOnly || (!pencilSeen && !configuration.pencilOnly),
+          let touch = touches.first(where: { $0.type == .direct && $0.majorRadius < 60 })
+        else { return }
+        resetInput()
+        activeTouch = touch
+      }
+      if let activeTouch { append(activeTouch) }
       setNeedsDisplay()
     }
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-      guard !samples.isEmpty, let touch = touches.first else { return }
+      guard let touch = activeTouch, touches.contains(touch) else { return }
       for sample in event?.coalescedTouches(for: touch) ?? [touch] { append(sample) }
-      predictedSamples = (event?.predictedTouches(for: touch) ?? []).map { sample($0) }
+      predictedSamples =
+        input.held == nil && input.moveStart == nil
+        ? (event?.predictedTouches(for: touch) ?? []).map { sample($0) } : []
       setNeedsDisplay()
     }
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-      guard !samples.isEmpty else { return }
-      if let touch = touches.first { append(touch) }
+      guard let touch = activeTouch, touches.contains(touch) else { return }
+      append(touch)
       finish()
+      activeTouch = nil
+      configureScrolling()
       setNeedsDisplay()
     }
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-      samples = []
-      predictedSamples = []
+      guard let touch = activeTouch, touches.contains(touch) else { return }
+      resetInput()
+      activeTouch = nil
+      configureScrolling()
       setNeedsDisplay()
+    }
+    func checkPagePull() {
+      guard let scroll = observedScroll, configuration?.onAppendPage != nil,
+        !pullTriggered, scroll.isDragging, activeTouch?.type != .pencil
+      else { return }
+      let bottom = max(
+        -scroll.adjustedContentInset.top,
+        scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
+      let overshoot = scroll.contentOffset.y - bottom
+      guard overshoot > 70 else {
+        pullStarted = nil
+        configuration?.onPagePull?(0)
+        return
+      }
+      let now = ProcessInfo.processInfo.systemUptime
+      if pullStarted == nil { pullStarted = now }
+      let progress = min(1, (now - (pullStarted ?? now)) / 0.45)
+      configuration?.onPagePull?(progress)
+      if progress >= 1 {
+        pullTriggered = true
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        configuration?.onAppendPage?()
+        configuration?.onPagePull?(0)
+      }
+    }
+    @objc private func scrollGesture(_ gesture: UIPanGestureRecognizer) {
+      if gesture.state == .began {
+        pullStarted = nil
+        pullTriggered = false
+      }
+      if gesture.state == .ended || gesture.state == .cancelled {
+        pullStarted = nil
+        configuration?.onPagePull?(0)
+      }
+      checkPagePull()
     }
     private lazy var boardPan = UIPanGestureRecognizer(
       target: self, action: #selector(panBoard(_:)))
     private lazy var boardPinch = UIPinchGestureRecognizer(
       target: self, action: #selector(pinchBoard(_:)))
-    private var gestureBase: ViewTransform?
+    private var panBase: ViewTransform?
+    private var pinchBase: ViewTransform?
+    func gestureRecognizer(
+      _ gestureRecognizer: UIGestureRecognizer,
+      shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+      (gestureRecognizer === boardPan && otherGestureRecognizer === boardPinch)
+        || (gestureRecognizer === boardPinch && otherGestureRecognizer === boardPan)
+    }
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch)
+      -> Bool
+    {
+      touch.type == .direct && touch.majorRadius < 60 && activeTouch?.type != .pencil
+    }
     func configureScrolling() {
       let board = configuration?.viewport != nil
       if boardPan.view == nil {
         boardPan.minimumNumberOfTouches = 2
         boardPan.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
         boardPinch.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
-        boardPan.require(toFail: boardPinch)
+        boardPan.delegate = self
+        boardPinch.delegate = self
         addGestureRecognizer(boardPan)
         addGestureRecognizer(boardPinch)
       }
-      boardPan.isEnabled = board
-      boardPinch.isEnabled = board
+      boardPan.minimumNumberOfTouches = configuration?.pencilOnly == true || pencilSeen ? 1 : 2
+      let pencilActive = activeTouch?.type == .pencil
+      boardPan.isEnabled = board && !pencilActive
+      boardPinch.isEnabled = board && !pencilActive
       var ancestor = superview
       while let view = ancestor {
         if let scroll = view as? UIScrollView {
-          // A single finger or Pencil owns ink. Two fingers own navigation; the parent must not steal a stroke.
+          // Scroll recognizers must never consume Pencil events or cancel an active Pencil stroke.
           scroll.delaysContentTouches = false
           scroll.panGestureRecognizer.allowedTouchTypes = [
             NSNumber(value: UITouch.TouchType.direct.rawValue)
           ]
           scroll.panGestureRecognizer.minimumNumberOfTouches =
-            configuration?.tool == .readOnly ? 1 : 2
+            configuration?.tool == .readOnly || configuration?.pencilOnly == true || pencilSeen
+            ? 1 : 2
+          scroll.panGestureRecognizer.isEnabled = !pencilActive
+          scroll.alwaysBounceVertical = true
+          if configuration?.onAppendPage != nil, observedScroll !== scroll {
+            observedScroll?.panGestureRecognizer.removeTarget(
+              self, action: #selector(scrollGesture(_:)))
+            observedScroll = scroll
+            scroll.panGestureRecognizer.addTarget(self, action: #selector(scrollGesture(_:)))
+          }
         }
         ancestor = view.superview
       }
     }
     @objc private func panBoard(_ gesture: UIPanGestureRecognizer) {
-      if gesture.state == .began { gestureBase = configuration?.viewport }
-      guard let base = gestureBase else { return }
+      if gesture.state == .began { panBase = configuration?.viewport }
+      guard boardPinch.state != .began && boardPinch.state != .changed,
+        let base = panBase
+      else { return }
       let delta = gesture.translation(in: self)
       configuration?.onViewportChange?(
         ViewTransform(
           scale: base.scale, offset: Point(base.offset.x + delta.x, base.offset.y + delta.y)))
-      if gesture.state == .ended || gesture.state == .cancelled { gestureBase = nil }
+      if gesture.state == .ended || gesture.state == .cancelled { panBase = nil }
     }
     @objc private func pinchBoard(_ gesture: UIPinchGestureRecognizer) {
-      if gesture.state == .began { gestureBase = configuration?.viewport }
-      guard let base = gestureBase else { return }
+      if gesture.state == .began { pinchBase = configuration?.viewport }
+      guard let base = pinchBase else { return }
       let center = gesture.location(in: self)
       let anchor = Point(center.x, center.y)
       let world = base.documentPoint(anchor)
@@ -203,7 +341,11 @@ import SwiftUI
       configuration?.onViewportChange?(
         ViewTransform(
           scale: scale, offset: Point(anchor.x - world.x * scale, anchor.y - world.y * scale)))
-      if gesture.state == .ended || gesture.state == .cancelled { gestureBase = nil }
+      if gesture.state == .ended || gesture.state == .cancelled {
+        pinchBase = nil
+        panBase = configuration?.viewport
+        boardPan.setTranslation(.zero, in: self)
+      }
     }
     private var displayLink: CADisplayLink?
     private var displayTarget: CanvasDisplayTarget?
@@ -212,7 +354,10 @@ import SwiftUI
       displayLink?.invalidate()
       displayLink = nil
       displayTarget = nil
-      guard window != nil else { return }
+      guard window != nil else {
+        resetInput()
+        return
+      }
       configureScrolling()
       let target = CanvasDisplayTarget()
       target.view = self
@@ -234,18 +379,106 @@ import SwiftUI
     }
     func append(_ touch: UITouch) {
       guard configuration != nil else { return }
-      samples.append(sample(touch))
+      accept(sample(touch))
     }
   }
   @MainActor private final class CanvasDisplayTarget: NSObject {
     weak var view: DrawingView?
-    @objc func update() { if let view, !view.samples.isEmpty { view.setNeedsDisplay() } }
+    @objc func update() {
+      guard let view else { return }
+      view.checkPagePull()
+      if !view.samples.isEmpty { view.setNeedsDisplay() }
+    }
   }
 #endif
 
+@MainActor final class CanvasInputState {
+  var holdTask: Task<Void, Never>?
+  var holdPoint: Point?
+  var held: Stroke?
+  var resizeStart: Point?
+  var moveStart: Point?
+  var moveDelta = Point(0, 0)
+}
+
 extension DrawingView {
+  func invalidateCanvas() {
+    #if os(macOS)
+      needsDisplay = true
+    #else
+      setNeedsDisplay()
+    #endif
+  }
+  func resetInput() {
+    input.holdTask?.cancel()
+    input.holdTask = nil
+    input.holdPoint = nil
+    input.held = nil
+    input.resizeStart = nil
+    input.moveStart = nil
+    input.moveDelta = Point(0, 0)
+    samples = []
+    predictedSamples = []
+    cachedPage = nil
+  }
+  func accept(_ sample: Sample) {
+    guard let configuration else { return }
+    if samples.isEmpty, configuration.tool == .lasso,
+      InkGestures.selectionContains(
+        sample.point, page: configuration.page, ids: configuration.selection)
+    {
+      input.moveStart = sample.point
+    }
+    if let start = input.moveStart {
+      input.moveDelta = Point(sample.point.x - start.x, sample.point.y - start.y)
+      samples = [sample]
+      return
+    }
+    if let held = input.held, let start = input.resizeStart {
+      samples = InkGestures.resizeHeldShape(held, from: start, to: sample.point).samples
+      predictedSamples = []
+      return
+    }
+    samples.append(sample)
+    if configuration.tool == .eraser { cachedPage = nil }
+    guard configuration.holdToShape, [.pen, .shapes].contains(configuration.tool) else { return }
+    if let anchor = input.holdPoint, anchor.distance(to: sample.point) < 3 { return }
+    input.holdTask?.cancel()
+    input.holdPoint = sample.point
+    let deadline = ContinuousClock.now.advanced(by: .milliseconds(450))
+    input.holdTask = Task { @MainActor [weak self] in
+      do { try await Task.sleep(until: deadline, clock: .continuous) } catch { return }
+      guard let self, let configuration = self.configuration else { return }
+      let raw = Stroke(
+        samples: self.samples, color: configuration.color,
+        width: configuration.width, tool: configuration.tool, style: configuration.style)
+      guard let shape = InkGestures.heldShape(raw) else { return }
+      self.input.held = shape
+      self.input.resizeStart = self.samples.last?.point
+      self.samples = shape.samples
+      self.predictedSamples = []
+      self.invalidateCanvas()
+      #if os(iOS)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+      #endif
+    }
+  }
   func paint(_ configuration: CanvasConfiguration, _ c: CGContext) {
     guard bounds.width > 0, bounds.height > 0 else { return }
+    var configuration = configuration
+    if input.moveStart != nil {
+      configuration.page = InkGestures.translate(
+        configuration.page,
+        ids: configuration.selection, by: input.moveDelta)
+    }
+    if configuration.tool == .eraser, !samples.isEmpty {
+      for sample in samples {
+        configuration.page.strokes = Editing.erase(
+          strokes: configuration.page.strokes,
+          at: sample.point, radius: max(8, configuration.width), mode: configuration.eraserMode,
+          highlighterOnly: configuration.highlighterOnly)
+      }
+    }
     c.saveGState()
     c.setFillColor(CGColor(gray: 1, alpha: 1))
     c.fill(bounds)
@@ -275,14 +508,27 @@ extension DrawingView {
     {
       context.scaleBy(x: resolution, y: resolution)
       context.translateBy(x: -cacheRect.minX, y: -cacheRect.minY)
-      PageRenderer.render(configuration.page, assets: configuration.assets, in: context)
+      var background = configuration.page
+      if input.moveStart != nil {
+        background.strokes.removeAll { configuration.selection.contains($0.id) }
+        background.images.removeAll { configuration.selection.contains($0.id) }
+        background.texts.removeAll { configuration.selection.contains($0.id) }
+      }
+      PageRenderer.render(background, assets: configuration.assets, in: context)
       cachedPage = layer
       cachedResolution = resolution
       cachedViewport = configuration.viewport
     }
     if let cachedPage { c.draw(cachedPage, in: cacheRect) }
+    if input.moveStart != nil {
+      var moving = configuration.page
+      moving.strokes.removeAll { !configuration.selection.contains($0.id) }
+      moving.images.removeAll { !configuration.selection.contains($0.id) }
+      moving.texts.removeAll { !configuration.selection.contains($0.id) }
+      PageRenderer.render(moving, assets: configuration.assets, in: c, includeBackground: false)
+    }
     if !samples.isEmpty {
-      if configuration.tool == .lasso {
+      if configuration.tool == .lasso && input.moveStart == nil {
         c.setStrokeColor(PageRenderer.color(.blue))
         c.setLineWidth(1)
         c.setLineDash(phase: 0, lengths: [5, 4])
@@ -318,6 +564,14 @@ extension DrawingView {
       samples = []
       return
     }
+    input.holdTask?.cancel()
+    if input.moveStart != nil {
+      if hypot(input.moveDelta.x, input.moveDelta.y) > 0.5 {
+        configuration.onTranslateSelection?(input.moveDelta)
+      }
+      resetInput()
+      return
+    }
     switch configuration.tool {
     case .pen, .highlighter, .shapes:
       configuration.onStroke(
@@ -331,7 +585,6 @@ extension DrawingView {
         configuration.onTap(first.point)
       }
     }
-    samples = []
-    predictedSamples = []
+    resetInput()
   }
 }

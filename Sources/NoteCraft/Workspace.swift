@@ -47,7 +47,10 @@ struct Workspace: View {
   @State private var highlighterOnly = false
   @State private var autoDeselect = false
   @State private var straightHighlight = false
-  @State private var pencilOnly = false
+  @AppStorage("pencilOnly") private var pencilOnly = false
+  @AppStorage("holdToShape") private var holdToShape = true
+  @AppStorage("scratchToErase") private var scratchToErase = true
+  @State private var pagePullProgress = 0.0
   @State private var settings = false
   @State private var thumbnails = false
   @State private var templateSheet = false
@@ -141,14 +144,23 @@ struct Workspace: View {
                     }
                   }.frame(maxWidth: .infinity).padding(.vertical, 28)
                 }
-              }.background(Color(red: 0.90, green: 0.92, blue: 0.94)).onChange(of: activePage) {
-                withAnimation { proxy.scrollTo(page.id, anchor: .top) }
-              }
+              }.accessibilityIdentifier("notebookScrollView")
+                .background(Color(red: 0.90, green: 0.92, blue: 0.94)).onChange(of: activePage) {
+                  withAnimation { proxy.scrollTo(page.id, anchor: .top) }
+                }
             }
           }
         }
       }
-      footer
+      footer.overlay(alignment: .top) {
+        if pagePullProgress > 0 {
+          HStack(spacing: 10) {
+            ProgressView(value: pagePullProgress).frame(width: 60)
+            Text("Keep pulling to add a page").font(.system(size: 12))
+          }.padding(10).background(.regularMaterial, in: Capsule()).offset(y: -44)
+            .allowsHitTesting(false).accessibilityIdentifier("pagePullProgress")
+        }
+      }
       if importing { ProgressView("Importing…").padding(8) }
     }
     .background(Color.white).foregroundStyle(Color(red: 0.12, green: 0.16, blue: 0.22)).tint(accent)
@@ -194,8 +206,9 @@ struct Workspace: View {
       Text(errorMessage ?? "")
     }
     .onChange(of: activePage) {
-      selection = []
-      imageSelection = nil
+      let ids = Set(page.strokes.map(\.id) + page.images.map(\.id) + page.texts.map(\.id))
+      selection.formIntersection(ids)
+      if let imageSelection, !ids.contains(imageSelection) { self.imageSelection = nil }
     }
   }
   private var topBar: some View {
@@ -256,7 +269,11 @@ struct Workspace: View {
           clipboard.isEmpty && clipboardImages.isEmpty && clipboardTexts.isEmpty)
         Toggle("Horizontal pages", isOn: $horizontal)
         Toggle("Apple Pencil only", isOn: $pencilOnly)
-        Text("One finger draws · two fingers navigate")
+        Toggle("Draw and hold for shapes", isOn: $holdToShape)
+        Toggle("Scribble to erase", isOn: $scratchToErase)
+        Text(
+          pencilOnly
+            ? "Pencil writes · one finger navigates" : "One finger draws · two fingers navigate")
         Button("Delete current page", role: .destructive) {
           if notebook.pages.count > 1 {
             edit { $0.notebook.pages.remove(at: activePage) }
@@ -300,12 +317,13 @@ struct Workspace: View {
           undo()
         } label: {
           Image(systemName: "arrow.uturn.backward")
-        }.disabled(undoStack.isEmpty).help("Undo").keyboardShortcut("z", modifiers: .command)
+        }.disabled(undoStack.isEmpty).help("Undo").accessibilityLabel("Undo").keyboardShortcut(
+          "z", modifiers: .command)
         Button {
           redo()
         } label: {
           Image(systemName: "arrow.uturn.forward")
-        }.disabled(redoStack.isEmpty).help("Redo").keyboardShortcut(
+        }.disabled(redoStack.isEmpty).help("Redo").accessibilityLabel("Redo").keyboardShortcut(
           "z", modifiers: [.command, .shift])
         Divider().frame(height: 24)
         ForEach(InkTool.allCases, id: \.self) { item in
@@ -467,7 +485,16 @@ struct Workspace: View {
             {
               s.samples = [first, last]
             }
-            edit { $0.notebook.pages[index].strokes.append(s) }
+            let targets =
+              tool == .pen && scratchToErase
+              ? InkGestures.scratchTargets(s.samples.map(\.point), strokes: p.strokes) : []
+            edit { package in
+              if targets.isEmpty {
+                package.notebook.pages[index].strokes.append(s)
+              } else {
+                package.notebook.pages[index].strokes.removeAll { targets.contains($0.id) }
+              }
+            }
           },
           onGesture: { points in
             activePage = index
@@ -529,7 +556,31 @@ struct Workspace: View {
             }
             if tool == .elements { insertStar(point) }
           }, viewport: boardHeight == nil ? nil : boardViewport,
-          onViewportChange: { boardViewport = $0 })
+          onViewportChange: { boardViewport = $0 },
+          onTranslateSelection: { delta in
+            activePage = index
+            edit { package in
+              package.notebook.pages[index] = InkGestures.translate(
+                package.notebook.pages[index], ids: selection, by: delta)
+            }
+          },
+          onPencilDetected: { pencilOnly = true },
+          onToggleEraser: {
+            if tool == .eraser {
+              tool = previousTool
+            } else {
+              previousTool = tool
+              tool = .eraser
+            }
+          },
+          onAppendPage: boardHeight == nil && !horizontal && index == notebook.pages.count - 1
+            ? {
+              let next = InkGestures.blankPage(matching: p)
+              edit { $0.notebook.pages.append(next) }
+              activePage = notebook.pages.count - 1
+            } : nil,
+          onPagePull: { pagePullProgress = $0 }, holdToShape: holdToShape,
+          eraserMode: eraserMode, highlighterOnly: highlighterOnly)
       )
       .accessibilityElement()
       .accessibilityLabel("Drawing canvas")
@@ -658,7 +709,7 @@ struct Workspace: View {
       Text(
         notebook.kind == .whiteboard
           ? "Whiteboard" : "\(notebook.pages.count) \(notebook.pages.count == 1 ? "page" : "pages")"
-      )
+      ).accessibilityIdentifier("pageCount")
       Button {
         if notebook.kind == .whiteboard {
           boardViewport.scale = max(0.1, boardViewport.scale / 1.2)

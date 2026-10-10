@@ -35,9 +35,27 @@ original `.md` file, preserving wiki links as text. Markdown preview uses Apple'
 renderer, rather than Obsidian-specific plugins. Opening an image creates a separate
 editable notebook, preserving the image file.
 
-Draw with one finger or Apple Pencil. Use two fingers to scroll while a drawing tool is
-selected, or one finger in read-only mode. Whiteboards support two-finger pan and pinch
-zoom on iPad, and trackpad scrolling/magnification on Mac. Whiteboard export fits the
+Draw with one finger or Apple Pencil. The first Pencil contact enables Pencil-only ink;
+fingers then navigate. Pencil owns its active stroke, other contacts cannot replace it,
+and scrolling/pinch gestures are suspended while the Pencil is down. Broad direct
+contacts are filtered. Disable Apple Pencil only in the overflow menu to draw with fingers
+again. Without Pencil-only mode, two fingers scroll while drawing; one finger scrolls in
+read-only mode. Double-tap a supported Pencil to switch between the eraser and the previous
+tool.
+
+Draw a circle, ellipse, straight line or polygon and hold the tip still for about 0.45 seconds
+to straighten it. Continue dragging before lifting to resize the shape; closed shapes retain
+their center. Draw several broad zigzags over editable handwriting with the pen to erase it
+in one undoable operation. Both gestures can be disabled in the overflow menu. The eraser
+shows a live preview. Lasso handwriting, images and text, then drag inside the selection to
+move the group with a live preview; release commits one undoable change.
+
+At the bottom of a vertical notebook, pull upward beyond the end and hold for about half a
+second to append a blank page with the previous page's paper, orientation and dimensions.
+In finger-drawing mode use two fingers; with Pencil-only or read-only mode use one finger.
+On Mac, continue scrolling downward at the end with the trackpad. The new page retains
+the format but does not duplicate PDF content. Whiteboards support finger pan and two-finger
+pinch zoom on iPad (pan uses two fingers unless Pencil-only mode is enabled), and trackpad scrolling/magnification on Mac. Whiteboard export fits the
 content, including objects outside the initial page area. Open documents appear in the
 workspace tab strip on both platforms. Changes autosave after a short pause and when
 returning to the library. Failed saves keep changes in memory and show an error; concurrent
@@ -77,8 +95,8 @@ checking. See [the format specification](docs/FORMAT.md).
 
 The app implements the local folder, notebook, whiteboard, PDF and Markdown workflow;
 it does not yet provide every Goodnotes feature. There are no account, marketplace or
-collaboration features. Lasso transforms use menu commands, text rotation is pending, and
-the element library stores one reusable handwriting clip. Horizontal pages scroll without
+collaboration features. Lasso resize/rotation still use menu commands, text rotation is
+pending, and the element library stores one reusable handwriting clip. Horizontal pages scroll without
 snapping. Undo history stays with each open document. Library search matches
 filenames/titles; workspace search matches text boxes.
 
@@ -89,7 +107,8 @@ writes, not a single transaction; a mismatched sidecar is ignored on reopen. PDF
 images or filled shapes use a generated visual page with preserved native annotations.
 Locked PDFs are rejected without changing the original; password entry is pending.
 Advanced forms, outline/destination preservation and provider-specific conflict recovery
-need further work. Simulator UI tests exercise folder selection, notebook creation, finger drawing and reopening.
+need further work. Simulator UI tests exercise folder selection, notebook creation,
+finger drawing, erasing, undo, continued-page creation and reopening.
 Automated tests also cover existing-file protection,
 external-change detection, editable PDF round trips and canvas rendering.
 
