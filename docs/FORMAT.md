@@ -10,12 +10,23 @@ state, paper settings and optional PDF asset filename plus zero-based page index
 Assets have flat, validated filenames. Missing referenced assets and unsupported versions
 are rejected rather than silently discarded. Revision is incremented on document edits.
 
-SwiftUI DocumentGroup and FileDocument own coordinated loading, autosave and security
-scope in the app. PackageStore offers coordinated atomic explicit writes, with an optional
-expected revision that prevents overwriting concurrent changes. No account or server is used.
+VaultController retains the chosen folder security scope and schedules autosave.
+PackageStore coordinates atomic package writes, checking the expected revision.
+VaultFiles coordinates ordinary PDF/Markdown reads and atomic writes, checking a SHA-256
+fingerprint to reject external changes. No account or server is used.
 
 Optional fields extend version 1 compatibly: pages may include `backgroundSize` for
 non-standard/rotated PDF dimensions, strokes may include `fillColor`, and text boxes
 may include `fontName`, `alignment`, `background`, `border` and `boxWidth`. Missing
 optional fields retain default rendering. Asset paths may not traverse directories.
 Invalid geometry, empty notebooks, missing media and future versions are rejected.
+
+Notebook `kind` optionally identifies `notebook` or `whiteboard`; absent values are paged
+notebooks. Optional `viewport` retains whiteboard scale and offset. Whiteboard coordinates can extend beyond the initial background dimensions.
+
+For an annotated PDF, the adjacent hidden `.filename.pdf.notecraft` package contains the
+original PDF background plus editable objects. Its `assets/source.sha256` stores the digest
+of the last saved PDF. The session trusts the sidecar only when that digest matches the
+current PDF; otherwise it imports the externally modified PDF afresh. The original file
+contains standard PDF annotations for use in other applications. PDF and sidecar writes
+are individually atomic, with no multi-file transaction guarantee.

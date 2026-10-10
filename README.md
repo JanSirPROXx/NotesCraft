@@ -2,8 +2,10 @@
 
 A clean-room native Swift notebook app for macOS and iPadOS. No third-party runtime
 libraries, account system, proprietary cloud service, or AI features. Notes are portable
-`.notecraft` packages; the system document browser opens files from local storage and
-connected file providers, and SwiftUI manages in-place autosave.
+`.notecraft` packages, alongside ordinary PDFs and Markdown files. Choose a storage folder
+on launch, including an existing Obsidian vault or a connected file provider.
+
+<img src="docs/screenshots/new-menu.png" width="760" alt="NoteCraft Documents library and New menu on iPad">
 
 ## Build
 
@@ -11,17 +13,35 @@ Requires Xcode 16 or newer with Swift 6, macOS 14 / iPadOS 17 or newer.
 
 - Open `NoteCraft.xcodeproj`, select the NoteCraft scheme and a Mac or iPad destination.
 - To run on a physical device, choose your own signing team in Xcode.
-- `swift test` runs the platform-independent core tests on macOS.
+- `swift test` runs core, rendering and vault integration tests on macOS.
+- The `NoteCraft-iPad` scheme runs the folder-picker, drawing and whiteboard UI test on an iPad simulator.
 - `swift run NoteCraft` runs the macOS app from the Swift package.
 - Optional: `xcodegen generate` regenerates the checked-in project from `project.yml`.
 
 ## Workflow
 
-On Mac, the Notebooks window offers grid/list browsing, folders, paper templates and PDF
-import. Choose a storage folder to use a connected provider; its security-scoped bookmark
-is retained. Existing document windows appear in the workspace's tab strip. On iPad,
-Apple's Files-backed document browser manages notebooks and folders. Save a new notebook
-once to choose its provider and location; the system then manages autosave.
+On both Mac and iPad, choose a storage folder first. The Documents library shows the
+folder's existing files and subfolders, with a dark sidebar, favorites, search, grid/list
+views and document previews. New creates notebooks, whiteboards, Markdown documents or
+folders in the current directory; Import copies files into that directory. A remembered
+folder can be opened explicitly on the next launch. Connecting a vault does not import,
+convert or rewrite its existing files.
+
+Open PDFs to annotate the original file. Autosave writes standard PDF ink and text
+annotations, preserving existing annotations. A hidden adjacent `.filename.pdf.notecraft`
+package keeps the original background and editable NoteCraft objects; a SHA-256 digest
+invalidates it if another app changes the PDF. Markdown edits save UTF-8 directly to the
+original `.md` file, preserving wiki links as text. Markdown preview uses Apple's Markdown
+renderer, rather than Obsidian-specific plugins. Opening an image creates a separate
+editable notebook, preserving the image file.
+
+Draw with one finger or Apple Pencil. Use two fingers to scroll while a drawing tool is
+selected, or one finger in read-only mode. Whiteboards support two-finger pan and pinch
+zoom on iPad, and trackpad scrolling/magnification on Mac. Whiteboard export fits the
+content, including objects outside the initial page area. Open documents appear in the
+workspace tab strip on both platforms. Changes autosave after a short pause and when
+returning to the library. Failed saves keep changes in memory and show an error; concurrent
+external changes are rejected instead of overwritten.
 
 Select a toolbar tool; tap it again for settings. The pen supports fountain, ballpoint
 and brush styles, pressure/tilt, custom colors, hex entry and three persistent thickness
@@ -42,7 +62,7 @@ retains vector ink, text and the original PDF backgrounds. Search covers text bo
 
 - **NoteCraftCore**: Codable, Sendable notebook/page/ink types, point transforms,
   bounded-depth quadtree, lasso, erasure, shape recognition, package codec and actor I/O.
-- **NoteCraft**: SwiftUI DocumentGroup/FileDocument shell, workspace and settings,
+- **NoteCraft**: SwiftUI folder library and observable document sessions, workspace and settings,
   UIKit/AppKit pointer bridge, shared CoreGraphics rendering and PDFKit import.
 - **Tests**: Swift Testing coverage for package round trips and integrity, coordinate
   transforms, spatial queries, selection, erasure, concurrent conflict-safe writes,
@@ -55,28 +75,22 @@ checking. See [the format specification](docs/FORMAT.md).
 
 ## Current boundaries
 
-This is a working native implementation, not complete Goodnotes feature parity.
-iPad uses the system document browser and separate document scenes; an in-workspace
-cross-document tab manager is pending there. The Mac tab strip switches document windows.
-The library currently labels files by filename rather than indexing notebook metadata.
-Lasso transformations use menu commands; image transformations have direct gestures.
-Text can be moved and resized through selection, but text rotation is pending. Color
-changes apply to ink and text rather than recoloring image pixels. The element library
-currently holds one saved handwriting clip. Shapes use geometric heuristics rather than
-a trained recognition system. Horizontal mode scrolls without page snapping. Palette
-slots are fixed presets plus a custom color. System autosave/export interactions retain
-Apple's standard UI rather than reproducing every Goodnotes drawer and share sheet.
+The app implements the local folder, notebook, whiteboard, PDF and Markdown workflow;
+it does not yet provide every Goodnotes feature. There are no account, marketplace or
+collaboration features. Lasso transforms use menu commands, text rotation is pending, and
+the element library stores one reusable handwriting clip. Horizontal pages scroll without
+snapping. Undo history stays with each open document. Library search matches
+filenames/titles; workspace search matches text boxes.
 
-120 Hz latency is a design target, not a measured guarantee. The canvas requests 120 Hz
-on iPad and uses coalesced/predicted Pencil samples plus cached retained page content.
-Apple Pencil only mode rejects finger drawing; full palm-rejection behavior, physical
-Pencil latency, large-document profiling, cloud-provider conflict UI and future format
-migrations need device validation. PDF import and explicit file reads run in an actor;
-PDF export and cache generation remain synchronous and may block for very large files.
-SwiftUI controls document serialization/autosave scheduling. Explicit PackageStore writes
-have revision conflict checks; the interactive document session relies on Apple's conflict
-handling. UI automation was unavailable during development, so interactive layout and
-gesture behavior still require manual QA. Core and PDF rendering tests are automated.
+120 Hz is requested on supported iPads, but physical Pencil latency and palm rejection
+still need device measurement. PDF rendering/export happens on the main actor and very
+large documents need profiling. PDF saves and editable sidecars are separate coordinated
+writes, not a single transaction; a mismatched sidecar is ignored on reopen. PDFs containing
+images or filled shapes use a generated visual page with preserved native annotations.
+Encrypted PDFs, advanced forms, outline/destination preservation and provider-specific
+conflict recovery need further work. Simulator UI tests exercise folder selection, notebook creation, finger drawing and reopening.
+Automated tests also cover existing-file protection,
+external-change detection, editable PDF round trips and canvas rendering.
 
 ## Contributing
 
