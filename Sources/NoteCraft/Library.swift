@@ -31,6 +31,7 @@ struct VaultRoot: View {
         }
       }
     }
+    .sheet(item: $vault.lockedPDF) { entry in PDFUnlockSheet(vault: vault, entry: entry) }
     .preferredColorScheme(vault.root == nil || vault.showLibrary ? .dark : .light)
     .fileImporter(isPresented: $folderPicker, allowedContentTypes: [.folder]) { result in
       do {
@@ -92,14 +93,18 @@ struct VaultRoot: View {
 struct Library: View {
   @Bindable var vault: VaultController
   let chooseFolder: () -> Void
-  @State private var list = false
+  @AppStorage("libraryList") private var list = false
   @State private var search = ""
   @State private var favoritesOnly = false
   @State private var sidebar = true
   @State private var newPopover = false
   @State private var creation: CreationKind?
   @State private var pdfImport = false
-  @State private var sortNewest = false
+  @AppStorage("librarySortNewest") private var sortNewest = false
+  @State private var trashVisible = false
+  @State private var renameEntry: VaultEntry?
+  @State private var moveEntry: VaultEntry?
+  @State private var lastTrashed: TrashItem?
   private let background = Color(white: 0.025)
   private let secondary = Color(white: 0.63)
   private let blue = Color(red: 0.02, green: 0.48, blue: 0.78)
@@ -110,9 +115,14 @@ struct Library: View {
   private var filtered: [VaultEntry] {
     let result = (favoritesOnly ? vault.favoriteEntries : vault.entries).filter {
       (search.isEmpty || $0.title.localizedCaseInsensitiveContains(search))
-        && (!favoritesOnly || vault.favorites.contains($0.url.path))
+        && (!favoritesOnly || vault.favorites.contains($0.url.vaultPath))
     }
     return sortNewest ? result.sorted { $0.modified > $1.modified } : result
+  }
+  private var filteredTrash: [TrashItem] {
+    vault.trashItems.filter {
+      search.isEmpty || $0.originalPath.localizedCaseInsensitiveContains(search)
+    }
   }
   var body: some View {
     GeometryReader { geometry in
@@ -123,9 +133,12 @@ struct Library: View {
         VStack(alignment: .leading, spacing: 28) {
           header
           controls
-          if vault.busy { ProgressView("Opening…").tint(.white) }
+          if vault.busy { ProgressView("Working…").tint(.white) }
+          if !trashVisible && !favoritesOnly { breadcrumbs }
           ScrollView {
-            if filtered.isEmpty {
+            if trashVisible {
+              TrashLibrary(vault: vault, items: filteredTrash)
+            } else if filtered.isEmpty {
               ContentUnavailableView(
                 search.isEmpty ? "No documents here yet" : "No matching files",
                 systemImage: "folder",
@@ -150,7 +163,7 @@ struct Library: View {
             }
           }
           HStack {
-            Text("\(filtered.count) items")
+            Text("\(trashVisible ? filteredTrash.count : filtered.count) items")
             Spacer()
             Text(vault.folder?.lastPathComponent ?? "")
             Button("Change folder", action: chooseFolder)
@@ -159,6 +172,26 @@ struct Library: View {
           .bottom, 16)
       }.background(background).foregroundStyle(Color.white)
     }
+    .overlay(alignment: .bottom) {
+      if let item = lastTrashed, vault.trashItems.contains(where: { $0.id == item.id }) {
+        HStack {
+          Label("Moved to Trash", systemImage: "trash")
+          Button("Undo") {
+            Task {
+              await vault.restore(item)
+              lastTrashed = nil
+            }
+          }
+          Button {
+            lastTrashed = nil
+          } label: {
+            Image(systemName: "xmark")
+          }.accessibilityLabel("Dismiss")
+        }.padding(14).background(.regularMaterial, in: Capsule()).padding(.bottom, 45)
+      }
+    }
+    .sheet(item: $renameEntry) { entry in LibraryRenameSheet(vault: vault, entry: entry) }
+    .sheet(item: $moveEntry) { entry in LibraryMoveSheet(vault: vault, entry: entry) }
     .sheet(item: $creation) { kind in creationSheet(kind) }
     .fileImporter(
       isPresented: $pdfImport, allowedContentTypes: [.pdf, .image, .plainText, .noteCraft]
@@ -181,12 +214,21 @@ struct Library: View {
           Image(systemName: "sidebar.left")
         }
       }.padding(.bottom, 24)
-      navigationItem("Documents", symbol: "folder.fill", selected: !favoritesOnly) {
+      navigationItem("Documents", symbol: "folder.fill", selected: !favoritesOnly && !trashVisible)
+      {
         favoritesOnly = false
+        trashVisible = false
         if let root = vault.root { Task { await vault.navigate(root) } }
       }
-      navigationItem("Favorites", symbol: "bookmark.fill", selected: favoritesOnly) {
+      navigationItem("Favorites", symbol: "bookmark.fill", selected: favoritesOnly && !trashVisible)
+      {
         favoritesOnly = true
+        trashVisible = false
+      }
+      navigationItem("Trash", symbol: "trash", selected: trashVisible) {
+        trashVisible = true
+        favoritesOnly = false
+        Task { await vault.refresh() }
       }
       Divider().padding(.vertical, 12)
       Text("STORAGE FOLDER").font(.system(size: 11, weight: .medium)).foregroundStyle(secondary)
@@ -233,7 +275,25 @@ struct Library: View {
           Image(systemName: "sidebar.left")
         }.buttonStyle(.plain)
       }
-      if vault.folder != vault.root {
+      Menu {
+        Button("Documents", systemImage: "folder") {
+          trashVisible = false
+          favoritesOnly = false
+          if let root = vault.root { Task { await vault.navigate(root) } }
+        }.accessibilityIdentifier("showDocuments")
+        Button("Favorites", systemImage: "star") {
+          trashVisible = false
+          favoritesOnly = true
+        }
+        Button("Trash", systemImage: "trash") {
+          trashVisible = true
+          favoritesOnly = false
+        }.accessibilityIdentifier("showTrash")
+      } label: {
+        Image(systemName: "folder.badge.gearshape")
+      }
+      .accessibilityLabel("Library locations")
+      if !trashVisible && !favoritesOnly && vault.folder?.vaultPath != vault.root?.vaultPath {
         Button {
           if let folder = vault.folder {
             Task { await vault.navigate(folder.deletingLastPathComponent()) }
@@ -244,42 +304,61 @@ struct Library: View {
         }.buttonStyle(.plain)
       }
       Text(
-        favoritesOnly
-          ? "Favorites"
-          : vault.folder == vault.root
-            ? "Documents" : vault.folder?.lastPathComponent ?? "Documents"
+        trashVisible
+          ? "Trash"
+          : favoritesOnly
+            ? "Favorites"
+            : vault.folder?.vaultPath == vault.root?.vaultPath
+              ? "Documents" : vault.folder?.lastPathComponent ?? "Documents"
       ).font(.system(size: 32, weight: .semibold)).lineLimit(1)
       Spacer()
       HStack(spacing: 10) {
         Image(systemName: "magnifyingglass")
-        TextField("Search", text: $search).frame(maxWidth: 180)
+        TextField("Search", text: $search).frame(maxWidth: 180).accessibilityLabel("Search library")
+        if !search.isEmpty {
+          Button {
+            search = ""
+          } label: {
+            Image(systemName: "xmark.circle.fill")
+          }.buttonStyle(.plain).accessibilityLabel("Clear search")
+        }
       }.padding(12).background(Color(white: 0.11), in: Capsule()).overlay(
         Capsule().stroke(Color(white: 0.2)))
     }
   }
   private var controls: some View {
     HStack(spacing: 20) {
-      Menu {
-        Button("Name") { sortNewest = false }
-        Button("Last modified") { sortNewest = true }
-      } label: {
-        Label(sortNewest ? "Last modified" : "All", systemImage: "line.3.horizontal.decrease")
-      }.foregroundStyle(secondary)
+      if trashVisible {
+        Text("Deleted items").foregroundStyle(secondary)
+      } else {
+        Menu {
+          Button("Name") { sortNewest = false }
+          Button("Last modified") { sortNewest = true }
+        } label: {
+          Label(sortNewest ? "Last modified" : "Name", systemImage: "line.3.horizontal.decrease")
+        }.foregroundStyle(secondary)
+      }
       Spacer()
-      Button {
-        newPopover.toggle()
-      } label: {
-        Label("New", systemImage: "plus").font(.system(size: 17)).padding(.horizontal, 20).padding(
-          .vertical, 12
-        ).background(blue, in: Capsule())
-      }.buttonStyle(.plain)
-        .popover(isPresented: $newPopover, arrowEdge: .top) { newMenu }.accessibilityIdentifier(
-          "newDocumentMenu")
-      Button {
-        list.toggle()
-      } label: {
-        Image(systemName: list ? "list.bullet" : "square.grid.2x2").font(.system(size: 22))
-      }.buttonStyle(.plain).accessibilityLabel("Toggle grid or list")
+      if !trashVisible && !favoritesOnly {
+        Button {
+          newPopover.toggle()
+        } label: {
+          Label("New", systemImage: "plus").font(.system(size: 17)).padding(.horizontal, 20)
+            .padding(
+              .vertical, 12
+            ).background(blue, in: Capsule())
+        }.buttonStyle(.plain)
+          .popover(isPresented: $newPopover, arrowEdge: .top) { newMenu }.accessibilityIdentifier(
+            "newDocumentMenu"
+          ).disabled(trashVisible || favoritesOnly || vault.busy)
+      }
+      if !trashVisible {
+        Button {
+          list.toggle()
+        } label: {
+          Image(systemName: list ? "list.bullet" : "square.grid.2x2").font(.system(size: 22))
+        }.buttonStyle(.plain).accessibilityLabel("Toggle grid or list")
+      }
       Button {
         Task { await vault.refresh() }
       } label: {
@@ -337,12 +416,15 @@ struct Library: View {
         Button {
           vault.favorite(entry)
         } label: {
-          Image(systemName: vault.favorites.contains(entry.url.path) ? "star.fill" : "star").font(
-            .system(size: 22)
-          ).foregroundStyle(
-            vault.favorites.contains(entry.url.path) ? Color.yellow : Color(white: 0.55)
-          ).padding(8)
-        }.buttonStyle(.plain)
+          Image(systemName: vault.favorites.contains(entry.url.vaultPath) ? "star.fill" : "star")
+            .font(
+              .system(size: 22)
+            ).foregroundStyle(
+              vault.favorites.contains(entry.url.vaultPath) ? Color.yellow : Color(white: 0.55)
+            ).padding(8)
+        }.buttonStyle(.plain).accessibilityLabel(
+          vault.favorites.contains(entry.url.vaultPath)
+            ? "Remove favorite \(entry.title)" : "Favorite \(entry.title)")
       }
       Button {
         Task { await vault.open(entry) }
@@ -350,9 +432,15 @@ struct Library: View {
         Text(entry.title).font(.system(size: 15)).multilineTextAlignment(.center).lineLimit(2)
           .frame(maxWidth: .infinity)
       }.buttonStyle(.plain)
+      HStack(spacing: 6) {
+        Text(entry.kind == .folder ? "Folder" : entry.kind.rawValue.capitalized).font(
+          .system(size: 11)
+        ).foregroundStyle(secondary)
+        entryMenu(entry)
+      }
       Text(entry.modified.formatted(date: .abbreviated, time: .shortened)).font(.system(size: 11))
         .foregroundStyle(secondary)
-    }.accessibilityElement(children: .contain)
+    }.accessibilityElement(children: .contain).contextMenu { entryActions(entry) }
   }
   private func row(_ entry: VaultEntry) -> some View {
     HStack(spacing: 16) {
@@ -373,9 +461,56 @@ struct Library: View {
       Button {
         vault.favorite(entry)
       } label: {
-        Image(systemName: vault.favorites.contains(entry.url.path) ? "star.fill" : "star")
+        Image(systemName: vault.favorites.contains(entry.url.vaultPath) ? "star.fill" : "star")
       }.buttonStyle(.plain).foregroundStyle(.yellow)
-    }.padding(.vertical, 14)
+      entryMenu(entry)
+    }.padding(.vertical, 14).contextMenu { entryActions(entry) }
+  }
+  private var breadcrumbs: some View {
+    ScrollView(.horizontal, showsIndicators: false) {
+      HStack(spacing: 8) {
+        if let root = vault.root, let folder = vault.folder {
+          Button(root.lastPathComponent) { Task { await vault.navigate(root) } }
+          ForEach(pathComponents(root: root, folder: folder), id: \.self) { url in
+            Image(systemName: "chevron.right").font(.system(size: 9))
+            Button(url.lastPathComponent) { Task { await vault.navigate(url) } }
+          }
+        }
+      }.buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(secondary)
+    }
+  }
+  private func pathComponents(root: URL, folder: URL) -> [URL] {
+    var components: [URL] = []
+    var current = folder
+    while current != root && current.vaultPath.hasPrefix(root.vaultPath + "/") {
+      components.insert(current, at: 0)
+      current = current.deletingLastPathComponent()
+    }
+    return components
+  }
+  private func entryMenu(_ entry: VaultEntry) -> some View {
+    Menu {
+      entryActions(entry)
+    } label: {
+      Image(systemName: "ellipsis").frame(width: 44, height: 44).contentShape(Rectangle())
+    }.accessibilityLabel("Actions for \(entry.title)").disabled(vault.busy)
+  }
+  @ViewBuilder private func entryActions(_ entry: VaultEntry) -> some View {
+    Button("Open", systemImage: "arrow.up.forward.square") { Task { await vault.open(entry) } }
+    Button("Rename", systemImage: "pencil") { renameEntry = entry }
+    Button("Move", systemImage: "folder") { moveEntry = entry }
+    Button("Duplicate", systemImage: "doc.on.doc") { Task { await vault.duplicate(entry) } }
+    Button(
+      vault.favorites.contains(entry.url.vaultPath) ? "Remove favorite" : "Favorite",
+      systemImage: "star"
+    ) { vault.favorite(entry) }
+    Divider()
+    Button("Move to Trash", systemImage: "trash", role: .destructive) {
+      Task {
+        await vault.trash(entry)
+        lastTrashed = vault.trashItems.first
+      }
+    }
   }
   private func creationSheet(_ kind: CreationKind) -> some View {
     VaultCreationSheet(kind: kind) { name, paper in

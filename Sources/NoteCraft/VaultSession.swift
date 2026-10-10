@@ -17,7 +17,7 @@ struct WorkspaceTab: Identifiable {
 @MainActor @Observable final class VaultSession: Identifiable {
   let id = UUID()
   let history = EditHistory()
-  let url: URL
+  var url: URL
   let entryKind: VaultEntryKind
   var document: NoteDocument
   var markdown: String = ""
@@ -55,6 +55,9 @@ struct WorkspaceTab: Identifiable {
   var showLibrary = true
   var favorites: Set<String> = []
   var favoriteEntries: [VaultEntry] = []
+  var trashItems: [TrashItem] = []
+  var lockedPDF: VaultEntry?
+  @ObservationIgnored var managing = false
   @ObservationIgnored private let preferences: UserDefaults
   init(preferences: UserDefaults = .standard) { self.preferences = preferences }
   @ObservationIgnored let files = VaultFiles()
@@ -84,7 +87,10 @@ struct WorkspaceTab: Identifiable {
           options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
       #endif
       preferences.set(bookmark, forKey: "vaultBookmark")
-      favorites = Set(preferences.stringArray(forKey: favoritesKey) ?? [])
+      favorites = Set(
+        (preferences.stringArray(forKey: favoritesKey) ?? []).map {
+          URL(fileURLWithPath: $0).vaultPath
+        })
       await refresh()
     } catch { self.error = error.localizedDescription }
   }
@@ -101,11 +107,12 @@ struct WorkspaceTab: Identifiable {
     #endif
   }
   private var favoritesKey: String { "favorites." + (root?.absoluteString ?? "") }
+  func persistFavorites() { preferences.set(Array(favorites), forKey: favoritesKey) }
   func favorite(_ entry: VaultEntry) {
-    if favorites.contains(entry.url.path) {
-      favorites.remove(entry.url.path)
+    if favorites.contains(entry.url.vaultPath) {
+      favorites.remove(entry.url.vaultPath)
     } else {
-      favorites.insert(entry.url.path)
+      favorites.insert(entry.url.vaultPath)
     }
     preferences.set(Array(favorites), forKey: favoritesKey)
     Task { await refreshFavorites() }
@@ -116,7 +123,7 @@ struct WorkspaceTab: Identifiable {
     var result: [VaultEntry] = []
     for parent in parents {
       if let entries = try? await files.list(parent) {
-        result += entries.filter { requested.contains($0.url.path) }
+        result += entries.filter { requested.contains($0.url.vaultPath) }
       }
     }
     if requested == favorites {
@@ -133,6 +140,7 @@ struct WorkspaceTab: Identifiable {
       let result = try await files.list(folder)
       if token == listGeneration { entries = result }
       await refreshFavorites()
+      if let root { trashItems = try await files.trashItems(in: root) }
     } catch { self.error = error.localizedDescription }
   }
   func navigate(_ url: URL) async {
@@ -144,7 +152,7 @@ struct WorkspaceTab: Identifiable {
       await navigate(entry.url)
       return
     }
-    if let existing = sessions.first(where: { $0.url == entry.url }) {
+    if let existing = sessions.first(where: { $0.url.vaultPath == entry.url.vaultPath }) {
       activeID = existing.id
       showLibrary = false
       return
@@ -170,7 +178,10 @@ struct WorkspaceTab: Identifiable {
         } else {
           package = try await ImportEngine().pdf(entry.url)
         }
-        session = VaultSession(url: entry.url, kind: .pdf, package: package, stamp: snapshot.stamp)
+        var namedPackage = package
+        namedPackage.notebook.title = entry.title
+        session = VaultSession(
+          url: entry.url, kind: .pdf, package: namedPackage, stamp: snapshot.stamp)
         session.sidecarURL = sidecar
         session.diskSidecarRevision = cached?.notebook.revision
       case .markdown:
@@ -212,6 +223,8 @@ struct WorkspaceTab: Identifiable {
       sessions.append(session)
       activeID = session.id
       showLibrary = false
+    } catch PackageError.lockedPDF {
+      lockedPDF = entry
     } catch { self.error = error.localizedDescription }
   }
   func changed(_ session: VaultSession) {
@@ -226,7 +239,7 @@ struct WorkspaceTab: Identifiable {
     }
   }
   func save(_ session: VaultSession) async {
-    guard session.dirty, !session.saving, session.entryKind != .image else { return }
+    guard session.dirty, !session.saving, !managing, session.entryKind != .image else { return }
     session.saving = true
     session.status = "Saving…"
     let generation = session.generation

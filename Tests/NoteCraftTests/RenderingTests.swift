@@ -8,6 +8,115 @@ import UniformTypeIdentifiers
 
 @testable import NoteCraft
 
+@MainActor @Test func editedPDFBackgroundInvalidatesTheCanvasLayer() throws {
+  var background = Page()
+  background.strokes = [Stroke(samples: [Sample(point: Point(100, 100))], color: .red, width: 50)]
+  let red = try PageRenderer.export(NotebookPackage(notebook: Notebook(pages: [background])))
+  background.strokes[0].color = .blue
+  let blue = try PageRenderer.export(NotebookPackage(notebook: Notebook(pages: [background])))
+  var page = Page()
+  page.backgroundPDF = "background.pdf"
+  page.backgroundPage = 0
+  let view = DrawingView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
+  var configuration = CanvasConfiguration(
+    page: page, assets: ["background.pdf": red], tool: .pen, color: .ink, width: 2,
+    style: .ballpoint, pencilOnly: true, selection: [], onStroke: { _ in }, onGesture: { _ in },
+    onTap: { _ in })
+  view.configuration = configuration
+  let context = try #require(
+    CGContext(
+      data: nil, width: 595, height: 842, bitsPerComponent: 8, bytesPerRow: 595 * 4,
+      space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+  )
+  view.paint(configuration, context)
+  let oldLayer = try #require(view.cachedPage)
+  configuration.assets["background.pdf"] = blue
+  view.configuration = configuration
+  #expect(view.cachedPage == nil)
+  view.paint(configuration, context)
+  #expect(view.cachedPage !== oldLayer)
+}
+
+@MainActor @Test func PDFOutlinesAndInternalLinksFollowReorderedAndRemovedPages() throws {
+  let original = try #require(
+    PDFDocument(
+      data: PageRenderer.export(NotebookPackage(notebook: Notebook(pages: [Page(), Page()])))))
+  let first = try #require(original.page(at: 0))
+  let second = try #require(original.page(at: 1))
+  let root = PDFOutline()
+  let chapter = PDFOutline()
+  chapter.label = "Second chapter"
+  chapter.destination = PDFDestination(page: second, at: CGPoint(x: 10, y: 200))
+  root.insertChild(chapter, at: 0)
+  original.outlineRoot = root
+  let link = PDFAnnotation(
+    bounds: CGRect(x: 20, y: 30, width: 40, height: 30), forType: .link, withProperties: nil)
+  link.action = PDFActionGoTo(destination: PDFDestination(page: second, at: .zero))
+  first.addAnnotation(link)
+  let bytes = try #require(original.dataRepresentation())
+  var pages = try PageRenderer.importPDF(bytes)
+  for i in pages.indices { pages[i].backgroundPDF = "source.pdf" }
+  let package = NotebookPackage(
+    notebook: Notebook(pages: [pages[1], pages[0]]), assets: ["source.pdf": bytes])
+  let output = try #require(PDFDocument(data: PDFEditor.export(package)))
+  let target = try #require(output.outlineRoot?.child(at: 0)?.destination?.page)
+  #expect(output.index(for: target) == 0)
+  let outputLink = try #require(output.page(at: 1)?.annotations.first)
+  let linkTarget = try #require((outputLink.action as? PDFActionGoTo)?.destination.page)
+  #expect(output.index(for: linkTarget) == 0)
+  let chapters = PDFNavigation.chapters(package)
+  #expect(chapters.first?.pageID == pages[1].id)
+  var removed = package
+  removed.notebook.pages = [pages[0]]
+  let single = try #require(PDFDocument(data: PDFEditor.export(removed)))
+  #expect(single.outlineRoot?.numberOfChildren ?? 0 == 0)
+  #expect(single.page(at: 0)?.annotations.first?.action == nil)
+}
+
+@MainActor @Test func unlockedCopyAndFormEditsPreserveTheOriginal() throws {
+  let original = try #require(PDFDocument(data: PageRenderer.export(NotebookPackage())))
+  let page = try #require(original.page(at: 0))
+  let field = PDFAnnotation(
+    bounds: CGRect(x: 50, y: 50, width: 180, height: 30), forType: .widget, withProperties: nil)
+  field.widgetFieldType = .text
+  field.fieldName = "Name"
+  field.widgetStringValue = "Original"
+  page.addAnnotation(field)
+  let checkbox = PDFAnnotation(
+    bounds: CGRect(x: 50, y: 100, width: 20, height: 20), forType: .widget, withProperties: nil)
+  checkbox.widgetFieldType = .button
+  checkbox.widgetControlType = .checkBoxControl
+  checkbox.fieldName = "Accepted"
+  page.addAnnotation(checkbox)
+  let outlineRoot = PDFOutline()
+  let chapter = PDFOutline()
+  chapter.label = "Form page"
+  chapter.destination = PDFDestination(page: page, at: .zero)
+  outlineRoot.insertChild(chapter, at: 0)
+  original.outlineRoot = outlineRoot
+  let encrypted = try #require(
+    original.dataRepresentation(options: [
+      PDFDocumentWriteOption.userPasswordOption: "secret",
+      PDFDocumentWriteOption.ownerPasswordOption: "owner",
+    ]))
+  #expect(throws: (any Error).self) { try PDFEditor.unlock(encrypted, password: "wrong") }
+  let unlocked = try PDFEditor.unlock(encrypted, password: "secret")
+  #expect(PDFDocument(data: encrypted)?.isLocked == true)
+  #expect(PDFDocument(data: unlocked)?.isLocked == false)
+  #expect(PDFDocument(data: unlocked)?.outlineRoot?.child(at: 0)?.label == "Form page")
+  let provider = try #require(CGDataProvider(data: unlocked as CFData))
+  #expect(CGPDFDocument(provider)?.isUnlocked == true)
+  var fields = PDFForms.fields(unlocked, pageIndex: 0)
+  #expect(fields.count == 2)
+  fields[0].value = "Updated"
+  fields[1].checked = true
+  let updated = try PDFForms.apply(fields, to: unlocked, pageIndex: 0)
+  let roundTrip = PDFForms.fields(updated, pageIndex: 0)
+  #expect(roundTrip[0].value == "Updated")
+  #expect(roundTrip[1].checked)
+  #expect(PDFForms.fields(unlocked, pageIndex: 0)[0].value == "Original")
+}
+
 @MainActor @Test func PDFExportKeepsDimensionsAndVectorText() throws {
   var page = Page(paper: Paper(size: .letter, pattern: .squared, landscape: true))
   page.texts = [TextBox(origin: Point(50, 70), text: "Vector text survives export")]

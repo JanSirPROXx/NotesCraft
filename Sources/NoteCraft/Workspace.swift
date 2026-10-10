@@ -55,6 +55,8 @@ struct Workspace: View {
   @State private var pagePullProgress = 0.0
   @State private var settings = false
   @State private var thumbnails = false
+  @State private var navigator = false
+  @State private var pdfForms = false
   @State private var templateSheet = false
   @State private var importer = false
   @State private var importing = false
@@ -138,8 +140,11 @@ struct Workspace: View {
                 if horizontal {
                   HStack(alignment: .top, spacing: 0) {
                     ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
-                      pageView(p, index: index, availableWidth: geometry.size.width)
-                        .frame(width: geometry.size.width).id(p.id)
+                      pageView(
+                        p, index: index, availableWidth: geometry.size.width,
+                        availableHeight: geometry.size.height
+                      )
+                      .frame(width: geometry.size.width).id(p.id)
                     }
                   }.scrollTargetLayout().padding(.vertical, 28)
                 } else {
@@ -149,7 +154,8 @@ struct Workspace: View {
                     }
                   }.frame(maxWidth: .infinity).padding(.vertical, 28)
                 }
-              }.scrollTargetBehavior(NotebookPageBehavior(horizontal: horizontal))
+              }.frame(width: geometry.size.width, height: geometry.size.height)
+                .scrollTargetBehavior(NotebookPageBehavior(horizontal: horizontal))
                 .scrollPosition(id: $horizontalPageID)
                 .accessibilityIdentifier("notebookScrollView")
                 .background(Color(red: 0.90, green: 0.92, blue: 0.94)).onChange(of: activePage) {
@@ -189,6 +195,16 @@ struct Workspace: View {
       TemplatePicker { paper in
         edit { $0.notebook.pages.append(Page(paper: paper)) }
         activePage = notebook.pages.count - 1
+      }
+    }
+    .sheet(isPresented: $navigator) {
+      DocumentNavigator(package: document.package, currentPage: activePage) { id in
+        if let i = notebook.pages.firstIndex(where: { $0.id == id }) { activePage = i }
+      }
+    }
+    .sheet(isPresented: $pdfForms) {
+      PDFFormsSheet(package: document.package, page: page) { assets in
+        edit { $0.assets.merge(assets) { _, updated in updated } }
       }
     }
     .sheet(isPresented: $textSheet) { textEditor }
@@ -286,7 +302,7 @@ struct Workspace: View {
       }.help("Bookmark page")
       Button {
         do {
-          exportData = try PageRenderer.export(document.package)
+          exportData = try PDFEditor.export(document.package)
           exportType = .pdf
           exporter = true
         } catch { errorMessage = error.localizedDescription }
@@ -294,6 +310,21 @@ struct Workspace: View {
         Image(systemName: "square.and.arrow.up")
       }.help("Export PDF")
       Menu {
+        Button("Navigate document", systemImage: "list.bullet") { navigator = true }
+          .accessibilityIdentifier("documentNavigatorMenu")
+        Button("Fill PDF forms", systemImage: "rectangle.and.pencil.and.ellipsis") {
+          pdfForms = true
+        }.disabled(page.backgroundPDF == nil)
+        Button("Export current page", systemImage: "square.and.arrow.up") {
+          do {
+            var single = document.package
+            single.notebook.pages = [page]
+            exportData = try PDFEditor.export(single)
+            exportType = .pdf
+            exporter = true
+          } catch { errorMessage = error.localizedDescription }
+        }
+        Divider()
         Button("Import PDF", systemImage: "doc") {
           importType = .pdf
           importer = true
@@ -529,10 +560,17 @@ struct Workspace: View {
       }.padding(20)
     }.frame(width: 160).background(Color(red: 0.96, green: 0.97, blue: 0.98))
   }
-  private func pageView(_ p: Page, index: Int, availableWidth: Double, boardHeight: Double? = nil)
+  private func pageView(
+    _ p: Page, index: Int, availableWidth: Double, availableHeight: Double? = nil,
+    boardHeight: Double? = nil
+  )
     -> some View
   {
-    let w = boardHeight == nil ? max(120, min(availableWidth - 56, 780)) * zoom : availableWidth
+    let fittedWidth =
+      availableHeight.map { max(120, ($0 - 80) * p.dimensions.x / p.dimensions.y) } ?? 780
+    let w =
+      boardHeight == nil
+      ? max(120, min(availableWidth - 56, 780, fittedWidth)) * zoom : availableWidth
     return VStack(spacing: 10) {
       NativeCanvas(
         configuration: CanvasConfiguration(
@@ -833,7 +871,13 @@ struct Workspace: View {
           ? "Whiteboard" : "\(notebook.pages.count) \(notebook.pages.count == 1 ? "page" : "pages")"
       ).accessibilityIdentifier("pageCount")
       if notebook.kind != .whiteboard {
-        Text("\(activePage + 1) / \(notebook.pages.count)").accessibilityIdentifier("currentPage")
+        Button {
+          navigator = true
+        } label: {
+          Text("\(activePage + 1) / \(notebook.pages.count)")
+        }.accessibilityElement(children: .ignore).accessibilityIdentifier("pageNavigator")
+          .accessibilityLabel("Navigate document").accessibilityValue(
+            "\(activePage + 1) / \(notebook.pages.count)")
       }
       Button {
         if notebook.kind == .whiteboard {
@@ -855,9 +899,10 @@ struct Workspace: View {
       } label: {
         Image(systemName: "plus.magnifyingglass")
       }
-    }.font(.system(size: 11)).foregroundStyle(.secondary).buttonStyle(.plain).padding(
-      .horizontal, 18
-    ).frame(height: 30)
+    }.font(.system(size: 11)).foregroundStyle(Color(red: 0.32, green: 0.37, blue: 0.43))
+      .buttonStyle(.plain).padding(
+        .horizontal, 18
+      ).frame(height: 30)
   }
   private var textEditor: some View {
     VStack(alignment: .leading, spacing: 18) {

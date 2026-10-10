@@ -43,7 +43,9 @@ import SwiftUI
   @MainActor final class DrawingView: NSView {
     var configuration: CanvasConfiguration? {
       didSet {
-        if oldValue?.page != configuration?.page { cachedPage = nil }
+        if oldValue?.page != configuration?.page || oldValue?.assets != configuration?.assets {
+          cachedPage = nil
+        }
       }
     }
     var cachedPage: CGLayer?
@@ -163,7 +165,9 @@ import SwiftUI
   final class DrawingView: UIView, UIPencilInteractionDelegate, UIGestureRecognizerDelegate {
     var configuration: CanvasConfiguration? {
       didSet {
-        if oldValue?.page != configuration?.page { cachedPage = nil }
+        if oldValue?.page != configuration?.page || oldValue?.assets != configuration?.assets {
+          cachedPage = nil
+        }
         #if os(iOS)
           if oldValue?.pencilOnly == true && configuration?.pencilOnly == false {
             pencilSeen = false

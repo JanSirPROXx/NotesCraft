@@ -3,18 +3,97 @@ import PDFKit
 import SwiftUI
 
 @MainActor enum PDFEditor {
+  static func unlock(_ data: Data, password: String) throws -> Data {
+    guard let document = PDFDocument(data: data) else { throw PackageError.invalidPackage }
+    guard document.unlock(withPassword: password) else { throw PDFOpenError.wrongPassword }
+    // Copy pages into a new document rather than retaining the encrypted document container.
+    let unlocked = PDFDocument()
+    for i in 0..<document.pageCount {
+      guard let page = document.page(at: i)?.copy() as? PDFPage else {
+        throw PackageError.invalidPackage
+      }
+      unlocked.insert(page, at: i)
+    }
+    func destination(_ value: PDFDestination?) -> PDFDestination? {
+      guard let value, let page = value.page,
+        let target = unlocked.page(at: document.index(for: page))
+      else { return nil }
+      let result = PDFDestination(page: target, at: value.point)
+      result.zoom = value.zoom
+      return result
+    }
+    for i in 0..<document.pageCount {
+      guard let source = document.page(at: i), let target = unlocked.page(at: i) else { continue }
+      for (index, annotation) in source.annotations.enumerated() {
+        let value = (annotation.action as? PDFActionGoTo)?.destination ?? annotation.destination
+        if let mapped = destination(value), target.annotations.indices.contains(index) {
+          target.annotations[index].action = PDFActionGoTo(destination: mapped)
+        }
+      }
+    }
+    func outline(_ original: PDFOutline, depth: Int) -> PDFOutline {
+      let copied = PDFOutline()
+      copied.label = original.label
+      if let mapped = destination(original.destination) {
+        copied.destination = mapped
+      } else if let action = original.action as? PDFActionURL {
+        copied.action = action.copy() as? PDFAction
+      }
+      if depth < 64 {
+        for i in 0..<original.numberOfChildren {
+          if let child = original.child(at: i) {
+            copied.insertChild(outline(child, depth: depth + 1), at: copied.numberOfChildren)
+          }
+        }
+      }
+      copied.isOpen = original.isOpen
+      return copied
+    }
+    if let root = document.outlineRoot { unlocked.outlineRoot = outline(root, depth: 0) }
+    unlocked.documentAttributes = document.documentAttributes
+    guard let bytes = unlocked.dataRepresentation(), let check = PDFDocument(data: bytes),
+      !check.isLocked
+    else { throw PackageError.lockedPDF }
+    return bytes
+  }
+
   static func export(_ package: NotebookPackage) throws -> Data {
+    if package.notebook.kind == .whiteboard { return try PageRenderer.export(package) }
     let result = PDFDocument()
+    var originals: [String: PDFDocument] = [:]
+    var links:
+      [(output: Int, annotation: Int, name: String, target: Int, point: CGPoint, zoom: CGFloat)] =
+        []
+    var pageMap: [String: [Int: Int]] = [:]
+    for (index, page) in package.notebook.pages.enumerated() {
+      if let name = page.backgroundPDF, let number = page.backgroundPage {
+        if pageMap[name]?[number] == nil { pageMap[name, default: [:]][number] = index }
+      }
+    }
     for (index, page) in package.notebook.pages.enumerated() {
       let source: PDFPage
       if let name = page.backgroundPDF {
-        guard let bytes = package.assets[name], let original = PDFDocument(data: bytes) else {
+        if originals[name] == nil, let bytes = package.assets[name] {
+          originals[name] = PDFDocument(data: bytes)
+        }
+        guard let original = originals[name] else {
           throw PackageError.invalidPackage
         }
         guard !original.isLocked else { throw PackageError.lockedPDF }
         guard let originalPage = original.page(at: page.backgroundPage ?? 0),
           let copy = originalPage.copy() as? PDFPage
         else { throw PackageError.invalidPackage }
+        for (annotationIndex, annotation) in originalPage.annotations.enumerated() {
+          let destination =
+            (annotation.action as? PDFActionGoTo)?.destination ?? annotation.destination
+          if let destination, let target = destination.page {
+            links.append(
+              (
+                index, annotationIndex, name, original.index(for: target), destination.point,
+                destination.zoom
+              ))
+          }
+        }
         source = copy
       } else {
         var blankPage = Page(paper: page.paper)
@@ -127,7 +206,70 @@ import SwiftUI
         result.insert(source, at: index)
       }
     }
+    func remap(_ destination: PDFDestination?, source: PDFDocument, name: String) -> PDFDestination?
+    {
+      guard let destination, let page = destination.page,
+        let index = pageMap[name]?[source.index(for: page)], let target = result.page(at: index)
+      else { return nil }
+      let updated = PDFDestination(page: target, at: destination.point)
+      updated.zoom = destination.zoom
+      return updated
+    }
+    for link in links {
+      guard let page = result.page(at: link.output),
+        page.annotations.indices.contains(link.annotation)
+      else { continue }
+      let annotation = page.annotations[link.annotation]
+      if let index = pageMap[link.name]?[link.target], let target = result.page(at: index) {
+        let destination = PDFDestination(page: target, at: link.point)
+        destination.zoom = link.zoom
+        annotation.action = PDFActionGoTo(destination: destination)
+      } else {
+        annotation.action = nil
+        annotation.destination = nil
+      }
+    }
+    let root = PDFOutline()
+    func clone(_ outline: PDFOutline, source: PDFDocument, name: String, depth: Int) -> PDFOutline?
+    {
+      guard depth < 64 else { return nil }
+      let node = PDFOutline()
+      node.label = outline.label
+      for i in 0..<outline.numberOfChildren {
+        if let child = outline.child(at: i),
+          let copied = clone(child, source: source, name: name, depth: depth + 1)
+        {
+          node.insertChild(copied, at: node.numberOfChildren)
+        }
+      }
+      if let updated = remap(outline.destination, source: source, name: name) {
+        node.destination = updated
+      } else if let action = outline.action as? PDFActionURL {
+        node.action = action.copy() as? PDFAction
+      }
+      node.isOpen = outline.isOpen
+      return node.destination != nil || node.action != nil || node.numberOfChildren > 0 ? node : nil
+    }
+    var seen: Set<String> = []
+    for page in package.notebook.pages {
+      guard let name = page.backgroundPDF, seen.insert(name).inserted,
+        let source = originals[name], let outline = source.outlineRoot
+      else { continue }
+      for i in 0..<outline.numberOfChildren {
+        if let child = outline.child(at: i),
+          let copied = clone(child, source: source, name: name, depth: 0)
+        {
+          root.insertChild(copied, at: root.numberOfChildren)
+        }
+      }
+    }
+    if root.numberOfChildren > 0 { result.outlineRoot = root }
     guard let data = result.dataRepresentation() else { throw PackageError.invalidPackage }
     return data
   }
+}
+
+private enum PDFOpenError: LocalizedError {
+  case wrongPassword
+  var errorDescription: String? { "The password is incorrect. Try again." }
 }

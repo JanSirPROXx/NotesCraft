@@ -1,7 +1,7 @@
 import XCTest
 
 final class VaultUITests: XCTestCase {
-  @MainActor func testFolderPickerAndDrawing() throws {
+  @MainActor func testFolderLibraryManagementDrawingAndPDFNavigation() throws {
     continueAfterFailure = false
     XCUIDevice.shared.orientation = .portrait
     defer { XCUIDevice.shared.orientation = .portrait }
@@ -92,9 +92,14 @@ final class VaultUITests: XCTestCase {
     app.buttons["Pages"].tap()
     app.buttons["More"].tap()
     app.descendants(matching: .any)["Horizontal pages"].firstMatch.tap()
-    let currentPage = app.staticTexts["currentPage"]
+    let currentPage = app.buttons.matching(
+      NSPredicate(format: "label MATCHES %@", "[0-9]+ / [0-9]+")
+    ).firstMatch
     XCTAssertEqual(currentPage.label, "2 / 3")
-    pageScroll.swipeLeft()
+    pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.4)).press(
+      forDuration: 0.05,
+      thenDragTo: pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.4)),
+      withVelocity: .slow, thenHoldForDuration: 0)
     let snappedPage = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "label == '3 / 3'"), object: currentPage)
     XCTAssertEqual(XCTWaiter.wait(for: [snappedPage], timeout: 5), .completed, app.debugDescription)
@@ -102,6 +107,42 @@ final class VaultUITests: XCTestCase {
     app.buttons["Documents"].tap()
     XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 10))
     capture(app, name: "Documents library")
+    app.buttons["Actions for Untitled Notebook"].tap()
+    app.buttons["Rename"].tap()
+    let renameField = app.textFields["renameField"]
+    XCTAssertTrue(renameField.waitForExistence(timeout: 5))
+    renameField.tap()
+    renameField.typeText(
+      String(repeating: XCUIKeyboardKey.delete.rawValue, count: "Untitled Notebook".count)
+        + "Study Notes")
+    app.buttons["Rename"].tap()
+    XCTAssertTrue(app.buttons["Study Notes"].waitForExistence(timeout: 5))
+    app.buttons["Actions for Study Notes"].tap()
+    app.buttons["Duplicate"].tap()
+    XCTAssertTrue(app.buttons["Study Notes copy"].waitForExistence(timeout: 5))
+    app.buttons["Actions for Study Notes copy"].tap()
+    app.buttons["Move to Trash"].tap()
+    app.buttons["Library locations"].tap()
+    app.buttons["showTrash"].tap()
+    XCTAssertTrue(app.buttons["Restore"].waitForExistence(timeout: 5))
+    capture(app, name: "Recoverable library trash")
+    app.buttons["Restore"].tap()
+    XCTAssertTrue(app.staticTexts["Trash is empty"].waitForExistence(timeout: 5))
+    app.buttons["Library locations"].tap()
+    app.buttons["showDocuments"].tap()
+    XCTAssertTrue(app.buttons["Study Notes copy"].waitForExistence(timeout: 5))
+    capture(app, name: "Library after rename duplicate and restore")
+    app.buttons["Study Notes"].firstMatch.tap()
+    XCTAssertTrue(app.buttons["More"].waitForExistence(timeout: 5))
+    app.buttons["More"].tap()
+    app.buttons["documentNavigatorMenu"].tap()
+    let pageNumber = app.textFields["pageNumberField"]
+    XCTAssertTrue(pageNumber.waitForExistence(timeout: 5))
+    pageNumber.tap()
+    pageNumber.typeText(XCUIKeyboardKey.delete.rawValue + "1")
+    app.buttons["Go"].tap()
+    XCTAssertTrue(app.buttons["More"].waitForExistence(timeout: 5))
+    app.buttons["Documents"].tap()
     app.buttons["New"].tap()
     XCTAssertTrue(app.buttons["Whiteboard"].waitForExistence(timeout: 10))
     capture(app, name: "New document menu")

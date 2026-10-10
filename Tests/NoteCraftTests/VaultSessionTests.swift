@@ -5,6 +5,90 @@ import Testing
 
 @testable import NoteCraft
 
+@MainActor @Test func passwordPromptCreatesEditableCopyWithoutChangingEncryptedPDF() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+  try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let source = try #require(PDFDocument(data: PageRenderer.export(NotebookPackage())))
+  let encrypted = try #require(
+    source.dataRepresentation(options: [
+      PDFDocumentWriteOption.userPasswordOption: "secret",
+      PDFDocumentWriteOption.ownerPasswordOption: "owner",
+    ]))
+  let original = root.appendingPathComponent("Protected.pdf")
+  try encrypted.write(to: original)
+  let vault = VaultController(preferences: try #require(UserDefaults(suiteName: UUID().uuidString)))
+  await vault.choose(root)
+  let entry = try #require(vault.entries.first)
+  await vault.open(entry)
+  #expect(vault.error == nil)
+  #expect(vault.lockedPDF?.id == entry.id)
+  try await vault.unlockCopy(entry, password: "secret")
+  #expect(vault.lockedPDF == nil)
+  let session = try #require(vault.active)
+  #expect(session.url.lastPathComponent == "Protected unlocked.pdf")
+  session.document.package.notebook.pages[0].texts = [
+    TextBox(origin: Point(20, 30), text: "An edit")
+  ]
+  session.document.package.notebook.revision += 1
+  vault.changed(session)
+  await vault.save(session)
+  #expect(!session.dirty)
+  #expect(try Data(contentsOf: original) == encrypted)
+}
+
+@MainActor @Test func libraryManagementRebasesOpenDocumentsAndBlocksUnsavedConflicts() async throws
+{
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+  try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let vault = VaultController(preferences: try #require(UserDefaults(suiteName: UUID().uuidString)))
+  await vault.choose(root)
+  await vault.create(title: "Original", paper: Paper())
+  let session = try #require(vault.active)
+  await vault.library()
+  let entry = try #require(vault.entries.first)
+  vault.favorite(entry)
+  await vault.rename(entry, to: "Renamed")
+  #expect(vault.error == nil)
+  #expect(session.url.lastPathComponent == "Renamed.notecraft")
+  #expect(session.title == "Renamed")
+  #expect(vault.favorites.contains(session.url.vaultPath))
+  await vault.createFolder(title: "Projects")
+  let destination = try #require(vault.entries.first { $0.kind == .folder }).url
+  let renamed = try #require(vault.entries.first { $0.title == "Renamed" })
+  await vault.move(renamed, to: destination)
+  #expect(session.url.deletingLastPathComponent().vaultPath == destination.vaultPath)
+  await vault.navigate(destination)
+  let moved = try #require(vault.entries.first)
+  await vault.duplicate(moved)
+  #expect(vault.entries.count == 2)
+  let copy = try #require(vault.entries.first { $0.title == "Renamed copy" })
+  #expect(
+    try await vault.packages.read(from: copy.url).notebook.id
+      != session.document.package.notebook.id)
+  await vault.trash(moved)
+  #expect(vault.sessions.isEmpty)
+  #expect(vault.trashItems.count == 1)
+  await vault.restore(try #require(vault.trashItems.first))
+  #expect(vault.trashItems.isEmpty)
+  #expect(vault.favorites.contains(moved.url.vaultPath))
+  #expect(vault.entries.count == 2)
+  await vault.open(copy)
+  let open = try #require(vault.active)
+  var external = try await vault.packages.read(from: copy.url)
+  external.notebook.revision += 1
+  try await vault.packages.save(external, to: copy.url)
+  open.document.package.notebook.revision += 1
+  vault.changed(open)
+  await vault.trash(copy)
+  open.saveTask?.cancel()
+  #expect(open.dirty)
+  #expect(vault.error != nil)
+  #expect(FileManager.default.fileExists(atPath: copy.url.path))
+  #expect(vault.trashItems.isEmpty)
+}
+
 @MainActor @Test func vaultEditsMarkdownInPlaceAndProtectsExternalChanges() async throws {
   let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
   try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
