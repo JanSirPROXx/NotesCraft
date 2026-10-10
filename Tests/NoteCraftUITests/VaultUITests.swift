@@ -3,6 +3,8 @@ import XCTest
 final class VaultUITests: XCTestCase {
   @MainActor func testFolderPickerAndDrawing() throws {
     continueAfterFailure = false
+    XCUIDevice.shared.orientation = .landscapeLeft
+    defer { XCUIDevice.shared.orientation = .portrait }
     let app = XCUIApplication()
     app.launch()
     XCTAssertTrue(app.buttons["chooseStorageFolder"].waitForExistence(timeout: 10))
@@ -59,7 +61,7 @@ final class VaultUITests: XCTestCase {
 
   }
   @MainActor private func capture(_ app: XCUIApplication, name: String) {
-    let image = XCTAttachment(screenshot: app.screenshot())
+    let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
     image.name = name
     image.lifetime = .keepAlways
     add(image)

@@ -13,3 +13,7 @@ jobs:
         run: xcodebuild -project NoteCraft.xcodeproj -scheme NoteCraft -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test
       - name: iPad simulator application
         run: xcodebuild -project NoteCraft.xcodeproj -scheme NoteCraft -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+      - name: iPad folder selection and drawing
+        run: |
+          ipad_simulator_id="$(xcrun simctl list devices available --json | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(d["udid"] for group in devices.values() for d in group if "iPad" in d["name"]))')"
+          xcodebuild -project NoteCraft.xcodeproj -scheme NoteCraft-iPad -destination "platform=iOS Simulator,id=$ipad_simulator_id" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test
