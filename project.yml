@@ -29,7 +29,6 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: app.notecraft.app
         INFOPLIST_KEY_CFBundleDisplayName: NoteCraft
         INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
-        INFOPLIST_KEY_UISupportsDocumentBrowser: YES
         INFOPLIST_KEY_UIFileSharingEnabled: YES
         INFOPLIST_KEY_NSHighResolutionCapable: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
@@ -59,6 +58,12 @@ targets:
     sources: [Tests/NoteCraftCoreTests]
     dependencies:
       - target: NoteCraftCore
+  NoteCraftUITests:
+    type: bundle.ui-testing
+    supportedDestinations: [iOS]
+    sources: [Tests/NoteCraftUITests]
+    dependencies:
+      - target: NoteCraft
 schemes:
   NoteCraft:
     build:
@@ -67,3 +72,10 @@ schemes:
         NoteCraftCoreTests: [test]
     test:
       targets: [NoteCraftCoreTests]
+  NoteCraft-iPad:
+    build:
+      targets:
+        NoteCraft: all
+        NoteCraftUITests: [test]
+    test:
+      targets: [NoteCraftUITests]

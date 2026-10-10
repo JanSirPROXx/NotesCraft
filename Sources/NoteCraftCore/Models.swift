@@ -172,6 +172,7 @@ public struct Page: Codable, Equatable, Identifiable, Sendable {
 }
 public enum NotebookKind: String, Codable, Sendable { case notebook, whiteboard }
 public struct Notebook: Codable, Equatable, Sendable {
+  public var viewport: ViewTransform?
   public var kind: NotebookKind?
   public var id = UUID()
   public var title: String
@@ -182,7 +183,7 @@ public struct Notebook: Codable, Equatable, Sendable {
     self.pages = pages
   }
 }
-public struct ViewTransform: Sendable, Equatable {
+public struct ViewTransform: Codable, Sendable, Equatable {
   public var scale: Double
   public var offset: Point
   public init(scale: Double, offset: Point) {

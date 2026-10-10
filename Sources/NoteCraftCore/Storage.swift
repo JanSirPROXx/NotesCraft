@@ -64,6 +64,11 @@ public struct NotebookPackage: Sendable {
     try validateAssets()
   }
   private func validateAssets() throws {
+    if let viewport = notebook.viewport {
+      guard viewport.scale.isFinite, (0.1...12).contains(viewport.scale),
+        viewport.offset.x.isFinite, viewport.offset.y.isFinite
+      else { throw PackageError.invalidPackage }
+    }
     for page in notebook.pages {
       for name in page.images.map(\.filename) + [page.backgroundPDF].compactMap({ $0 }) {
         guard Self.validName(name), assets[name] != nil else {
@@ -130,7 +135,10 @@ public actor PackageStore {
       writingItemAt: url, options: .forReplacing, error: &coordinationError
     ) { coordinatedURL in
       result = Result {
-        if let expectedRevision, FileManager.default.fileExists(atPath: coordinatedURL.path) {
+        if let expectedRevision {
+          guard FileManager.default.fileExists(atPath: coordinatedURL.path) else {
+            throw PackageError.conflict
+          }
           let existing = try NotebookPackage(
             fileWrapper: FileWrapper(url: coordinatedURL, options: .immediate))
           guard existing.notebook.revision == expectedRevision else { throw PackageError.conflict }

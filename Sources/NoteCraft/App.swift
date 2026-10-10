@@ -17,12 +17,10 @@ struct NoteDocument: FileDocument {
   }
 }
 @main struct NoteCraftApp: App {
+  #if os(macOS)
+    @NSApplicationDelegateAdaptor(AppLifecycle.self) private var lifecycle
+  #endif
   var body: some Scene {
-    #if os(macOS)
-      Window("Notebooks", id: "library") { Library().preferredColorScheme(.light) }
-    #endif
-    DocumentGroup(newDocument: NoteDocument()) { file in
-      Workspace(document: file.$document, fileURL: file.fileURL).preferredColorScheme(.light)
-    }
+    WindowGroup("NoteCraft") { VaultRoot() }
   }
 }

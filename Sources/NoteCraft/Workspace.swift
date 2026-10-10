@@ -23,6 +23,11 @@ struct NotebookExport: FileDocument {
 struct Workspace: View {
   @Binding var document: NoteDocument
   let fileURL: URL?
+  var onBack: (() -> Void)? = nil
+  var tabs: [WorkspaceTab] = []
+  var onSelectTab: ((UUID) -> Void)? = nil
+  var saveStatus: String = "Saved"
+  var history: EditHistory = EditHistory()
   @Environment(\.dismiss) private var dismiss
   @Environment(\.openURL) private var openURL
   @Environment(\.openWindow) private var openWindow
@@ -63,8 +68,14 @@ struct Workspace: View {
   @State private var errorMessage: String?
   @State private var activePage = 0
   @State private var selection: Set<UUID> = []
-  @State private var undoStack: [NotebookPackage] = []
-  @State private var redoStack: [NotebookPackage] = []
+  private var undoStack: [NotebookPackage] {
+    get { history.undo }
+    nonmutating set { history.undo = newValue }
+  }
+  private var redoStack: [NotebookPackage] {
+    get { history.redo }
+    nonmutating set { history.redo = newValue }
+  }
   @State private var clipboard: [Stroke] = []
   @State private var textSheet = false
   @State private var text = ""
@@ -82,6 +93,13 @@ struct Workspace: View {
   @State private var zoom = 1.0
   @State private var customColor = Color.black
   @State private var imageSelection: UUID?
+  private var boardViewport: ViewTransform {
+    get { notebook.viewport ?? ViewTransform(scale: 1, offset: Point(30, 30)) }
+    nonmutating set {
+      document.package.notebook.viewport = newValue
+      document.package.notebook.revision += 1
+    }
+  }
   private let accent = Color(red: 0.17, green: 0.36, blue: 0.72)
   private var minimumWidth: Double {
     #if os(macOS)
@@ -103,23 +121,29 @@ struct Workspace: View {
       HStack(spacing: 0) {
         if thumbnails { pageSidebar }
         GeometryReader { geometry in
-          ScrollViewReader { proxy in
-            ScrollView(horizontal ? .horizontal : .vertical) {
-              if horizontal {
-                HStack(alignment: .top, spacing: 28) {
-                  ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
-                    pageView(p, index: index, availableWidth: geometry.size.width)
-                  }
-                }.padding(28)
-              } else {
-                VStack(spacing: 28) {
-                  ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
-                    pageView(p, index: index, availableWidth: geometry.size.width)
-                  }
-                }.frame(maxWidth: .infinity).padding(.vertical, 28)
+          if notebook.kind == .whiteboard {
+            pageView(
+              page, index: 0, availableWidth: geometry.size.width, boardHeight: geometry.size.height
+            )
+          } else {
+            ScrollViewReader { proxy in
+              ScrollView(horizontal ? .horizontal : .vertical) {
+                if horizontal {
+                  HStack(alignment: .top, spacing: 28) {
+                    ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
+                      pageView(p, index: index, availableWidth: geometry.size.width)
+                    }
+                  }.padding(28)
+                } else {
+                  VStack(spacing: 28) {
+                    ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
+                      pageView(p, index: index, availableWidth: geometry.size.width)
+                    }
+                  }.frame(maxWidth: .infinity).padding(.vertical, 28)
+                }
+              }.background(Color(red: 0.90, green: 0.92, blue: 0.94)).onChange(of: activePage) {
+                withAnimation { proxy.scrollTo(page.id, anchor: .top) }
               }
-            }.background(Color(red: 0.90, green: 0.92, blue: 0.94)).onChange(of: activePage) {
-              withAnimation { proxy.scrollTo(page.id, anchor: .top) }
             }
           }
         }
@@ -127,7 +151,8 @@ struct Workspace: View {
       footer
       if importing { ProgressView("Importing…").padding(8) }
     }
-    .background(Color.white).tint(accent)
+    .background(Color.white).foregroundStyle(Color(red: 0.12, green: 0.16, blue: 0.22)).tint(accent)
+    .environment(\.colorScheme, .light)
     .frame(minWidth: minimumWidth, minHeight: 500)
     .sheet(isPresented: $templateSheet) {
       TemplatePicker { paper in
@@ -176,11 +201,7 @@ struct Workspace: View {
   private var topBar: some View {
     HStack(spacing: 18) {
       Button {
-        #if os(macOS)
-          openWindow(id: "library")
-        #else
-          dismiss()
-        #endif
+        if let onBack { onBack() } else { dismiss() }
       } label: {
         Label("Documents", systemImage: "chevron.left")
       }
@@ -235,6 +256,7 @@ struct Workspace: View {
           clipboard.isEmpty && clipboardImages.isEmpty && clipboardTexts.isEmpty)
         Toggle("Horizontal pages", isOn: $horizontal)
         Toggle("Apple Pencil only", isOn: $pencilOnly)
+        Text("One finger draws · two fingers navigate")
         Button("Delete current page", role: .destructive) {
           if notebook.pages.count > 1 {
             edit { $0.notebook.pages.remove(at: activePage) }
@@ -247,26 +269,29 @@ struct Workspace: View {
     }.buttonStyle(.plain).padding(.horizontal, 22).frame(height: 55)
   }
   private var tabBar: some View {
-    #if os(macOS)
-      DocumentTabs(currentTitle: notebook.title, addPage: { templateSheet = true }).background(
-        accent)
-    #else
-      HStack(spacing: 0) {
-        HStack {
-          Image(systemName: "book.closed")
-          Text(notebook.title).lineLimit(1)
-          Spacer()
-          Image(systemName: "chevron.down").font(.caption)
-        }.padding(.horizontal, 18).frame(width: 260, height: 36).background(
-          Color.white.opacity(0.16))
-        Spacer()
+    HStack(spacing: 0) {
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(spacing: 0) {
+          if tabs.isEmpty { Text(notebook.title).padding(.horizontal, 20).frame(height: 36) }
+          ForEach(tabs) { tab in
+            Button {
+              onSelectTab?(tab.id)
+            } label: {
+              Label(tab.title, systemImage: "book.closed").lineLimit(1).padding(.horizontal, 18)
+                .frame(height: 36)
+                .background(tab.selected ? Color.white.opacity(0.2) : .clear)
+            }.buttonStyle(.plain)
+          }
+        }
+      }
+      if notebook.kind != .whiteboard {
         Button {
           templateSheet = true
         } label: {
-          Image(systemName: "plus")
-        }.padding(.horizontal, 20).help("Add page")
-      }.font(.system(size: 12, weight: .medium)).foregroundStyle(.white).background(accent)
-    #endif
+          Image(systemName: "plus").padding(14)
+        }.buttonStyle(.plain).accessibilityLabel("Add page")
+      }
+    }.font(.system(size: 13, weight: .medium)).foregroundStyle(Color.white).background(accent)
   }
   private var toolBar: some View {
     ScrollView(.horizontal, showsIndicators: false) {
@@ -295,7 +320,8 @@ struct Workspace: View {
             }
           } label: {
             Image(systemName: icon(item)).font(.system(size: 20)).frame(width: 36, height: 38)
-              .foregroundStyle(tool == item ? accent : Color.primary).background(
+              .foregroundStyle(tool == item ? accent : Color(red: 0.12, green: 0.16, blue: 0.22))
+              .background(
                 tool == item ? accent.opacity(0.10) : .clear, in: RoundedRectangle(cornerRadius: 7))
           }
           .help(label(item)).accessibilityLabel(label(item))
@@ -316,7 +342,9 @@ struct Workspace: View {
           Button {
             width = value
           } label: {
-            Circle().fill(Color.primary).frame(width: value + 3, height: value + 3).frame(
+            Circle().fill(Color(red: 0.12, green: 0.16, blue: 0.22)).frame(
+              width: value + 3, height: value + 3
+            ).frame(
               width: 26, height: 32
             ).background(
               width == value ? accent.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 5))
@@ -417,8 +445,10 @@ struct Workspace: View {
       }.padding(20)
     }.frame(width: 160).background(Color(red: 0.96, green: 0.97, blue: 0.98))
   }
-  private func pageView(_ p: Page, index: Int, availableWidth: Double) -> some View {
-    let w = max(120, min(availableWidth - 56, 780)) * zoom
+  private func pageView(_ p: Page, index: Int, availableWidth: Double, boardHeight: Double? = nil)
+    -> some View
+  {
+    let w = boardHeight == nil ? max(120, min(availableWidth - 56, 780)) * zoom : availableWidth
     return VStack(spacing: 10) {
       NativeCanvas(
         configuration: CanvasConfiguration(
@@ -455,7 +485,9 @@ struct Workspace: View {
                 selectInk
                 ? Editing.selection(
                   strokes: p.strokes, polygon: points,
-                  bounds: Rect(x: 0, y: 0, width: p.dimensions.x, height: p.dimensions.y)) : []
+                  bounds: boardHeight == nil
+                    ? Rect(x: 0, y: 0, width: p.dimensions.x, height: p.dimensions.y)
+                    : PageRenderer.contentBounds(p)) : []
               if selectImages {
                 selection.formUnion(
                   p.images.filter { intersects($0.frame, polygon: points) }.map(\.id))
@@ -496,14 +528,23 @@ struct Workspace: View {
               }
             }
             if tool == .elements { insertStar(point) }
-          })
+          }, viewport: boardHeight == nil ? nil : boardViewport,
+          onViewportChange: { boardViewport = $0 })
       )
+      .accessibilityElement()
+      .accessibilityLabel("Drawing canvas")
+      .accessibilityIdentifier("drawingCanvas")
+      .accessibilityValue("\(p.strokes.count) strokes")
       .overlay(alignment: .topLeading) {
         if index == activePage, let id = imageSelection,
           let image = p.images.first(where: { $0.id == id }),
           let data = document.package.assets[image.filename]
         {
-          ImageHandles(asset: image, data: data, viewScale: w / p.dimensions.x) { changed in
+          ImageHandles(
+            asset: image, data: data,
+            viewScale: boardHeight == nil ? w / p.dimensions.x : boardViewport.scale,
+            viewOffset: boardHeight == nil ? Point(0, 0) : boardViewport.offset
+          ) { changed in
             edit { package in
               if let i = package.notebook.pages[index].images.firstIndex(where: {
                 $0.id == changed.id
@@ -517,15 +558,22 @@ struct Workspace: View {
       .dropDestination(for: URL.self) { urls, location in
         guard let url = urls.first else { return false }
         activePage = index
-        insertPoint = Point(location.x * p.dimensions.x / w, location.y * p.dimensions.x / w)
+        insertPoint =
+          boardHeight == nil
+          ? Point(location.x * p.dimensions.x / w, location.y * p.dimensions.x / w)
+          : boardViewport.documentPoint(Point(location.x, location.y))
         importType = .image
         importFile(.success(url))
         return true
       }
-      .frame(width: w, height: w * p.dimensions.y / p.dimensions.x).background(.white).shadow(
+      .frame(width: w, height: boardHeight ?? (w * p.dimensions.y / p.dimensions.x)).background(
+        .white
+      ).shadow(
         color: Color.black.opacity(0.10), radius: 6, y: 2)
-      Text("\(index + 1) / \(notebook.pages.count)").font(.system(size: 11)).foregroundStyle(
-        .secondary)
+      if boardHeight == nil {
+        Text("\(index + 1) / \(notebook.pages.count)").font(.system(size: 11)).foregroundStyle(
+          Color(white: 0.4))
+      }
     }.id(p.id)
   }
   private func displayPage(_ page: Page, index: Int) -> Page {
@@ -604,18 +652,30 @@ struct Workspace: View {
       Text(
         fileURL == nil
           ? "New notebook · Save to choose a location"
-          : "\(fileURL!.lastPathComponent) · System autosave"
+          : "\(fileURL!.lastPathComponent) · \(saveStatus)"
       ).lineLimit(1)
       Spacer()
-      Text("\(notebook.pages.count) pages")
+      Text(
+        notebook.kind == .whiteboard
+          ? "Whiteboard" : "\(notebook.pages.count) \(notebook.pages.count == 1 ? "page" : "pages")"
+      )
       Button {
-        zoom = max(0.5, zoom - 0.1)
+        if notebook.kind == .whiteboard {
+          boardViewport.scale = max(0.1, boardViewport.scale / 1.2)
+        } else {
+          zoom = max(0.5, zoom - 0.1)
+        }
       } label: {
         Image(systemName: "minus.magnifyingglass")
       }
-      Text("\(Int(zoom * 100))%").monospacedDigit().frame(width: 42)
+      Text("\(Int((notebook.kind == .whiteboard ? boardViewport.scale : zoom) * 100))%")
+        .monospacedDigit().frame(width: 42)
       Button {
-        zoom = min(2, zoom + 0.1)
+        if notebook.kind == .whiteboard {
+          boardViewport.scale = min(12, boardViewport.scale * 1.2)
+        } else {
+          zoom = min(2, zoom + 0.1)
+        }
       } label: {
         Image(systemName: "plus.magnifyingglass")
       }
@@ -930,10 +990,13 @@ struct Workspace: View {
     guard let source = CGImageSourceCreateWithData(data as CFData, nil),
       let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
     else { throw PackageError.invalidAsset(name) }
-    let x = max(0, min(insertPoint.x, page.dimensions.x - 40))
-    let y = max(0, min(insertPoint.y, page.dimensions.y - 40))
+    let board = notebook.kind == .whiteboard
+    let x = board ? insertPoint.x : max(0, min(insertPoint.x, page.dimensions.x - 40))
+    let y = board ? insertPoint.y : max(0, min(insertPoint.y, page.dimensions.y - 40))
     let ratio = Double(image.height) / Double(image.width)
-    let w = max(20, min(260, page.dimensions.x - x - 20, (page.dimensions.y - y - 20) / ratio))
+    let w =
+      board
+      ? 260 : max(20, min(260, page.dimensions.x - x - 20, (page.dimensions.y - y - 20) / ratio))
     edit {
       $0.assets[name] = data
       $0.notebook.pages[activePage].images.append(

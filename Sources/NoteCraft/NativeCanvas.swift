@@ -13,6 +13,8 @@ import SwiftUI
   var onStroke: (Stroke) -> Void
   var onGesture: ([Point]) -> Void
   var onTap: (Point) -> Void
+  var viewport: ViewTransform? = nil
+  var onViewportChange: ((ViewTransform) -> Void)? = nil
 }
 #if os(macOS)
   struct NativeCanvas: NSViewRepresentable {
@@ -20,6 +22,10 @@ import SwiftUI
     func makeNSView(context: Context) -> DrawingView { DrawingView() }
     func updateNSView(_ view: DrawingView, context: Context) {
       view.configuration = configuration
+      view.setAccessibilityElement(true)
+      view.setAccessibilityLabel("Drawing canvas")
+      view.setAccessibilityIdentifier("drawingCanvas")
+      view.setAccessibilityValue("\(configuration.page.strokes.count) strokes")
       view.needsDisplay = true
     }
   }
@@ -29,6 +35,7 @@ import SwiftUI
     }
     var cachedPage: CGLayer?
     var cachedResolution = 0.0
+    var cachedViewport: ViewTransform?
     var samples: [Sample] = []
     var predictedSamples: [Sample] = []
     override var isFlipped: Bool { true }
@@ -53,13 +60,36 @@ import SwiftUI
       finish()
       needsDisplay = true
     }
+    override func scrollWheel(with event: NSEvent) {
+      guard var viewport = configuration?.viewport else {
+        super.scrollWheel(with: event)
+        return
+      }
+      viewport.offset.x += event.scrollingDeltaX
+      viewport.offset.y += event.scrollingDeltaY
+      configuration?.onViewportChange?(viewport)
+    }
+    override func magnify(with event: NSEvent) {
+      guard let viewport = configuration?.viewport else {
+        super.magnify(with: event)
+        return
+      }
+      let p = convert(event.locationInWindow, from: nil)
+      let anchor = Point(p.x, p.y)
+      let world = viewport.documentPoint(anchor)
+      let scale = min(12, max(0.1, viewport.scale * (1 + event.magnification)))
+      configuration?.onViewportChange?(
+        ViewTransform(
+          scale: scale, offset: Point(anchor.x - world.x * scale, anchor.y - world.y * scale)))
+    }
     func append(_ event: NSEvent) {
       guard let configuration else { return }
       let p = convert(event.locationInWindow, from: nil)
       let scale = bounds.width / configuration.page.dimensions.x
       samples.append(
         Sample(
-          point: Point(p.x / scale, p.y / scale),
+          point: configuration.viewport?.documentPoint(Point(p.x, p.y))
+            ?? Point(p.x / scale, p.y / scale),
           pressure: event.pressure > 0 ? Double(event.pressure) : 1))
     }
   }
@@ -75,6 +105,12 @@ import SwiftUI
     }
     func updateUIView(_ view: DrawingView, context: Context) {
       view.configuration = configuration
+      view.isAccessibilityElement = true
+      view.accessibilityLabel = "Drawing canvas"
+      view.accessibilityIdentifier = "drawingCanvas"
+      view.accessibilityValue = "\(configuration.page.strokes.count) strokes"
+      view.accessibilityTraits = .allowsDirectInteraction
+      view.configureScrolling()
       view.setNeedsDisplay()
     }
   }
@@ -84,6 +120,7 @@ import SwiftUI
     }
     var cachedPage: CGLayer?
     var cachedResolution = 0.0
+    var cachedViewport: ViewTransform?
     var samples: [Sample] = []
     var predictedSamples: [Sample] = []
     override func draw(_ rect: CGRect) {
@@ -116,6 +153,58 @@ import SwiftUI
       predictedSamples = []
       setNeedsDisplay()
     }
+    private lazy var boardPan = UIPanGestureRecognizer(
+      target: self, action: #selector(panBoard(_:)))
+    private lazy var boardPinch = UIPinchGestureRecognizer(
+      target: self, action: #selector(pinchBoard(_:)))
+    private var gestureBase: ViewTransform?
+    func configureScrolling() {
+      let board = configuration?.viewport != nil
+      if boardPan.view == nil {
+        boardPan.minimumNumberOfTouches = 2
+        boardPan.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+        boardPinch.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+        boardPan.require(toFail: boardPinch)
+        addGestureRecognizer(boardPan)
+        addGestureRecognizer(boardPinch)
+      }
+      boardPan.isEnabled = board
+      boardPinch.isEnabled = board
+      var ancestor = superview
+      while let view = ancestor {
+        if let scroll = view as? UIScrollView {
+          // A single finger or Pencil owns ink. Two fingers own navigation; the parent must not steal a stroke.
+          scroll.delaysContentTouches = false
+          scroll.panGestureRecognizer.allowedTouchTypes = [
+            NSNumber(value: UITouch.TouchType.direct.rawValue)
+          ]
+          scroll.panGestureRecognizer.minimumNumberOfTouches =
+            configuration?.tool == .readOnly ? 1 : 2
+        }
+        ancestor = view.superview
+      }
+    }
+    @objc private func panBoard(_ gesture: UIPanGestureRecognizer) {
+      if gesture.state == .began { gestureBase = configuration?.viewport }
+      guard let base = gestureBase else { return }
+      let delta = gesture.translation(in: self)
+      configuration?.onViewportChange?(
+        ViewTransform(
+          scale: base.scale, offset: Point(base.offset.x + delta.x, base.offset.y + delta.y)))
+      if gesture.state == .ended || gesture.state == .cancelled { gestureBase = nil }
+    }
+    @objc private func pinchBoard(_ gesture: UIPinchGestureRecognizer) {
+      if gesture.state == .began { gestureBase = configuration?.viewport }
+      guard let base = gestureBase else { return }
+      let center = gesture.location(in: self)
+      let anchor = Point(center.x, center.y)
+      let world = base.documentPoint(anchor)
+      let scale = min(12, max(0.1, base.scale * gesture.scale))
+      configuration?.onViewportChange?(
+        ViewTransform(
+          scale: scale, offset: Point(anchor.x - world.x * scale, anchor.y - world.y * scale)))
+      if gesture.state == .ended || gesture.state == .cancelled { gestureBase = nil }
+    }
     private var displayLink: CADisplayLink?
     private var displayTarget: CanvasDisplayTarget?
     override func didMoveToWindow() {
@@ -124,6 +213,7 @@ import SwiftUI
       displayLink = nil
       displayTarget = nil
       guard window != nil else { return }
+      configureScrolling()
       let target = CanvasDisplayTarget()
       target.view = self
       displayTarget = target
@@ -136,7 +226,8 @@ import SwiftUI
       let p = touch.location(in: self)
       let scale = bounds.width / (configuration?.page.dimensions.x ?? 595)
       return Sample(
-        point: Point(p.x / scale, p.y / scale),
+        point: configuration?.viewport?.documentPoint(Point(p.x, p.y))
+          ?? Point(p.x / scale, p.y / scale),
         pressure: touch.type == .pencil
           ? min(1, Double(touch.force / max(0.01, touch.maximumPossibleForce))) : 1,
         altitude: Double(touch.altitudeAngle))
@@ -154,27 +245,42 @@ import SwiftUI
 
 extension DrawingView {
   func paint(_ configuration: CanvasConfiguration, _ c: CGContext) {
-    let scale = bounds.width / configuration.page.dimensions.x
+    guard bounds.width > 0, bounds.height > 0 else { return }
     c.saveGState()
-    c.scaleBy(x: scale, y: scale)
-    // Cache at the effective display resolution so zoom and Retina scaling do not soften retained ink.
-    let dimensions = configuration.page.dimensions
-    let resolution = min(hypot(c.ctm.a, c.ctm.b), 4096 / max(dimensions.x, dimensions.y))
-    if abs(resolution - cachedResolution) > 0.001 { cachedPage = nil }
+    c.setFillColor(CGColor(gray: 1, alpha: 1))
+    c.fill(bounds)
+    let cacheRect: CGRect
+    if let viewport = configuration.viewport {
+      c.translateBy(x: viewport.offset.x, y: viewport.offset.y)
+      c.scaleBy(x: viewport.scale, y: viewport.scale)
+      let origin = viewport.documentPoint(Point(0, 0))
+      cacheRect = CGRect(
+        x: origin.x, y: origin.y, width: bounds.width / viewport.scale,
+        height: bounds.height / viewport.scale)
+    } else {
+      let scale = bounds.width / configuration.page.dimensions.x
+      c.scaleBy(x: scale, y: scale)
+      cacheRect = CGRect(
+        x: 0, y: 0, width: configuration.page.dimensions.x, height: configuration.page.dimensions.y)
+    }
+    // Cache the visible world at device resolution, including negative coordinates on a whiteboard.
+    let resolution = min(hypot(c.ctm.a, c.ctm.b), 4096 / max(cacheRect.width, cacheRect.height))
+    if abs(resolution - cachedResolution) > 0.001 || cachedViewport != configuration.viewport {
+      cachedPage = nil
+    }
     if cachedPage == nil,
       let layer = CGLayer(
-        c, size: CGSize(width: dimensions.x * resolution, height: dimensions.y * resolution),
-        auxiliaryInfo: nil),
-      let context = layer.context
+        c, size: CGSize(width: cacheRect.width * resolution, height: cacheRect.height * resolution),
+        auxiliaryInfo: nil), let context = layer.context
     {
       context.scaleBy(x: resolution, y: resolution)
+      context.translateBy(x: -cacheRect.minX, y: -cacheRect.minY)
       PageRenderer.render(configuration.page, assets: configuration.assets, in: context)
       cachedPage = layer
       cachedResolution = resolution
+      cachedViewport = configuration.viewport
     }
-    if let cachedPage {
-      c.draw(cachedPage, in: CGRect(x: 0, y: 0, width: dimensions.x, height: dimensions.y))
-    }
+    if let cachedPage { c.draw(cachedPage, in: cacheRect) }
     if !samples.isEmpty {
       if configuration.tool == .lasso {
         c.setStrokeColor(PageRenderer.color(.blue))

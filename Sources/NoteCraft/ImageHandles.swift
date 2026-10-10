@@ -6,6 +6,7 @@ struct ImageHandles: View {
   let asset: PageAsset
   let data: Data
   let viewScale: Double
+  var viewOffset = Point(0, 0)
   let onCommit: (PageAsset) -> Void
   @GestureState private var drag = CGSize.zero
   @GestureState private var magnification = 1.0
@@ -28,8 +29,8 @@ struct ImageHandles: View {
         }
         .scaleEffect(magnification).rotationEffect(Angle(radians: asset.rotation) + rotation)
         .position(
-          x: (asset.frame.x + asset.frame.width / 2) * viewScale,
-          y: (asset.frame.y + asset.frame.height / 2) * viewScale
+          x: (asset.frame.x + asset.frame.width / 2) * viewScale + viewOffset.x,
+          y: (asset.frame.y + asset.frame.height / 2) * viewScale + viewOffset.y
         ).offset(drag)
         .gesture(
           DragGesture().updating($drag) { value, state, _ in state = value.translation }.onEnded {
