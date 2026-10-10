@@ -136,11 +136,11 @@ import UniformTypeIdentifiers
   movingConfiguration.selection = [page.strokes[0].id]
   view.configuration = movingConfiguration
   view.resetInput()
-  view.accept(Sample(point: Point(50, 60)))
-  view.accept(Sample(point: Point(50, 100)))
+  view.accept(Sample(point: Point(120, 60)))
+  view.accept(Sample(point: Point(120, 100)))
   view.paint(movingConfiguration, try context())
   let stationaryLayer = try #require(view.cachedPage)
-  view.accept(Sample(point: Point(80, 120)))
+  view.accept(Sample(point: Point(150, 120)))
   let moved = try context()
   view.paint(movingConfiguration, moved)
   #expect(view.cachedPage === stationaryLayer)
@@ -208,4 +208,48 @@ import UniformTypeIdentifiers
   view.finish()
   #expect(translation == Point(50, 70))
   #expect(view.configuration?.page.strokes == [selected])
+}
+
+@MainActor @Test func selectionHandlesPreviewThenCommitResizeAndRotation() throws {
+  let view = DrawingView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
+  var page = Page()
+  let selected = Stroke(samples: [Sample(point: Point(100, 100)), Sample(point: Point(200, 200))])
+  page.strokes = [selected]
+  var committed: SelectionTransform?
+  let configuration = CanvasConfiguration(
+    page: page, assets: [:], tool: .lasso, color: .ink,
+    width: 2, style: .ballpoint, pencilOnly: true, selection: [selected.id],
+    onStroke: { _ in }, onGesture: { _ in }, onTap: { _ in },
+    onTransformSelection: { committed = $0 })
+  view.configuration = configuration
+  view.accept(Sample(point: Point(201, 201)))
+  view.accept(Sample(point: Point(252, 252)))
+  #expect(committed == nil)
+  #expect(view.input.selectionHandle == .resize)
+  #expect(abs((view.input.selectionTransform?.scale ?? 0) - 2) < 0.001)
+  view.finish()
+  #expect(abs((committed?.scale ?? 0) - 2) < 0.001)
+  committed = nil
+  view.accept(Sample(point: Point(150, 69)))
+  view.accept(Sample(point: Point(231, 150)))
+  #expect(view.input.selectionHandle == .rotate)
+  #expect(committed == nil)
+  view.finish()
+  #expect(abs((committed?.angle ?? 0) - .pi / 2) < 0.001)
+}
+
+@MainActor @Test func rotatedTextRemainsSearchableInPDFAndBlankContinuationKeepsItsSize() throws {
+  var page = Page(paper: Paper(pattern: .blank))
+  page.backgroundSize = Point(900, 1200)
+  var text = TextBox(origin: Point(150, 180), text: "Rotated searchable text")
+  text.rotation = .pi / 4
+  text.boxWidth = 250
+  page.texts = [text]
+  let package = NotebookPackage(
+    notebook: Notebook(pages: [page, InkGestures.blankPage(matching: page)]))
+  let data = try PDFEditor.export(package)
+  let pdf = try #require(PDFDocument(data: data))
+  #expect(pdf.pageCount == 2)
+  #expect(pdf.string?.contains("Rotated searchable text") == true)
+  #expect(pdf.page(at: 1)?.bounds(for: .mediaBox).size == CGSize(width: 900, height: 1200))
 }

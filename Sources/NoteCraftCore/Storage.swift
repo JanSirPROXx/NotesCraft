@@ -86,7 +86,8 @@ public struct NotebookPackage: Sendable {
       }
       for text in page.texts {
         guard validPoint(text.origin), text.size.isFinite, text.size > 0, text.size <= 1000,
-          (text.boxWidth ?? 280).isFinite, (text.boxWidth ?? 280) > 0
+          (text.boxWidth ?? 280).isFinite, (text.boxWidth ?? 280) > 0,
+          (text.rotation ?? 0).isFinite
         else { throw PackageError.invalidPackage }
       }
       for image in page.images {

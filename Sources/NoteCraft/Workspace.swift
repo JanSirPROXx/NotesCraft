@@ -71,6 +71,7 @@ struct Workspace: View {
   @State private var errorMessage: String?
   @State private var activePage = 0
   @State private var selection: Set<UUID> = []
+  @State private var selectionMenuPresented = false
   private var undoStack: [NotebookPackage] {
     get { history.undo }
     nonmutating set { history.undo = newValue }
@@ -119,7 +120,6 @@ struct Workspace: View {
       tabBar
       toolBar
       if searchVisible { searchBar }
-      if !selection.isEmpty { selectionBar }
       if let imageSelection { imageControls(imageSelection) }
       HStack(spacing: 0) {
         if thumbnails { pageSidebar }
@@ -517,7 +517,7 @@ struct Workspace: View {
                     : PageRenderer.contentBounds(p)) : []
               if selectImages {
                 selection.formUnion(
-                  p.images.filter { intersects($0.frame, polygon: points) }.map(\.id))
+                  p.images.filter { intersects($0.bounds, polygon: points) }.map(\.id))
               }
               if selectTexts {
                 selection.formUnion(
@@ -530,7 +530,7 @@ struct Workspace: View {
             insertPoint = point
             if tool == .readOnly { followLink(at: point, on: p) }
             if tool == .text {
-              if let box = p.texts.last(where: { $0.bounds.contains(point) }) {
+              if let box = p.texts.last(where: { $0.contains(point) }) {
                 editingTextID = box.id
                 insertPoint = box.origin
                 text = box.text
@@ -547,7 +547,7 @@ struct Workspace: View {
               textSheet = true
             }
             if tool == .image {
-              if let image = p.images.last(where: { $0.frame.contains(point) }) {
+              if let image = p.images.last(where: { $0.contains(point) }) {
                 imageSelection = image.id
               } else {
                 importType = .image
@@ -564,6 +564,15 @@ struct Workspace: View {
                 package.notebook.pages[index], ids: selection, by: delta)
             }
           },
+          onTransformSelection: { transform in
+            activePage = index
+            edit { package in
+              package.notebook.pages[index] = InkGestures.transform(
+                package.notebook.pages[index],
+                ids: selection, by: transform)
+            }
+          },
+          onSelectionMenu: { selectionMenuPresented = true },
           onPencilDetected: { pencilOnly = true },
           onToggleEraser: {
             if tool == .eraser {
@@ -606,6 +615,30 @@ struct Workspace: View {
           }
         }
       }
+      .overlay(alignment: .topLeading) {
+        if index == activePage, !selection.isEmpty,
+          let b = InkGestures.selectionBounds(page: p, ids: selection)
+        {
+          let scale = boardHeight == nil ? w / p.dimensions.x : boardViewport.scale
+          let offset = boardHeight == nil ? Point(0, 0) : boardViewport.offset
+          Button {
+            selectionMenuPresented.toggle()
+          } label: {
+            Image(systemName: "ellipsis").font(.system(size: 18, weight: .semibold)).padding(10)
+          }.buttonStyle(.plain).foregroundStyle(accent).background(.white, in: Capsule())
+            .shadow(color: .black.opacity(0.15), radius: 5, y: 2)
+            .position(
+              x: min(w - 26, max(26, (b.x + b.width) * scale + offset.x + 24)),
+              y: min(
+                (boardHeight ?? w * p.dimensions.y / p.dimensions.x) - 26,
+                max(26, b.y * scale + offset.y - 25))
+            )
+            .accessibilityLabel("Selection actions")
+            .popover(isPresented: $selectionMenuPresented) {
+              selectionActions.padding(16).frame(width: 240)
+            }
+        }
+      }
       .dropDestination(for: URL.self) { urls, location in
         guard let url = urls.first else { return false }
         activePage = index
@@ -632,50 +665,50 @@ struct Workspace: View {
     if index == activePage, let id = imageSelection { result.images.removeAll { $0.id == id } }
     return result
   }
-  private var selectionBar: some View {
-    ScrollView(.horizontal, showsIndicators: false) {
-      HStack {
-        Text("\(selection.count) selected").font(.caption)
-        Button("Cut") {
-          copySelection()
-          deleteSelection()
-        }
-        Button("Copy") { copySelection() }
-        Button("Paste") { paste() }.disabled(
-          clipboard.isEmpty && clipboardImages.isEmpty && clipboardTexts.isEmpty)
-        Button("Delete", role: .destructive) { deleteSelection() }
-        Button("Change color") {
-          edit { p in
-            for i in p.notebook.pages[activePage].strokes.indices
-            where selection.contains(p.notebook.pages[activePage].strokes[i].id) {
-              p.notebook.pages[activePage].strokes[i].color = color
-            }
-            for i in p.notebook.pages[activePage].texts.indices
-            where selection.contains(p.notebook.pages[activePage].texts[i].id) {
-              p.notebook.pages[activePage].texts[i].color = color
-            }
+  private var selectionActions: some View {
+    VStack(alignment: .leading, spacing: 14) {
+      Text("\(selection.count) selected").font(.caption)
+      Button("Cut") {
+        copySelection()
+        deleteSelection()
+      }
+      Button("Copy") { copySelection() }
+      Button("Paste") { paste() }.disabled(
+        clipboard.isEmpty && clipboardImages.isEmpty && clipboardTexts.isEmpty)
+      Button("Delete", role: .destructive) { deleteSelection() }
+      Button("Change color") {
+        edit { p in
+          for i in p.notebook.pages[activePage].strokes.indices
+          where selection.contains(p.notebook.pages[activePage].strokes[i].id) {
+            p.notebook.pages[activePage].strokes[i].color = color
+          }
+          for i in p.notebook.pages[activePage].texts.indices
+          where selection.contains(p.notebook.pages[activePage].texts[i].id) {
+            p.notebook.pages[activePage].texts[i].color = color
           }
         }
-        Button("Move right") { transformSelection(scale: 1, angle: 0, dx: 20) }
-        Button("Enlarge") { transformSelection(scale: 1.15, angle: 0, dx: 0) }
-        Button("Rotate") { transformSelection(scale: 1, angle: .pi / 12, dx: 0) }
-        Button("Save element") {
-          do {
-            savedClip = try JSONEncoder().encode(page.strokes.filter { selection.contains($0.id) })
-          } catch { errorMessage = error.localizedDescription }
-        }
-        Button("Screenshot") {
-          do {
-            exportData = try PageRenderer.screenshot(
-              page, assets: document.package.assets, bounds: selectionBounds())
-            exportType = .png
-            exporter = true
-          } catch { errorMessage = error.localizedDescription }
-        }
-        Spacer()
-        Button("Done") { selection = [] }
-      }.buttonStyle(.borderless).padding(12)
-    }.background(accent.opacity(0.05))
+      }
+      Text("Drag a corner to resize, or the top handle to rotate.").font(.caption).foregroundStyle(
+        .secondary)
+      Button("Save element") {
+        do {
+          savedClip = try JSONEncoder().encode(page.strokes.filter { selection.contains($0.id) })
+        } catch { errorMessage = error.localizedDescription }
+      }
+      Button("Screenshot") {
+        do {
+          exportData = try PageRenderer.screenshot(
+            page, assets: document.package.assets, bounds: selectionBounds())
+          exportType = .png
+          exporter = true
+        } catch { errorMessage = error.localizedDescription }
+      }
+      Button("Deselect") {
+        selection = []
+        selectionMenuPresented = false
+      }
+    }.buttonStyle(.plain)
+      .onChange(of: selection) { if selection.isEmpty { selectionMenuPresented = false } }
   }
   private var searchBar: some View {
     HStack {
@@ -786,6 +819,7 @@ struct Workspace: View {
               let i = p.notebook.pages[activePage].texts.firstIndex(where: { $0.id == id })
             {
               box.id = id
+              box.rotation = p.notebook.pages[activePage].texts[i].rotation
               p.notebook.pages[activePage].texts[i] = box
             } else {
               p.notebook.pages[activePage].texts.append(box)
@@ -880,7 +914,7 @@ struct Workspace: View {
   private func selectionBounds() -> Rect {
     let bounds =
       page.strokes.filter { selection.contains($0.id) }.map(\.bounds)
-      + page.images.filter { selection.contains($0.id) }.map(\.frame)
+      + page.images.filter { selection.contains($0.id) }.map(\.bounds)
       + page.texts.filter { selection.contains($0.id) }.map(\.bounds)
     let x = bounds.map(\.x).min() ?? 0
     let y = bounds.map(\.y).min() ?? 0
@@ -914,46 +948,6 @@ struct Workspace: View {
         text.origin.x += 20
         text.origin.y += 20
         return text
-      }
-    }
-  }
-  private func transformSelection(scale: Double, angle: Double, dx: Double) {
-    var points: [Point] = page.strokes.filter { selection.contains($0.id) }.flatMap {
-      $0.samples.map(\.point)
-    }
-    points += page.images.filter { selection.contains($0.id) }.map {
-      Point($0.frame.x + $0.frame.width / 2, $0.frame.y + $0.frame.height / 2)
-    }
-    points += page.texts.filter { selection.contains($0.id) }.map(\.origin)
-    guard !points.isEmpty else { return }
-    let center = Point(
-      points.map(\.x).reduce(0, +) / Double(points.count),
-      points.map(\.y).reduce(0, +) / Double(points.count))
-    edit { p in
-      for i in p.notebook.pages[activePage].strokes.indices
-      where selection.contains(p.notebook.pages[activePage].strokes[i].id) {
-        p.notebook.pages[activePage].strokes[i].samples = p.notebook.pages[activePage].strokes[i]
-          .samples.map {
-            var s = $0
-            let x = (s.point.x - center.x) * scale
-            let y = (s.point.y - center.y) * scale
-            s.point = Point(
-              center.x + x * cos(angle) - y * sin(angle) + dx,
-              center.y + x * sin(angle) + y * cos(angle))
-            return s
-          }
-      }
-      for i in p.notebook.pages[activePage].images.indices
-      where selection.contains(p.notebook.pages[activePage].images[i].id) {
-        p.notebook.pages[activePage].images[i].frame.x += dx
-        p.notebook.pages[activePage].images[i].frame.width *= scale
-        p.notebook.pages[activePage].images[i].frame.height *= scale
-        p.notebook.pages[activePage].images[i].rotation += angle
-      }
-      for i in p.notebook.pages[activePage].texts.indices
-      where selection.contains(p.notebook.pages[activePage].texts[i].id) {
-        p.notebook.pages[activePage].texts[i].origin.x += dx
-        p.notebook.pages[activePage].texts[i].size *= scale
       }
     }
   }

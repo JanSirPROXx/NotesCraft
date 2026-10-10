@@ -69,7 +69,11 @@ import SwiftUI
       + page.strokes.filter({ $0.tool != .highlighter })
     { stroke(s, in: c) }
     for text in page.texts {
-      let r = text.bounds
+      let r = text.layoutBounds
+      c.saveGState()
+      c.translateBy(x: r.x + r.width / 2, y: r.y + r.height / 2)
+      c.rotate(by: text.rotation ?? 0)
+      c.translateBy(x: -r.x - r.width / 2, y: -r.y - r.height / 2)
       let rect = CGRect(x: r.x, y: r.y, width: r.width, height: r.height)
       if let background = text.background {
         c.setFillColor(color(background, alpha: 0.2))
@@ -108,6 +112,7 @@ import SwiftUI
           ])
         UIGraphicsPopContext()
       #endif
+      c.restoreGState()
     }
   }
 
@@ -218,7 +223,7 @@ import SwiftUI
   }
   static func contentBounds(_ page: Page) -> Rect {
     let rectangles =
-      page.strokes.map(\.bounds) + page.images.map(\.frame) + page.texts.map(\.bounds)
+      page.strokes.map(\.bounds) + page.images.map(\.bounds) + page.texts.map(\.bounds)
     guard !rectangles.isEmpty else { return Rect(x: 0, y: 0, width: 800, height: 600) }
     let x = (rectangles.map(\.x).min() ?? 0) - 40
     let y = (rectangles.map(\.y).min() ?? 0) - 40

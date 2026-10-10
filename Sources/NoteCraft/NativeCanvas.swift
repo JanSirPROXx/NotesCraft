@@ -16,6 +16,8 @@ import SwiftUI
   var viewport: ViewTransform? = nil
   var onViewportChange: ((ViewTransform) -> Void)? = nil
   var onTranslateSelection: ((Point) -> Void)? = nil
+  var onTransformSelection: ((SelectionTransform) -> Void)? = nil
+  var onSelectionMenu: (() -> Void)? = nil
   var onPencilDetected: (() -> Void)? = nil
   var onToggleEraser: (() -> Void)? = nil
   var onAppendPage: (() -> Void)? = nil
@@ -399,7 +401,10 @@ import SwiftUI
   var resizeStart: Point?
   var moveStart: Point?
   var moveDelta = Point(0, 0)
+  var selectionHandle: SelectionHandle = .move
+  var selectionTransform: SelectionTransform?
 }
+enum SelectionHandle { case move, resize, rotate }
 
 extension DrawingView {
   func invalidateCanvas() {
@@ -417,6 +422,8 @@ extension DrawingView {
     input.resizeStart = nil
     input.moveStart = nil
     input.moveDelta = Point(0, 0)
+    input.selectionHandle = .move
+    input.selectionTransform = nil
     samples = []
     predictedSamples = []
     cachedPage = nil
@@ -424,13 +431,51 @@ extension DrawingView {
   func accept(_ sample: Sample) {
     guard let configuration else { return }
     if samples.isEmpty, configuration.tool == .lasso,
-      InkGestures.selectionContains(
-        sample.point, page: configuration.page, ids: configuration.selection)
+      let bounds = InkGestures.selectionBounds(
+        page: configuration.page, ids: configuration.selection)
     {
-      input.moveStart = sample.point
+      let scale =
+        configuration.viewport?.scale ?? self.bounds.width / configuration.page.dimensions.x
+      let center = Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+      let hitRadius = 16 / scale
+      let rotate = Point(center.x, bounds.y - 30 / scale)
+      let corners = [
+        Point(bounds.x, bounds.y), Point(bounds.x + bounds.width, bounds.y),
+        Point(bounds.x, bounds.y + bounds.height),
+        Point(bounds.x + bounds.width, bounds.y + bounds.height),
+      ]
+      if sample.point.distance(to: rotate) < hitRadius {
+        input.selectionHandle = .rotate
+        input.moveStart = sample.point
+      } else if corners.contains(where: { sample.point.distance(to: $0) < hitRadius }) {
+        input.selectionHandle = .resize
+        input.moveStart = sample.point
+      } else if InkGestures.selectionContains(
+        sample.point, page: configuration.page, ids: configuration.selection)
+      {
+        input.selectionHandle = .move
+        input.moveStart = sample.point
+      }
+      if input.moveStart != nil { input.selectionTransform = SelectionTransform(center: center) }
     }
-    if let start = input.moveStart {
-      input.moveDelta = Point(sample.point.x - start.x, sample.point.y - start.y)
+    if let start = input.moveStart, var transform = input.selectionTransform {
+      switch input.selectionHandle {
+      case .move:
+        input.moveDelta = Point(sample.point.x - start.x, sample.point.y - start.y)
+        transform.translation = input.moveDelta
+      case .resize:
+        transform.scale = max(
+          0.1,
+          min(
+            10,
+            sample.point.distance(to: transform.center)
+              / max(1, start.distance(to: transform.center))))
+      case .rotate:
+        transform.angle =
+          atan2(sample.point.y - transform.center.y, sample.point.x - transform.center.x)
+          - atan2(start.y - transform.center.y, start.x - transform.center.x)
+      }
+      input.selectionTransform = transform
       samples = [sample]
       return
     }
@@ -466,10 +511,9 @@ extension DrawingView {
   func paint(_ configuration: CanvasConfiguration, _ c: CGContext) {
     guard bounds.width > 0, bounds.height > 0 else { return }
     var configuration = configuration
-    if input.moveStart != nil {
-      configuration.page = InkGestures.translate(
-        configuration.page,
-        ids: configuration.selection, by: input.moveDelta)
+    if let transform = input.selectionTransform {
+      configuration.page = InkGestures.transform(
+        configuration.page, ids: configuration.selection, by: transform)
     }
     if configuration.tool == .eraser, !samples.isEmpty {
       for sample in samples {
@@ -545,17 +589,26 @@ extension DrawingView {
     c.setLineDash(phase: 0, lengths: [4, 3])
     c.setStrokeColor(PageRenderer.color(.blue))
     c.setLineWidth(1)
-    for stroke in configuration.page.strokes where configuration.selection.contains(stroke.id) {
-      let b = stroke.bounds
-      c.stroke(CGRect(x: b.x - 4, y: b.y - 4, width: b.width + 8, height: b.height + 8))
-    }
-    for image in configuration.page.images where configuration.selection.contains(image.id) {
-      let b = image.frame
+    if let b = InkGestures.selectionBounds(page: configuration.page, ids: configuration.selection) {
+      let scale = configuration.viewport?.scale ?? bounds.width / configuration.page.dimensions.x
+      c.setLineWidth(1.5 / scale)
       c.stroke(CGRect(x: b.x, y: b.y, width: b.width, height: b.height))
-    }
-    for text in configuration.page.texts where configuration.selection.contains(text.id) {
-      let b = text.bounds
-      c.stroke(CGRect(x: b.x, y: b.y, width: b.width, height: b.height))
+      c.setLineDash(phase: 0, lengths: [])
+      let center = Point(b.x + b.width / 2, b.y + b.height / 2)
+      let rotate = Point(center.x, b.y - 30 / scale)
+      c.move(to: CGPoint(x: center.x, y: b.y))
+      c.addLine(to: CGPoint(x: rotate.x, y: rotate.y))
+      c.strokePath()
+      c.setFillColor(CGColor(gray: 1, alpha: 1))
+      for point in [
+        Point(b.x, b.y), Point(b.x + b.width, b.y), Point(b.x, b.y + b.height),
+        Point(b.x + b.width, b.y + b.height), rotate,
+      ] {
+        let circle = CGRect(
+          x: point.x - 5 / scale, y: point.y - 5 / scale, width: 10 / scale, height: 10 / scale)
+        c.fillEllipse(in: circle)
+        c.strokeEllipse(in: circle)
+      }
     }
     c.restoreGState()
   }
@@ -565,9 +618,17 @@ extension DrawingView {
       return
     }
     input.holdTask?.cancel()
-    if input.moveStart != nil {
-      if hypot(input.moveDelta.x, input.moveDelta.y) > 0.5 {
-        configuration.onTranslateSelection?(input.moveDelta)
+    if let transform = input.selectionTransform {
+      if abs(transform.scale - 1) > 0.001 || abs(transform.angle) > 0.001
+        || hypot(transform.translation.x, transform.translation.y) > 0.5
+      {
+        if let onTransform = configuration.onTransformSelection {
+          onTransform(transform)
+        } else {
+          configuration.onTranslateSelection?(transform.translation)
+        }
+      } else {
+        configuration.onSelectionMenu?()
       }
       resetInput()
       return

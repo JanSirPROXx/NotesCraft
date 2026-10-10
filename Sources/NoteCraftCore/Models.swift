@@ -134,13 +134,34 @@ public struct TextBox: Codable, Equatable, Identifiable, Sendable {
   public var background: InkColor?
   public var border: Bool?
   public var boxWidth: Double?
-  public var bounds: Rect {
+  public var rotation: Double?
+  public var layoutBounds: Rect {
     let width = max(1, boxWidth ?? 280)
     let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
     let count = lines.reduce(0.0) { total, line in
       total + max(1, ceil(Double(line.count) * size * 0.55 / width))
     }
     return Rect(x: origin.x, y: origin.y, width: width, height: max(size * 1.5, count * size * 1.5))
+  }
+  public var bounds: Rect {
+    let r = layoutBounds
+    let angle = rotation ?? 0
+    let width = abs(r.width * cos(angle)) + abs(r.height * sin(angle))
+    let height = abs(r.width * sin(angle)) + abs(r.height * cos(angle))
+    return Rect(
+      x: r.x + (r.width - width) / 2, y: r.y + (r.height - height) / 2,
+      width: width, height: height)
+  }
+  public func contains(_ point: Point) -> Bool {
+    let r = layoutBounds
+    let center = Point(r.x + r.width / 2, r.y + r.height / 2)
+    let x = point.x - center.x
+    let y = point.y - center.y
+    let angle = -(rotation ?? 0)
+    return r.contains(
+      Point(
+        center.x + x * cos(angle) - y * sin(angle),
+        center.y + x * sin(angle) + y * cos(angle)))
   }
   public init(origin: Point, text: String) {
     self.origin = origin
@@ -152,6 +173,22 @@ public struct PageAsset: Codable, Equatable, Identifiable, Sendable {
   public var filename: String
   public var frame: Rect
   public var rotation: Double = 0
+  public var bounds: Rect {
+    let width = abs(frame.width * cos(rotation)) + abs(frame.height * sin(rotation))
+    let height = abs(frame.width * sin(rotation)) + abs(frame.height * cos(rotation))
+    return Rect(
+      x: frame.x + (frame.width - width) / 2, y: frame.y + (frame.height - height) / 2,
+      width: width, height: height)
+  }
+  public func contains(_ point: Point) -> Bool {
+    let center = Point(frame.x + frame.width / 2, frame.y + frame.height / 2)
+    let x = point.x - center.x
+    let y = point.y - center.y
+    return frame.contains(
+      Point(
+        center.x + x * cos(rotation) + y * sin(rotation),
+        center.y - x * sin(rotation) + y * cos(rotation)))
+  }
   public init(filename: String, frame: Rect) {
     self.filename = filename
     self.frame = frame

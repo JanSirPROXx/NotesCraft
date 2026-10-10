@@ -207,3 +207,36 @@ import Testing
   #expect(next.backgroundPDF == nil)
   #expect(next.strokes.isEmpty)
 }
+
+@Test func groupTransformsRotateAndScaleImagesAndTextAroundTheSameCenter() throws {
+  var page = Page()
+  let stroke = Stroke(
+    samples: [Sample(point: Point(10, 0)), Sample(point: Point(30, 0))], width: 2)
+  let image = PageAsset(filename: "image.png", frame: Rect(x: 10, y: 10, width: 20, height: 10))
+  var text = TextBox(origin: Point(10, 30), text: "Rotate me")
+  text.boxWidth = 100
+  page.strokes = [stroke]
+  page.images = [image]
+  page.texts = [text]
+  let ids: Set<UUID> = [stroke.id, image.id, text.id]
+  let transform = SelectionTransform(
+    center: Point(0, 0), scale: 2, angle: .pi / 2,
+    translation: Point(100, 100))
+  let changed = InkGestures.transform(page, ids: ids, by: transform)
+  #expect(abs(changed.strokes[0].samples[0].point.x - 100) < 0.0001)
+  #expect(abs(changed.strokes[0].samples[0].point.y - 120) < 0.0001)
+  #expect(changed.strokes[0].width == 4)
+  #expect(abs(changed.images[0].frame.x + changed.images[0].frame.width / 2 - 70) < 0.0001)
+  #expect(abs(changed.images[0].frame.y + changed.images[0].frame.height / 2 - 140) < 0.0001)
+  #expect(changed.images[0].rotation == .pi / 2)
+  #expect(changed.texts[0].rotation == .pi / 2)
+  #expect(changed.texts[0].size == 40)
+  #expect(changed.texts[0].boxWidth == 200)
+  #expect(abs(changed.texts[0].bounds.height - 200) < 0.0001)
+  let package = NotebookPackage(
+    notebook: Notebook(pages: [changed]), assets: ["image.png": Data([1])])
+  let decoded = try NotebookPackage(fileWrapper: package.fileWrapper())
+  #expect(decoded.notebook.pages[0].texts[0].rotation == .pi / 2)
+  #expect(decoded.notebook.pages[0].images[0].contains(Point(70, 140)))
+  #expect(!decoded.notebook.pages[0].images[0].contains(Point(200, 300)))
+}

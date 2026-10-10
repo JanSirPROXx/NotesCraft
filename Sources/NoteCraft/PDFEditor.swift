@@ -17,7 +17,9 @@ import SwiftUI
         else { throw PackageError.invalidPackage }
         source = copy
       } else {
-        let blank = NotebookPackage(notebook: Notebook(pages: [Page(paper: page.paper)]))
+        var blankPage = Page(paper: page.paper)
+        blankPage.backgroundSize = page.dimensions
+        let blank = NotebookPackage(notebook: Notebook(pages: [blankPage]))
         guard let generated = PDFDocument(data: try PageRenderer.export(blank)),
           let copy = generated.page(at: 0)?.copy() as? PDFPage
         else { throw PackageError.invalidPackage }
@@ -71,7 +73,7 @@ import SwiftUI
         annotation.add(path)
         source.addAnnotation(annotation)
       }
-      for text in page.texts {
+      for text in page.texts where abs(text.rotation ?? 0) < 0.0001 {
         let box = text.bounds
         let corners = [
           point(Point(box.x, box.y)), point(Point(box.x + box.width, box.y + box.height)),
@@ -104,11 +106,13 @@ import SwiftUI
         annotation.border = border
         source.addAnnotation(annotation)
       }
-      // Images and filled shapes need an appearance stream. Preserve the source's interactive annotations on that page.
-      if !page.images.isEmpty || page.strokes.contains(where: { $0.fillColor != nil }) {
+      // Arbitrarily rotated text, images and fills need a vector appearance; keep interactive source annotations.
+      if !page.images.isEmpty || page.strokes.contains(where: { $0.fillColor != nil })
+        || page.texts.contains(where: { abs($0.rotation ?? 0) >= 0.0001 })
+      {
         var visual = page
         visual.strokes = page.strokes.filter { $0.fillColor != nil }
-        visual.texts = []
+        visual.texts = page.texts.filter { abs($0.rotation ?? 0) >= 0.0001 }
         let layer = NotebookPackage(notebook: Notebook(pages: [visual]), assets: package.assets)
         if let rendered = PDFDocument(
           data: try PageRenderer.export(layer, includePDFAnnotations: false))?.page(at: 0)

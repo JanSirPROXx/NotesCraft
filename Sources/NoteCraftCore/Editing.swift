@@ -335,7 +335,7 @@ public enum InkGestures {
   public static func selectionContains(_ point: Point, page: Page, ids: Set<UUID>) -> Bool {
     let bounds =
       page.strokes.filter { ids.contains($0.id) }.map(\.bounds)
-      + page.images.filter { ids.contains($0.id) }.map(\.frame)
+      + page.images.filter { ids.contains($0.id) }.map(\.bounds)
       + page.texts.filter { ids.contains($0.id) }.map(\.bounds)
     guard let first = bounds.first else { return false }
     let minX = bounds.reduce(first.x) { min($0, $1.x) } - 8
@@ -370,5 +370,81 @@ public enum InkGestures {
     var page = Page(paper: previous.paper)
     page.backgroundSize = previous.dimensions
     return page
+  }
+}
+
+public struct SelectionTransform: Equatable, Sendable {
+  public var center: Point
+  public var scale: Double
+  public var angle: Double
+  public var translation: Point
+  public init(center: Point, scale: Double = 1, angle: Double = 0, translation: Point = Point(0, 0))
+  {
+    self.center = center
+    self.scale = scale
+    self.angle = angle
+    self.translation = translation
+  }
+  public func apply(_ point: Point) -> Point {
+    let x = (point.x - center.x) * scale
+    let y = (point.y - center.y) * scale
+    return Point(
+      center.x + x * cos(angle) - y * sin(angle) + translation.x,
+      center.y + x * sin(angle) + y * cos(angle) + translation.y)
+  }
+}
+
+extension InkGestures {
+  public static func selectionBounds(page: Page, ids: Set<UUID>) -> Rect? {
+    let bounds =
+      page.strokes.filter { ids.contains($0.id) }.map(\.bounds)
+      + page.images.filter { ids.contains($0.id) }.map(\.bounds)
+      + page.texts.filter { ids.contains($0.id) }.map(\.bounds)
+    guard let first = bounds.first else { return nil }
+    let x = bounds.reduce(first.x) { min($0, $1.x) }
+    let y = bounds.reduce(first.y) { min($0, $1.y) }
+    let maxX = bounds.reduce(first.x + first.width) { max($0, $1.x + $1.width) }
+    let maxY = bounds.reduce(first.y + first.height) { max($0, $1.y + $1.height) }
+    return Rect(x: x, y: y, width: maxX - x, height: maxY - y)
+  }
+  public static func transform(_ page: Page, ids: Set<UUID>, by transform: SelectionTransform)
+    -> Page
+  {
+    guard transform.scale.isFinite, transform.scale > 0, transform.angle.isFinite,
+      transform.translation.x.isFinite, transform.translation.y.isFinite
+    else { return page }
+    var result = page
+    for i in result.strokes.indices where ids.contains(result.strokes[i].id) {
+      result.strokes[i].samples = result.strokes[i].samples.map {
+        var sample = $0
+        sample.point = transform.apply(sample.point)
+        return sample
+      }
+      result.strokes[i].width = min(10000, result.strokes[i].width * transform.scale)
+    }
+    for i in result.images.indices where ids.contains(result.images[i].id) {
+      let original = result.images[i]
+      let center = transform.apply(
+        Point(
+          original.frame.x + original.frame.width / 2,
+          original.frame.y + original.frame.height / 2))
+      let width = original.frame.width * transform.scale
+      let height = original.frame.height * transform.scale
+      result.images[i].frame = Rect(
+        x: center.x - width / 2, y: center.y - height / 2,
+        width: width, height: height)
+      result.images[i].rotation += transform.angle
+    }
+    for i in result.texts.indices where ids.contains(result.texts[i].id) {
+      let original = result.texts[i]
+      let r = original.layoutBounds
+      let center = transform.apply(Point(r.x + r.width / 2, r.y + r.height / 2))
+      result.texts[i].size = min(1000, original.size * transform.scale)
+      result.texts[i].boxWidth = (original.boxWidth ?? 280) * transform.scale
+      let size = result.texts[i].layoutBounds
+      result.texts[i].origin = Point(center.x - size.width / 2, center.y - size.height / 2)
+      result.texts[i].rotation = (original.rotation ?? 0) + transform.angle
+    }
+    return result
   }
 }
