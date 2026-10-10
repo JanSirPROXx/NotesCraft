@@ -14,22 +14,32 @@ import SwiftUI
   static func color(_ ink: InkColor, alpha: Double = 1) -> CGColor {
     CGColor(red: ink.red, green: ink.green, blue: ink.blue, alpha: alpha)
   }
-  static func render(_ page: Page, assets: [String: Data], in c: CGContext) {
+  private static var pdfCache: [(Data, PDFDocument)] = []
+  private static func document(_ data: Data) -> PDFDocument? {
+    if let cached = pdfCache.first(where: { $0.0 == data }) { return cached.1 }
+    guard let document = PDFDocument(data: data) else { return nil }
+    pdfCache.append((data, document))
+    if pdfCache.count > 3 { pdfCache.removeFirst() }
+    return document
+  }
+  static func render(
+    _ page: Page, assets: [String: Data], in c: CGContext, includePDFAnnotations: Bool = true
+  ) {
     let size = page.dimensions
     c.setFillColor(CGColor(gray: 1, alpha: 1))
     c.fill(CGRect(x: 0, y: 0, width: size.x, height: size.y))
     if let name = page.backgroundPDF, let data = assets[name],
-      let provider = CGDataProvider(data: data as CFData), let pdf = CGPDFDocument(provider),
-      let p = pdf.page(at: (page.backgroundPage ?? 0) + 1)
+      let pdf = document(data), let p = pdf.page(at: page.backgroundPage ?? 0),
+      let reference = p.pageRef
     {
       c.saveGState()
       c.translateBy(x: 0, y: size.y)
       c.scaleBy(x: 1, y: -1)
       c.concatenate(
-        p.getDrawingTransform(
+        reference.getDrawingTransform(
           .mediaBox, rect: CGRect(x: 0, y: 0, width: size.x, height: size.y), rotate: 0,
           preserveAspectRatio: true))
-      c.drawPDFPage(p)
+      if includePDFAnnotations { p.draw(with: .mediaBox, to: c) } else { c.drawPDFPage(reference) }
       c.restoreGState()
     } else {
       paper(page.paper, in: c)
@@ -53,7 +63,7 @@ import SwiftUI
     { stroke(s, in: c) }
     for text in page.texts {
       let r = text.bounds
-      let rect = CGRect(x: r.x, y: r.y, width: min(r.width, size.x - r.x), height: r.height)
+      let rect = CGRect(x: r.x, y: r.y, width: r.width, height: r.height)
       if let background = text.background {
         c.setFillColor(color(background, alpha: 0.2))
         c.fill(rect)
@@ -154,7 +164,7 @@ import SwiftUI
     } else {
       c.setStrokeColor(color(s.color))
       c.setFillColor(color(s.color))
-      if s.samples.count == 1 {
+      if s.samples.allSatisfy({ $0.point == first.point }) {
         c.fillEllipse(
           in: CGRect(
             x: first.point.x - s.width / 2, y: first.point.y - s.width / 2, width: s.width,
@@ -171,35 +181,70 @@ import SwiftUI
     }
     c.restoreGState()
   }
-  static func export(_ package: NotebookPackage) throws -> Data {
+  static func export(_ package: NotebookPackage, includePDFAnnotations: Bool = true) throws -> Data
+  {
     let data = NSMutableData()
     guard let consumer = CGDataConsumer(data: data),
       let c = CGContext(consumer: consumer, mediaBox: nil, nil)
     else { throw PackageError.invalidPackage }
     for page in package.notebook.pages {
-      let size = page.dimensions
+      let area =
+        package.notebook.kind == .whiteboard
+        ? contentBounds(page)
+        : Rect(x: 0, y: 0, width: page.dimensions.x, height: page.dimensions.y)
+      let size = Point(area.width, area.height)
       var mediaBox = CGRect(x: 0, y: 0, width: size.x, height: size.y)
       let boxData = withUnsafeBytes(of: &mediaBox) { Data($0) }
       c.beginPDFPage([kCGPDFContextMediaBox as String: boxData] as CFDictionary)
+      c.setFillColor(CGColor(gray: 1, alpha: 1))
+      c.fill(mediaBox)
       c.saveGState()
       c.translateBy(x: 0, y: size.y)
       c.scaleBy(x: 1, y: -1)
-      render(page, assets: package.assets, in: c)
+      c.translateBy(x: -area.x, y: -area.y)
+      render(page, assets: package.assets, in: c, includePDFAnnotations: includePDFAnnotations)
       c.restoreGState()
       c.endPDFPage()
     }
     c.closePDF()
     return data as Data
   }
+  static func contentBounds(_ page: Page) -> Rect {
+    let rectangles =
+      page.strokes.map(\.bounds) + page.images.map(\.frame) + page.texts.map(\.bounds)
+    guard !rectangles.isEmpty else { return Rect(x: 0, y: 0, width: 800, height: 600) }
+    let x = (rectangles.map(\.x).min() ?? 0) - 40
+    let y = (rectangles.map(\.y).min() ?? 0) - 40
+    return Rect(
+      x: x, y: y, width: max(100, (rectangles.map { $0.x + $0.width }.max() ?? 0) - x + 40),
+      height: max(100, (rectangles.map { $0.y + $0.height }.max() ?? 0) - y + 40))
+  }
+  static func thumbnail(_ package: NotebookPackage) throws -> Data {
+    guard let page = package.notebook.pages.first else { throw PackageError.invalidPackage }
+    let area =
+      package.notebook.kind == .whiteboard
+      ? contentBounds(page) : Rect(x: 0, y: 0, width: page.dimensions.x, height: page.dimensions.y)
+    let scale = 240 / max(area.width, area.height)
+    return try bitmap(
+      page, assets: package.assets, bounds: area, width: max(1, Int(area.width * scale)),
+      height: max(1, Int(area.height * scale)))
+  }
   static func screenshot(_ page: Page, assets: [String: Data], bounds: Rect) throws -> Data {
     let width = min(4096, max(1, Int(bounds.width * 2)))
     let height = min(4096, max(1, Int(bounds.height * 2)))
+    return try bitmap(page, assets: assets, bounds: bounds, width: width, height: height)
+  }
+  private static func bitmap(
+    _ page: Page, assets: [String: Data], bounds: Rect, width: Int, height: Int
+  ) throws -> Data {
     guard
       let c = CGContext(
         data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
         space: CGColorSpaceCreateDeviceRGB(),
         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
     else { throw PackageError.invalidPackage }
+    c.setFillColor(CGColor(gray: 1, alpha: 1))
+    c.fill(CGRect(x: 0, y: 0, width: width, height: height))
     c.translateBy(x: 0, y: Double(height))
     c.scaleBy(x: Double(width) / bounds.width, y: -Double(height) / bounds.height)
     c.translateBy(x: -bounds.x, y: -bounds.y)
