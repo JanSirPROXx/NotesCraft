@@ -66,15 +66,17 @@ and brush styles, pressure/tilt, custom colors, hex entry and three persistent t
 presets. Erasure supports precision splits and whole strokes, with highlighter-only and
 auto-deselect options. Highlighter ink renders beneath pen ink. Closed shapes support fill.
 Lasso filters select handwriting, images and text, with cut/copy/paste, deletion, recoloring,
-transforms, cropped PNG export and one reusable vector clip slot. Text boxes support font,
+direct corner resize and rotation handles, cropped PNG export and a named reusable element
+library. Elements preserve handwriting, images and rotated text across notebooks and vaults. Text boxes support font,
 size, alignment, width, border and background; tap an existing box to edit it. Images can
 be imported from Files or Photos, dropped as file URLs, moved, pinched and rotated.
 
-The thumbnail button reveals pages and bookmarks; the plus button opens paper templates.
+The thumbnail button reveals pages and bookmarks; its context menu inserts, duplicates,
+reorders and deletes pages. Horizontal navigation snaps to one page. The plus button opens paper templates.
 Use the overflow menu for page direction, import, scan, paste and input settings.
 iPad scanning uses VisionKit on supported physical hardware. Read-only mode follows PDF
 links. PDF import appends backgrounds with original dimensions; multi-page PDF export
-retains vector ink, text and the original PDF backgrounds. Search covers text boxes.
+retains vector ink, text and the original PDF backgrounds. Search covers text boxes and embedded PDF text, with page results and highlighted matches.
 
 ## Architecture
 
@@ -95,10 +97,9 @@ checking. See [the format specification](docs/FORMAT.md).
 
 The app implements the local folder, notebook, whiteboard, PDF and Markdown workflow;
 it does not yet provide every Goodnotes feature. There are no account, marketplace or
-collaboration features. Lasso resize/rotation still use menu commands, text rotation is
-pending, and the element library stores one reusable handwriting clip. Horizontal pages scroll without
-snapping. Undo history stays with each open document. Library search matches
-filenames/titles; workspace search matches text boxes.
+collaboration features. Undo history stays with each open document. Library search matches
+filenames/titles; workspace search matches text boxes and embedded PDF text. Scanned pages
+and handwriting are not searchable yet. See [the parity audit](docs/PARITY.md) for remaining work.
 
 120 Hz is requested on supported iPads, but physical Pencil latency and palm rejection
 still need device measurement. PDF rendering/export happens on the main actor and very

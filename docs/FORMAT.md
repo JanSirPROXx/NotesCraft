@@ -17,7 +17,7 @@ fingerprint to reject external changes. No account or server is used.
 
 Optional fields extend version 1 compatibly: pages may include `backgroundSize` for
 non-standard/rotated PDF dimensions, strokes may include `fillColor`, and text boxes
-may include `fontName`, `alignment`, `background`, `border` and `boxWidth`. Missing
+may include `fontName`, `alignment`, `background`, `border`, `boxWidth` and `rotation`. Missing
 optional fields retain default rendering. Asset paths may not traverse directories.
 Invalid geometry, empty notebooks, missing media and future versions are rejected.
 
@@ -30,3 +30,8 @@ of the last saved PDF. The session trusts the sidecar only when that digest matc
 current PDF; otherwise it imports the externally modified PDF afresh. The original file
 contains standard PDF annotations for use in other applications. PDF and sidecar writes
 are individually atomic, with no multi-file transaction guarantee.
+
+Text rotation is stored in radians around the layout box center; absent values mean zero.
+Named elements live in the app support directory as `Elements.json`, independently of vaults.
+Each element stores selected objects and required image bytes. Insertion allocates fresh
+object identifiers and asset filenames so existing vault media is never replaced.

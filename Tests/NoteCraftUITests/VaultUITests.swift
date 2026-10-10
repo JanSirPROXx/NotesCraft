@@ -6,6 +6,7 @@ final class VaultUITests: XCTestCase {
     XCUIDevice.shared.orientation = .portrait
     defer { XCUIDevice.shared.orientation = .portrait }
     let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input"]
     app.launch()
     XCTAssertTrue(app.buttons["chooseStorageFolder"].waitForExistence(timeout: 10))
     app.buttons["chooseStorageFolder"].tap()
@@ -82,6 +83,22 @@ final class VaultUITests: XCTestCase {
       predicate: NSPredicate(format: "label == '2 pages'"), object: pageCount)
     XCTAssertEqual(XCTWaiter.wait(for: [addedPage], timeout: 5), .completed, app.debugDescription)
     capture(app, name: "Continued page after pulling past the end")
+    app.buttons["Pages"].tap()
+    let thumbnail = app.buttons["pageThumbnail-0"]
+    XCTAssertTrue(thumbnail.waitForExistence(timeout: 5))
+    thumbnail.press(forDuration: 0.8)
+    app.buttons["Duplicate page"].tap()
+    XCTAssertEqual(pageCount.label, "3 pages")
+    app.buttons["Pages"].tap()
+    app.buttons["More"].tap()
+    app.descendants(matching: .any)["Horizontal pages"].firstMatch.tap()
+    let currentPage = app.staticTexts["currentPage"]
+    XCTAssertEqual(currentPage.label, "2 / 3")
+    pageScroll.swipeLeft()
+    let snappedPage = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "label == '3 / 3'"), object: currentPage)
+    XCTAssertEqual(XCTWaiter.wait(for: [snappedPage], timeout: 5), .completed, app.debugDescription)
+    capture(app, name: "Horizontal pages after snapping")
     app.buttons["Documents"].tap()
     XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 10))
     capture(app, name: "Documents library")

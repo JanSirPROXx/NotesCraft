@@ -18,6 +18,7 @@
 		3138C2BB8C6C9F38597468C0 /* DocumentScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = C34A621480C559D993C764C4 /* DocumentScanner.swift */; };
 		31A626A7849A371780D9C3F8 /* PDFEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5A556A9C43AF11C3D163C6 /* PDFEditor.swift */; };
 		3EFD1D73D2E02ACE21E09D06 /* NativeCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6961F7917F77CAD924567EC6 /* NativeCanvas.swift */; };
+		466A8AA81ED2F36DCD0F7115 /* ElementLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC3F98C57C57515BE23CF610 /* ElementLibrary.swift */; };
 		5A0E432B5DBABD77470F7982 /* Editing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DFF298F863075A387BD1348 /* Editing.swift */; };
 		69EAFE4AB51483ED766B6A76 /* Lifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67C08F26E3F21FCB9B603DDB /* Lifecycle.swift */; };
 		70983F5CE1C7B37D2D003C68 /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAEDCF2464F505B39B0EDDB7 /* Storage.swift */; };
@@ -25,10 +26,12 @@
 		AFCA6FA4889F0886ED4ABB5F /* ImportEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7498B04DDA06141A375AD880 /* ImportEngine.swift */; };
 		BE09234502E9611C98BFD209 /* VaultUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C0B8D61A66A011E45218373 /* VaultUITests.swift */; };
 		C410B0FA00E91CC6E9D93300 /* VaultCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 327B668A8960E2B8A8C80F45 /* VaultCover.swift */; };
+		C87DCE397B1F922A2B2A3E7F /* DocumentSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2D8EDF0ECB550E22A35AEE8 /* DocumentSearch.swift */; };
 		C89409F71FE8853E13F8E328 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB364BB9C08BDF203F68B72A /* App.swift */; };
 		CE7AAD86B3DC29EDC5E24C6B /* VaultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2DF4BA61A4AD7E1CBD55E03 /* VaultTests.swift */; };
 		DFD70495D78EC158F0FA15F0 /* NoteCraftCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */; };
 		EA11D437FD711AEEE9A0009F /* VaultFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B18528EAB55247EA57BDEAF /* VaultFiles.swift */; };
+		EF83E3C1A207AD1450319206 /* ElementClip.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0F0A9A567741EBB11E3961 /* ElementClip.swift */; };
 		FD1506422A08E3D54602A0FB /* VaultSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 032F7A0D798EAE1F763FE07D /* VaultSession.swift */; };
 /* End PBXBuildFile section */
 
@@ -98,12 +101,15 @@
 		8DFF298F863075A387BD1348 /* Editing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Editing.swift; sourceTree = "<group>"; };
 		940A74F57C8C2CF21AC1D574 /* Library.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Library.swift; sourceTree = "<group>"; };
 		94C1C0961B9A833880D81FB8 /* NoteCraftCoreTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NoteCraftCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A2D8EDF0ECB550E22A35AEE8 /* DocumentSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentSearch.swift; sourceTree = "<group>"; };
 		AA5A556A9C43AF11C3D163C6 /* PDFEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFEditor.swift; sourceTree = "<group>"; };
 		AAC464B97F48428A387BD481 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		BAEDCF2464F505B39B0EDDB7 /* Storage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Storage.swift; sourceTree = "<group>"; };
 		BB364BB9C08BDF203F68B72A /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		BC3F98C57C57515BE23CF610 /* ElementLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElementLibrary.swift; sourceTree = "<group>"; };
 		C2DF4BA61A4AD7E1CBD55E03 /* VaultTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultTests.swift; sourceTree = "<group>"; };
 		C34A621480C559D993C764C4 /* DocumentScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentScanner.swift; sourceTree = "<group>"; };
+		DC0F0A9A567741EBB11E3961 /* ElementClip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElementClip.swift; sourceTree = "<group>"; };
 		DEDE7BBF20C38FFBD70C07C6 /* ImageHandles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageHandles.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -131,6 +137,7 @@
 			isa = PBXGroup;
 			children = (
 				8DFF298F863075A387BD1348 /* Editing.swift */,
+				DC0F0A9A567741EBB11E3961 /* ElementClip.swift */,
 				7498B04DDA06141A375AD880 /* ImportEngine.swift */,
 				AAC464B97F48428A387BD481 /* Models.swift */,
 				BAEDCF2464F505B39B0EDDB7 /* Storage.swift */,
@@ -164,6 +171,8 @@
 			children = (
 				BB364BB9C08BDF203F68B72A /* App.swift */,
 				C34A621480C559D993C764C4 /* DocumentScanner.swift */,
+				A2D8EDF0ECB550E22A35AEE8 /* DocumentSearch.swift */,
+				BC3F98C57C57515BE23CF610 /* ElementLibrary.swift */,
 				DEDE7BBF20C38FFBD70C07C6 /* ImageHandles.swift */,
 				940A74F57C8C2CF21AC1D574 /* Library.swift */,
 				67C08F26E3F21FCB9B603DDB /* Lifecycle.swift */,
@@ -339,6 +348,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5A0E432B5DBABD77470F7982 /* Editing.swift in Sources */,
+				EF83E3C1A207AD1450319206 /* ElementClip.swift in Sources */,
 				AFCA6FA4889F0886ED4ABB5F /* ImportEngine.swift in Sources */,
 				1847B6051A23D921B4FC3E07 /* Models.swift in Sources */,
 				70983F5CE1C7B37D2D003C68 /* Storage.swift in Sources */,
@@ -352,6 +362,8 @@
 			files = (
 				C89409F71FE8853E13F8E328 /* App.swift in Sources */,
 				3138C2BB8C6C9F38597468C0 /* DocumentScanner.swift in Sources */,
+				C87DCE397B1F922A2B2A3E7F /* DocumentSearch.swift in Sources */,
+				466A8AA81ED2F36DCD0F7115 /* ElementLibrary.swift in Sources */,
 				13C2D67D2687F7882F5C0D44 /* ImageHandles.swift in Sources */,
 				0E2795E90A38662D48D1EB94 /* Library.swift in Sources */,
 				69EAFE4AB51483ED766B6A76 /* Lifecycle.swift in Sources */,

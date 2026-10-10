@@ -25,6 +25,7 @@ import SwiftUI
   var holdToShape = true
   var eraserMode: EraserMode = .stroke
   var highlighterOnly = false
+  var searchHighlights: [Rect] = []
 }
 #if os(macOS)
   struct NativeCanvas: NSViewRepresentable {
@@ -564,6 +565,10 @@ extension DrawingView {
       cachedViewport = configuration.viewport
     }
     if let cachedPage { c.draw(cachedPage, in: cacheRect) }
+    c.setFillColor(CGColor(red: 1, green: 0.8, blue: 0.1, alpha: 0.25))
+    for r in configuration.searchHighlights {
+      c.fill(CGRect(x: r.x, y: r.y, width: r.width, height: r.height))
+    }
     if input.moveStart != nil {
       var moving = configuration.page
       moving.strokes.removeAll { !configuration.selection.contains($0.id) }

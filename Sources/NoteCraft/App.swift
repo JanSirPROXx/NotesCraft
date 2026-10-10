@@ -20,6 +20,13 @@ struct NoteDocument: FileDocument {
   #if os(macOS)
     @NSApplicationDelegateAdaptor(AppLifecycle.self) private var lifecycle
   #endif
+  init() {
+    #if DEBUG
+      if CommandLine.arguments.contains("--ui-test-reset-input") {
+        UserDefaults.standard.removeObject(forKey: "pencilOnlyDrawing")
+      }
+    #endif
+  }
   var body: some Scene {
     WindowGroup("NoteCraft") { VaultRoot() }
   }

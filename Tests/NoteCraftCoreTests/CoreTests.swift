@@ -240,3 +240,34 @@ import Testing
   #expect(decoded.notebook.pages[0].images[0].contains(Point(70, 140)))
   #expect(!decoded.notebook.pages[0].images[0].contains(Point(200, 300)))
 }
+
+@Test func reusableElementsPreserveAllObjectTypesAndNeverOverwriteAssets() throws {
+  var page = Page()
+  let stroke = Stroke(samples: [Sample(point: Point(50, 60))])
+  var text = TextBox(origin: Point(60, 70), text: "Reusable text")
+  text.rotation = .pi / 4
+  let image = PageAsset(filename: "same.png", frame: Rect(x: 100, y: 100, width: 30, height: 40))
+  page.strokes = [stroke]
+  page.texts = [text]
+  page.images = [image]
+  let ids: Set<UUID> = [stroke.id, text.id, image.id]
+  let clip = try ElementClip.capture(
+    title: "Mixed clip", page: page, ids: ids,
+    assets: ["same.png": Data([1, 2, 3])])
+  let decoded = try JSONDecoder().decode(ElementClip.self, from: JSONEncoder().encode(clip))
+  #expect(decoded == clip)
+  var package = NotebookPackage(assets: ["same.png": Data([9])])
+  try decoded.insert(into: &package, pageIndex: 0, at: Point(200, 300))
+  try decoded.insert(into: &package, pageIndex: 0, at: Point(400, 500))
+  let result = package.notebook.pages[0]
+  #expect(result.strokes.count == 2 && result.texts.count == 2 && result.images.count == 2)
+  #expect(result.strokes[0].id != result.strokes[1].id)
+  #expect(result.texts[0].rotation == .pi / 4)
+  #expect(result.images[0].filename != result.images[1].filename)
+  #expect(package.assets["same.png"] == Data([9]))
+  #expect(package.assets[result.images[0].filename] == Data([1, 2, 3]))
+  let duplicate = InkGestures.duplicatePage(result)
+  #expect(duplicate.id != result.id)
+  #expect(duplicate.strokes[0].id != result.strokes[0].id)
+  #expect(duplicate.images[0].filename == result.images[0].filename)
+}

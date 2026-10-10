@@ -122,3 +122,27 @@ import Testing
   let stored = try await PackageStore().read(from: board.url)
   #expect(stored.notebook.viewport == board.document.package.notebook.viewport)
 }
+
+@MainActor @Test func elementCollectionPersistsAndPreservesUnreadableFiles() throws {
+  let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+  defer { try? FileManager.default.removeItem(at: directory) }
+  let defaults = try #require(UserDefaults(suiteName: UUID().uuidString))
+  let library = ElementLibrary(directory: directory, defaults: defaults)
+  var page = Page()
+  page.strokes = [Stroke(samples: [Sample(point: Point(10, 20))])]
+  let clip = try ElementClip.capture(
+    title: "Example", page: page, ids: [page.strokes[0].id], assets: [:])
+  try library.add(clip)
+  try library.rename(clip.id, title: "Renamed")
+  let reopened = ElementLibrary(directory: directory, defaults: defaults)
+  #expect(reopened.clips.count == 1 && reopened.clips[0].title == "Renamed")
+  try reopened.remove(clip.id)
+  #expect(ElementLibrary(directory: directory, defaults: defaults).clips.isEmpty)
+  let url = directory.appendingPathComponent("Elements.json")
+  let unreadable = Data("invalid content".utf8)
+  try unreadable.write(to: url)
+  let broken = ElementLibrary(directory: directory, defaults: defaults)
+  #expect(broken.loadError != nil)
+  #expect(throws: PackageError.self) { try broken.add(clip) }
+  #expect(try Data(contentsOf: url) == unreadable)
+}

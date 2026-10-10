@@ -38,8 +38,10 @@ struct Workspace: View {
   @AppStorage("penWidth1") private var firstWidth = 1.0
   @AppStorage("penWidth2") private var secondWidth = 2.5
   @AppStorage("penWidth3") private var thirdWidth = 5.0
-  @AppStorage("savedElement") private var savedClip = Data()
-  @State private var useSavedClip = true
+  @State private var elements = ElementLibrary.shared
+  @State private var selectedElementID: UUID?
+  @State private var saveElementSheet = false
+  @State private var elementName = "Element"
   @State private var fillShapes = false
   @State private var hexColor = "#1F2B3D"
   @State private var penStyle: PenStyle = .ballpoint
@@ -93,7 +95,9 @@ struct Workspace: View {
   @State private var insertPoint = Point(60, 80)
   @State private var searchVisible = false
   @State private var search = ""
+  @State private var documentSearch = DocumentSearch()
   @State private var horizontal = false
+  @State private var horizontalPageID: UUID?
   @State private var zoom = 1.0
   @State private var customColor = Color.black
   @State private var imageSelection: UUID?
@@ -132,11 +136,12 @@ struct Workspace: View {
             ScrollViewReader { proxy in
               ScrollView(horizontal ? .horizontal : .vertical) {
                 if horizontal {
-                  HStack(alignment: .top, spacing: 28) {
+                  HStack(alignment: .top, spacing: 0) {
                     ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
                       pageView(p, index: index, availableWidth: geometry.size.width)
+                        .frame(width: geometry.size.width).id(p.id)
                     }
-                  }.padding(28)
+                  }.scrollTargetLayout().padding(.vertical, 28)
                 } else {
                   VStack(spacing: 28) {
                     ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
@@ -144,9 +149,23 @@ struct Workspace: View {
                     }
                   }.frame(maxWidth: .infinity).padding(.vertical, 28)
                 }
-              }.accessibilityIdentifier("notebookScrollView")
+              }.scrollTargetBehavior(NotebookPageBehavior(horizontal: horizontal))
+                .scrollPosition(id: $horizontalPageID)
+                .accessibilityIdentifier("notebookScrollView")
                 .background(Color(red: 0.90, green: 0.92, blue: 0.94)).onChange(of: activePage) {
-                  withAnimation { proxy.scrollTo(page.id, anchor: .top) }
+                  if horizontal {
+                    withAnimation { horizontalPageID = page.id }
+                  } else {
+                    withAnimation { proxy.scrollTo(page.id, anchor: .top) }
+                  }
+                }.onChange(of: horizontalPageID) {
+                  if horizontal, let id = horizontalPageID,
+                    let index = notebook.pages.firstIndex(where: { $0.id == id })
+                  {
+                    activePage = index
+                  }
+                }.onChange(of: horizontal) {
+                  if horizontal { horizontalPageID = page.id } else { horizontalPageID = nil }
                 }
             }
           }
@@ -173,6 +192,26 @@ struct Workspace: View {
       }
     }
     .sheet(isPresented: $textSheet) { textEditor }
+    .sheet(isPresented: $saveElementSheet) {
+      VStack(alignment: .leading, spacing: 20) {
+        Text("Save element").font(.title2.bold())
+        TextField("Name", text: $elementName).textFieldStyle(.roundedBorder)
+        HStack {
+          Button("Cancel") { saveElementSheet = false }
+          Spacer()
+          Button("Save") {
+            do {
+              let clip = try ElementClip.capture(
+                title: elementName, page: page, ids: selection,
+                assets: document.package.assets)
+              try elements.add(clip)
+              selectedElementID = clip.id
+              saveElementSheet = false
+            } catch { errorMessage = error.localizedDescription }
+          }.disabled(elementName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+      }.padding(28).frame(minWidth: 300)
+    }
     .photosPicker(isPresented: $photoLibrary, selection: $photoItem, matching: .images)
     .onChange(of: photoItem) {
       Task {
@@ -222,7 +261,7 @@ struct Workspace: View {
         thumbnails.toggle()
       } label: {
         Image(systemName: "square.grid.2x2")
-      }.help("Page thumbnails")
+      }.help("Page thumbnails").accessibilityLabel("Pages")
       Spacer()
       TextField(
         "Notebook title",
@@ -335,6 +374,7 @@ struct Workspace: View {
               tool = item
               selection = []
               imageSelection = nil
+              if item == .elements { settings = true }
             }
           } label: {
             Image(systemName: icon(item)).font(.system(size: 20)).frame(width: 36, height: 38)
@@ -373,7 +413,7 @@ struct Workspace: View {
   }
   @ViewBuilder private var toolSettings: some View {
     VStack(alignment: .leading, spacing: 16) {
-      Text(label(tool)).font(.headline)
+      if tool != .elements { Text(label(tool)).font(.headline) }
       switch tool {
       case .pen:
         Picker("Pen style", selection: $penStyle) {
@@ -426,11 +466,12 @@ struct Workspace: View {
         }
       case .text: Text("Tap the page to add a text box.")
       case .elements:
-        Toggle("Use saved clip", isOn: $useSavedClip).disabled(savedClip.isEmpty)
-        Text(
-          savedClip.isEmpty
-            ? "Tap to insert a star. Save selected ink as an element with the lasso."
-            : "Tap to insert your saved clip, or turn this off to insert a star.")
+        ElementPicker(
+          library: elements,
+          onSelect: { clip in
+            selectedElementID = clip?.id
+            settings = false
+          }, onError: { errorMessage = $0 })
       case .readOnly: Text("Drawing is locked. Use the scroll view to read your pages.")
       }
     }
@@ -458,7 +499,32 @@ struct Workspace: View {
                 if p.bookmarked { Image(systemName: "bookmark.fill") }
               }.font(.caption)
             }
-          }.buttonStyle(.plain)
+          }.buttonStyle(.plain).accessibilityLabel("Page \(index + 1)")
+            .accessibilityIdentifier("pageThumbnail-\(index)").contextMenu {
+              Button("Insert page after") {
+                edit { $0.notebook.pages.insert(InkGestures.blankPage(matching: p), at: index + 1) }
+                activePage = index + 1
+              }
+              Button("Duplicate page") {
+                edit { $0.notebook.pages.insert(InkGestures.duplicatePage(p), at: index + 1) }
+                activePage = index + 1
+              }
+              Button("Move earlier") {
+                edit { $0.notebook.pages.swapAt(index, index - 1) }
+                activePage = index - 1
+              }.disabled(index == 0)
+              Button("Move later") {
+                edit { $0.notebook.pages.swapAt(index, index + 1) }
+                activePage = index + 1
+              }.disabled(index == notebook.pages.count - 1)
+              Button(p.bookmarked ? "Remove bookmark" : "Bookmark") {
+                edit { $0.notebook.pages[index].bookmarked.toggle() }
+              }
+              Button("Delete page", role: .destructive) {
+                edit { $0.notebook.pages.remove(at: index) }
+                activePage = min(activePage, notebook.pages.count - 1)
+              }.disabled(notebook.pages.count == 1)
+            }
         }
       }.padding(20)
     }.frame(width: 160).background(Color(red: 0.96, green: 0.97, blue: 0.98))
@@ -589,7 +655,9 @@ struct Workspace: View {
               activePage = notebook.pages.count - 1
             } : nil,
           onPagePull: { pagePullProgress = $0 }, holdToShape: holdToShape,
-          eraserMode: eraserMode, highlighterOnly: highlighterOnly)
+          eraserMode: eraserMode, highlighterOnly: highlighterOnly,
+          searchHighlights: searchVisible
+            ? documentSearch.results.first(where: { $0.pageID == p.id })?.highlights ?? [] : [])
       )
       .accessibilityElement()
       .accessibilityLabel("Drawing canvas")
@@ -691,9 +759,9 @@ struct Workspace: View {
       Text("Drag a corner to resize, or the top handle to rotate.").font(.caption).foregroundStyle(
         .secondary)
       Button("Save element") {
-        do {
-          savedClip = try JSONEncoder().encode(page.strokes.filter { selection.contains($0.id) })
-        } catch { errorMessage = error.localizedDescription }
+        elementName = "Element \(elements.clips.count + 1)"
+        selectionMenuPresented = false
+        saveElementSheet = true
       }
       Button("Screenshot") {
         do {
@@ -711,25 +779,46 @@ struct Workspace: View {
       .onChange(of: selection) { if selection.isEmpty { selectionMenuPresented = false } }
   }
   private var searchBar: some View {
-    HStack {
-      Image(systemName: "magnifyingglass")
-      TextField("Search text boxes", text: $search)
-      ForEach(
-        Array(notebook.pages.enumerated()).filter {
-          !search.isEmpty
-            && $0.element.texts.contains { $0.text.localizedCaseInsensitiveContains(search) }
-        }, id: \.element.id
-      ) { i, _ in
-        Button("Page \(i + 1)") {
-          activePage = i
-          thumbnails = true
+    VStack(alignment: .leading, spacing: 10) {
+      HStack {
+        Image(systemName: "magnifyingglass")
+        TextField("Search PDF text and text boxes", text: $search)
+          .accessibilityIdentifier("documentSearchField")
+          .onChange(of: search) { documentSearch.update(document.package, query: search) }
+        if documentSearch.isSearching { ProgressView().controlSize(.small) }
+        Button("Done") {
+          searchVisible = false
+          search = ""
+          documentSearch.update(document.package, query: "")
         }
       }
-      Button("Done") {
-        searchVisible = false
-        search = ""
+      if !search.isEmpty {
+        if !documentSearch.isSearching && documentSearch.results.isEmpty {
+          Text("No matches in searchable text").font(.caption).foregroundStyle(.secondary)
+        }
+        ScrollView(.horizontal, showsIndicators: false) {
+          HStack(spacing: 16) {
+            ForEach(documentSearch.results) { result in
+              Button {
+                if let index = notebook.pages.firstIndex(where: { $0.id == result.pageID }) {
+                  activePage = index
+                }
+              } label: {
+                VStack(alignment: .leading, spacing: 3) {
+                  Text("Page \(result.pageNumber)").font(.caption.bold())
+                  Text(result.snippet).font(.caption).lineLimit(2)
+                }.frame(width: 190, alignment: .leading)
+              }.buttonStyle(.plain).accessibilityLabel("Search result page \(result.pageNumber)")
+            }
+          }
+        }.frame(maxHeight: 48)
       }
-    }.padding(12)
+    }.padding(12).background(accent.opacity(0.04))
+      .onChange(of: notebook.revision) {
+        if searchVisible && !search.isEmpty {
+          documentSearch.update(document.package, query: search)
+        }
+      }
   }
   private var footer: some View {
     HStack {
@@ -743,6 +832,9 @@ struct Workspace: View {
         notebook.kind == .whiteboard
           ? "Whiteboard" : "\(notebook.pages.count) \(notebook.pages.count == 1 ? "page" : "pages")"
       ).accessibilityIdentifier("pageCount")
+      if notebook.kind != .whiteboard {
+        Text("\(activePage + 1) / \(notebook.pages.count)").accessibilityIdentifier("currentPage")
+      }
       Button {
         if notebook.kind == .whiteboard {
           boardViewport.scale = max(0.1, boardViewport.scale / 1.2)
@@ -952,24 +1044,12 @@ struct Workspace: View {
     }
   }
   private func insertStar(_ point: Point) {
-    if useSavedClip, let clip = try? JSONDecoder().decode([Stroke].self, from: savedClip),
-      !clip.isEmpty
-    {
-      let minX = clip.map { $0.bounds.x }.min() ?? 0
-      let minY = clip.map { $0.bounds.y }.min() ?? 0
-      edit { p in
-        p.notebook.pages[activePage].strokes += clip.map { stroke in
-          var s = stroke
-          s.id = UUID()
-          s.samples = s.samples.map { sample in
-            var a = sample
-            a.point.x += point.x - minX
-            a.point.y += point.y - minY
-            return a
-          }
-          return s
-        }
-      }
+    if let id = selectedElementID, let clip = elements.clips.first(where: { $0.id == id }) {
+      do {
+        var updated = document.package
+        try clip.insert(into: &updated, pageIndex: activePage, at: point)
+        edit { $0 = updated }
+      } catch { errorMessage = error.localizedDescription }
       return
     }
     let points = (0...10).map { i in
@@ -1139,5 +1219,12 @@ struct TemplatePicker: View {
         dismiss()
       }.buttonStyle(.borderedProminent).frame(maxWidth: .infinity, alignment: .trailing)
     }.padding(28).frame(width: 450)
+  }
+}
+
+private struct NotebookPageBehavior: ScrollTargetBehavior {
+  let horizontal: Bool
+  func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
+    if horizontal { PagingScrollTargetBehavior().updateTarget(&target, context: context) }
   }
 }

@@ -253,3 +253,22 @@ import UniformTypeIdentifiers
   #expect(pdf.string?.contains("Rotated searchable text") == true)
   #expect(pdf.page(at: 1)?.bounds(for: .mediaBox).size == CGSize(width: 900, height: 1200))
 }
+
+@MainActor @Test func searchFindsTypedAndPDFTextAfterPageReordering() throws {
+  var background = Page(paper: Paper(pattern: .blank))
+  background.texts = [TextBox(origin: Point(80, 100), text: "Searchable background nebula")]
+  let data = try PageRenderer.export(NotebookPackage(notebook: Notebook(pages: [background])))
+  var imported = Page(paper: Paper(pattern: .blank))
+  imported.backgroundPDF = "source.pdf"
+  var typed = Page()
+  typed.texts = [TextBox(origin: Point(30, 50), text: "Typed nebula")]
+  let package = NotebookPackage(
+    notebook: Notebook(pages: [typed, imported]), assets: ["source.pdf": data])
+  let result = DocumentSearch.find(package, query: "NEBULA")
+  #expect(result.count == 2)
+  #expect(result[0].pageID == typed.id && result[1].pageID == imported.id)
+  #expect(result[1].pageNumber == 2 && !result[1].highlights.isEmpty)
+  let highlight = try #require(result[1].highlights.first)
+  #expect(highlight.x >= 80 && highlight.y >= 90 && highlight.y < 160)
+  #expect(DocumentSearch.find(package, query: "not present").isEmpty)
+}
