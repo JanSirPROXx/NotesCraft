@@ -3,7 +3,7 @@ import XCTest
 final class VaultUITests: XCTestCase {
   @MainActor func testFolderPickerAndDrawing() throws {
     continueAfterFailure = false
-    XCUIDevice.shared.orientation = .landscapeLeft
+    XCUIDevice.shared.orientation = .portrait
     defer { XCUIDevice.shared.orientation = .portrait }
     let app = XCUIApplication()
     app.launch()
@@ -19,8 +19,17 @@ final class VaultUITests: XCTestCase {
       String(
         repeating: XCUIKeyboardKey.delete.rawValue, count: (field.value as? String ?? "").count)
         + folderName + "\n")
-    app.buttons["Open"].tap()
-    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 10))
+    let hideKeyboard = app.keyboards.buttons.matching(
+      NSPredicate(format: "label CONTAINS[c] 'hide' OR label CONTAINS[c] 'dismiss'")
+    ).firstMatch
+    if hideKeyboard.exists { hideKeyboard.tap() }
+    let open = app.buttons["Open"]
+    let tappable = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "hittable == true"), object: open)
+    XCTAssertEqual(XCTWaiter.wait(for: [tappable], timeout: 20), .completed, app.debugDescription)
+    open.tap()
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20), app.debugDescription)
+    XCUIDevice.shared.orientation = .landscapeLeft
     app.buttons["New"].tap()
     app.buttons["Notebook"].tap()
     XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 10))
