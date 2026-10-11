@@ -58,7 +58,10 @@ struct VaultRoot: View {
     ) {
       Button("OK") { vault.error = nil }
       if let session = vault.active, session.dirty {
-        Button("Retry save") { Task { await vault.save(session) } }
+        Button("Retry save") {
+          session.lastFailure = nil
+          Task { await vault.save(session) }
+        }
         Button("Save a copy") { Task { await vault.saveCopy(session) } }
       }
     } message: {

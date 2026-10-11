@@ -79,8 +79,14 @@ struct Workspace: View {
   @State private var selectInk = true
   @State private var selectImages = true
   @State private var selectTexts = true
-  @State private var clipboardImages: [PageAsset] = []
-  @State private var clipboardTexts: [TextBox] = []
+  private var clipboardImages: [PageAsset] {
+    get { InkClipboard.shared.images }
+    nonmutating set { InkClipboard.shared.images = newValue }
+  }
+  private var clipboardTexts: [TextBox] {
+    get { InkClipboard.shared.texts }
+    nonmutating set { InkClipboard.shared.texts = newValue }
+  }
   @State private var errorMessage: String?
   @State private var selection: Set<UUID> = []
   @State private var selectionMenuPresented = false
@@ -92,7 +98,10 @@ struct Workspace: View {
     get { history.redo }
     nonmutating set { history.redo = newValue }
   }
-  @State private var clipboard: [Stroke] = []
+  private var clipboard: [Stroke] {
+    get { InkClipboard.shared.strokes }
+    nonmutating set { InkClipboard.shared.strokes = newValue }
+  }
   @State private var textSheet = false
   @State private var text = ""
   @State private var textSize = 20.0
@@ -288,6 +297,12 @@ struct Workspace: View {
     }
     .onChange(of: horizontal) { refreshTrailingPage() }
     .onAppear { refreshTrailingPage() }
+    .onChange(of: notebook.pages.first?.id) {
+      // The tab switched to another notebook; this view's state is reused across tabs.
+      selection = []
+      imageSelection = nil
+      refreshTrailingPage()
+    }
     .onDisappear { pageHUDTask?.cancel() }
     .sheet(isPresented: $templateSheet) {
       TemplatePicker(initialPaper: page.paper) { paper in
@@ -1234,6 +1249,12 @@ struct Workspace: View {
   private func copySelection() {
     clipboard = page.strokes.filter { selection.contains($0.id) }
     clipboardImages = page.images.filter { selection.contains($0.id) }
+    // Images are only file names; the bytes must travel with them to survive a paste into
+    // another notebook, whose package has never seen these assets.
+    InkClipboard.shared.assets = Dictionary(
+      uniqueKeysWithValues: clipboardImages.compactMap { image in
+        document.package.assets[image.filename].map { (image.filename, $0) }
+      })
     clipboardTexts = page.texts.filter { selection.contains($0.id) }
   }
   private func intersects(_ rect: Rect, polygon: [Point]) -> Bool {
@@ -1259,6 +1280,7 @@ struct Workspace: View {
   }
   private func paste() {
     edit { p in
+      p.assets.merge(InkClipboard.shared.assets) { existing, _ in existing }
       p.notebook.pages[activePage].strokes += clipboard.map {
         var s = $0
         s.id = UUID()
@@ -1539,4 +1561,12 @@ private struct PaperBackgroundSheet: View {
     get { scales[id] }
     set { scales[id] = newValue }
   }
+}
+
+@MainActor @Observable final class InkClipboard {
+  static let shared = InkClipboard()
+  var strokes: [Stroke] = []
+  var images: [PageAsset] = []
+  var texts: [TextBox] = []
+  var assets: [String: Data] = [:]
 }

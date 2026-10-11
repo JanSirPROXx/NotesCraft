@@ -65,6 +65,25 @@ public struct NotebookPackage: Sendable {
     }
     try validateAssets()
   }
+  // A reference to media that no longer exists can never be rendered or saved. Dropping it keeps
+  // one dangling image from blocking every later save of the surrounding handwriting.
+  @discardableResult
+  public mutating func pruneMissingAssets() -> [String] {
+    var dropped: [String] = []
+    for index in notebook.pages.indices {
+      notebook.pages[index].images.removeAll { image in
+        let missing = assets[image.filename] == nil
+        if missing { dropped.append(image.filename) }
+        return missing
+      }
+      if let name = notebook.pages[index].backgroundPDF, assets[name] == nil {
+        dropped.append(name)
+        notebook.pages[index].backgroundPDF = nil
+        notebook.pages[index].backgroundPage = nil
+      }
+    }
+    return dropped
+  }
   private func validateAssets() throws {
     if let viewport = notebook.viewport {
       guard viewport.scale.isFinite, (0.1...12).contains(viewport.scale),

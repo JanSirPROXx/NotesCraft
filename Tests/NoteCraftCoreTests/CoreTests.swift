@@ -373,3 +373,20 @@ import Testing
       scrub(around: twoSampleDot.samples[0].point), strokes: [twoSampleDot, letter, farLetter]))
   #expect(second.map(\.id) == [letter.id, farLetter.id])
 }
+
+@Test func danglingImageReferencesAreDroppedSoSavingKeepsWorking() throws {
+  var page = Page(paper: Paper(pattern: .blank))
+  page.strokes = [Stroke(samples: [Sample(point: Point(1, 1)), Sample(point: Point(9, 9))])]
+  page.images = [
+    PageAsset(filename: "kept.image", frame: Rect(x: 0, y: 0, width: 10, height: 10)),
+    PageAsset(filename: "gone.image", frame: Rect(x: 20, y: 0, width: 10, height: 10)),
+  ]
+  var package = NotebookPackage(
+    notebook: Notebook(pages: [page]), assets: ["kept.image": Data([1, 2, 3])])
+  #expect(throws: PackageError.self) { try package.fileWrapper() }
+  #expect(package.pruneMissingAssets() == ["gone.image"])
+  let restored = try NotebookPackage(fileWrapper: package.fileWrapper())
+  #expect(restored.notebook.pages[0].images.map(\.filename) == ["kept.image"])
+  #expect(restored.notebook.pages[0].strokes.count == 1)
+  #expect(package.pruneMissingAssets().isEmpty)
+}

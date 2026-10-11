@@ -42,6 +42,7 @@ struct WorkspaceTab: Identifiable {
   var diskSidecarRevision: UInt64?
   var generation: UInt64 = 0
   var lastSavedGeneration: UInt64 = 0
+  var lastFailure: String?
   @ObservationIgnored var saveTask: Task<Void, Never>?
   init(url: URL, kind: VaultEntryKind, package: NotebookPackage, stamp: FileStamp? = nil) {
     self.url = url
@@ -369,6 +370,11 @@ struct WorkspaceTab: Identifiable {
     session.saving = true
     session.status = "Saving…"
     let generation = session.generation
+    if session.entryKind != .markdown {
+      // Applied to the live document too, so the broken reference stops resurfacing.
+      var repaired = session.document.package
+      if !repaired.pruneMissingAssets().isEmpty { session.document.package = repaired }
+    }
     let snapshot = session.document.package
     do {
       switch session.entryKind {
@@ -388,16 +394,21 @@ struct WorkspaceTab: Identifiable {
       default:
         try await packages.save(snapshot, to: session.url, expectedRevision: session.savedRevision)
       }
+      session.lastFailure = nil
       session.savedRevision = snapshot.notebook.revision
       session.lastSavedGeneration = generation
       session.dirty = session.generation != generation
       session.status = session.dirty ? "Unsaved changes" : "Saved"
     } catch {
       session.status = "Save failed"
-      self.error = error.localizedDescription
+      // Every later edit retries the save; one dialog per distinct failure is enough.
+      if session.lastFailure != error.localizedDescription { self.error = error.localizedDescription }
+      session.lastFailure = error.localizedDescription
     }
     session.saving = false
-    if session.dirty && session.generation != generation { await save(session) }
+    if session.dirty && session.generation != generation && session.lastFailure == nil {
+      await save(session)
+    }
   }
   func saveCopy(_ session: VaultSession) async {
     let ext = session.entryKind == .markdown ? session.url.pathExtension : "notecraft"
