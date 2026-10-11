@@ -9,7 +9,9 @@ let package = Package(
   ],
   targets: [
     .target(name: "NoteCraftCore"),
-    .executableTarget(name: "NoteCraft", dependencies: ["NoteCraftCore"]),
+    .executableTarget(
+      name: "NoteCraft", dependencies: ["NoteCraftCore"],
+      exclude: ["Assets.xcassets"]),
     .testTarget(name: "NoteCraftCoreTests", dependencies: ["NoteCraftCore"]),
     .testTarget(name: "NoteCraftTests", dependencies: ["NoteCraft", "NoteCraftCore"]),
   ])

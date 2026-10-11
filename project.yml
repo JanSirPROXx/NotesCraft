@@ -26,6 +26,7 @@ targets:
       - target: NoteCraftCore
     settings:
       base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_BUNDLE_IDENTIFIER: app.notecraft.app
         INFOPLIST_KEY_CFBundleDisplayName: NoteCraft
         INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES

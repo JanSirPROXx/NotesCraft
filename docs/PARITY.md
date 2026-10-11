@@ -22,9 +22,10 @@ has not been established.
   Holding an outward pull beyond the last page appends matching paper in either direction.
 - Image tool immediately offers Files/Photos, selects inserted images, and provides direct
   move, corner resize, pinch resize and rotation gestures with undo.
-- Opening a standalone image restores its editable annotations from an adjacent hidden
-  package; returning to Documents saves without creating a new notebook each time.
-  Annotation packages follow rename/move/duplicate/trash/restore and protect concurrent edits.
+- Standalone images open in a read-only, zoomable preview. Explicit import creates an editable
+  notebook; images inserted into existing notebooks retain move/resize/rotation controls.
+  Previously saved image annotation packages can be recovered through notebook import.
+- The user-provided NotesCraft artwork is configured as the iPad and macOS app icon.
 - The bottom status/zoom bar is removed. A page indicator fades after navigation or strong scrolling.
 - Password entry opens a separate unlocked PDF copy. Page-number navigation, bookmarks,
   PDF table of contents, single-page export and basic form filling are available.

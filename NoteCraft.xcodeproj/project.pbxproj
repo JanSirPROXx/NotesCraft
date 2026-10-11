@@ -18,6 +18,7 @@
 		2F8CD8EA4BCD64BD87624623 /* Renderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224B6213A14759EFA003EB49 /* Renderer.swift */; };
 		3138C2BB8C6C9F38597468C0 /* DocumentScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = C34A621480C559D993C764C4 /* DocumentScanner.swift */; };
 		31A626A7849A371780D9C3F8 /* PDFEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5A556A9C43AF11C3D163C6 /* PDFEditor.swift */; };
+		3AEC50A27DE9FEA5BCD5E9C6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0387B60C021757736956B048 /* Assets.xcassets */; };
 		3E952648E767FEC70D33824C /* PDFForms.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBB02F7D207B76F150CD3E09 /* PDFForms.swift */; };
 		3EFD1D73D2E02ACE21E09D06 /* NativeCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6961F7917F77CAD924567EC6 /* NativeCanvas.swift */; };
 		466A8AA81ED2F36DCD0F7115 /* ElementLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC3F98C57C57515BE23CF610 /* ElementLibrary.swift */; };
@@ -91,6 +92,7 @@
 
 /* Begin PBXFileReference section */
 		032F7A0D798EAE1F763FE07D /* VaultSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultSession.swift; sourceTree = "<group>"; };
+		0387B60C021757736956B048 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		06224446505127FB574CE719 /* CoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreTests.swift; sourceTree = "<group>"; };
 		082B492A0CAE47C877AA7C1E /* VaultActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultActions.swift; sourceTree = "<group>"; };
 		0ED3506C82DEE6478F5D3866 /* PDFNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFNavigation.swift; sourceTree = "<group>"; };
@@ -181,6 +183,7 @@
 			isa = PBXGroup;
 			children = (
 				BB364BB9C08BDF203F68B72A /* App.swift */,
+				0387B60C021757736956B048 /* Assets.xcassets */,
 				C34A621480C559D993C764C4 /* DocumentScanner.swift */,
 				A2D8EDF0ECB550E22A35AEE8 /* DocumentSearch.swift */,
 				BC3F98C57C57515BE23CF610 /* ElementLibrary.swift */,
@@ -232,6 +235,7 @@
 			buildConfigurationList = CD9BE83E0BA9E8283B7E5D10 /* Build configuration list for PBXNativeTarget "NoteCraft" */;
 			buildPhases = (
 				34BE8609476A45B46DE68ACC /* Sources */,
+				0BDE0E9D42851BDDEFEBAA42 /* Resources */,
 				B6CC9812A4145327B35A8510 /* Frameworks */,
 				17AEDB749282450E89707ED5 /* Embed Frameworks */,
 			);
@@ -347,6 +351,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		0BDE0E9D42851BDDEFEBAA42 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3AEC50A27DE9FEA5BCD5E9C6 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		1A2BC91573B329F000A26832 /* Sources */ = {
