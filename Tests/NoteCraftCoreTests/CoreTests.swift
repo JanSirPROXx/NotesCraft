@@ -166,6 +166,14 @@ import Testing
   let other = Stroke(samples: [Sample(point: Point(200, 0)), Sample(point: Point(200, 100))])
   #expect(InkGestures.isScratch(scratch))
   #expect(InkGestures.scratchTargets(scratch, strokes: [target, other]) == [target.id])
+  let neighbour = Stroke(
+    samples: [Sample(point: Point(10, 78)), Sample(point: Point(110, 78))], width: 2)
+  let highlight = Stroke(
+    samples: [Sample(point: Point(60, 0)), Sample(point: Point(60, 100))], width: 14,
+    tool: .highlighter)
+  #expect(
+    InkGestures.scratchTargets(scratch, strokes: [neighbour, highlight]).isEmpty,
+    "Scribbling must not erase an adjacent line or highlighter underneath")
   let circle = (0...64).map {
     Point(50 + 30 * cos(Double($0) / 64 * 2 * .pi), 50 + 30 * sin(Double($0) / 64 * 2 * .pi))
   }
@@ -310,4 +318,35 @@ import Testing
     #expect(result.samples.count >= 4)
   }
   #expect(Editing.shape(from: raw, preset: .line).samples == raw.samples)
+}
+
+@Test func smallScribbleErasesOnlyTheScrubbedLetter() throws {
+  func letter(_ x: Double) -> Stroke {
+    Stroke(samples: [Sample(point: Point(x, 0)), Sample(point: Point(x, 12))], width: 1.5)
+  }
+  let left = letter(0)
+  let middle = letter(14)
+  let right = letter(28)
+  let scrub = (0..<8).map { Point($0.isMultiple(of: 2) ? 9 : 19, Double($0) * 1.7) }
+  #expect(InkGestures.isScratch(scrub), "A short scrub over one letter must be recognised")
+  let result = try #require(InkGestures.scratchErase(scrub, strokes: [left, middle, right]))
+  #expect(result.map(\.id) == [left.id, right.id])
+}
+
+@Test func scribbleCutsOnlyThePassedThroughPartOfALongStroke() throws {
+  let underline = Stroke(
+    samples: [Sample(point: Point(-50, 6)), Sample(point: Point(100, 6))], width: 2)
+  let scrub = (0..<8).map { Point($0.isMultiple(of: 2) ? 9 : 19, Double($0) * 1.7) }
+  let result = try #require(InkGestures.scratchErase(scrub, strokes: [underline]))
+  #expect(result.count == 2)
+  let xs = result.flatMap { $0.samples.map(\.point.x) }
+  #expect(xs.contains { $0 < -45 } && xs.contains { $0 > 95 })
+  #expect(!xs.contains { $0 > 10 && $0 < 18 }, "The scrubbed span must be gone")
+  #expect(xs.contains { $0 > -45 && $0 < 4 } && xs.contains { $0 > 24 && $0 < 95 })
+}
+
+@Test func handwritingThatDoesNotDoubleBackIsNotAScribble() {
+  let wave = (0..<40).map { Point(Double($0) * 3, 10 + sin(Double($0) * 0.5) * 6) }
+  #expect(!InkGestures.isScratch(wave))
+  #expect(InkGestures.scratchErase(wave, strokes: []) == nil)
 }

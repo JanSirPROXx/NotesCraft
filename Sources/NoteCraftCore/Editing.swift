@@ -297,14 +297,23 @@ public enum InkGestures {
     return result
   }
 
-  // Require several broad reversals; ordinary loops and short handwriting must remain ink.
+  // Require several sharp reversals along a path much longer than its own extent. Thresholds
+  // scale with the scribble so a small scrub over one letter counts as readily as a big one;
+  // an ordinary loop or a stroke that does not double back must remain ink.
   public static func isScratch(_ points: [Point]) -> Bool {
-    guard let first = points.first, points.count >= 7 else { return false }
+    guard let first = points.first, points.count >= 6 else { return false }
+    let xs = points.map(\.x)
+    let ys = points.map(\.y)
+    let width = xs.max()! - xs.min()!
+    let height = ys.max()! - ys.min()!
+    let diagonal = hypot(width, height)
+    guard max(width, height) >= 10 else { return false }
+    let step = min(8, max(2.5, diagonal * 0.1))
     var reduced = [first]
-    for point in points.dropFirst() where point.distance(to: reduced.last!) >= 8 {
+    for point in points.dropFirst() where point.distance(to: reduced.last!) >= step {
       reduced.append(point)
     }
-    guard reduced.count >= 7 else { return false }
+    guard reduced.count >= 6 else { return false }
     var reversals = 0
     var length = 0.0
     for i in 1..<reduced.count {
@@ -322,34 +331,121 @@ public enum InkGestures {
         }
       }
     }
-    let xs = reduced.map(\.x)
-    let ys = reduced.map(\.y)
-    let width = xs.max()! - xs.min()!
-    let height = ys.max()! - ys.min()!
-    return reversals >= 4 && min(width, height) >= 8 && length > 120
-      && length / max(1, hypot(width, height)) > 3
+    return reversals >= 4 && length > 30 && length / max(1, diagonal) > 3
   }
 
+  // A stroke is erased only when the scribble actually touches its ink. The tolerance is the
+  // stroke's own half-width plus a small margin for pen jitter; a fixed 8 pt radius would also
+  // delete the neighbouring line of handwriting.
   public static func scratchTargets(_ points: [Point], strokes: [Stroke]) -> Set<UUID> {
     guard isScratch(points) else { return [] }
+    let scratchSegments = Array(zip(points, points.dropFirst()))
+    let scratchBounds = Rect(
+      x: points.map(\.x).min()!, y: points.map(\.y).min()!,
+      width: points.map(\.x).max()! - points.map(\.x).min()!,
+      height: points.map(\.y).max()! - points.map(\.y).min()!)
     return Set(
       strokes.filter { stroke in
-        let strokeSegments = zip(stroke.samples, stroke.samples.dropFirst())
-        let scratchSegments = Array(zip(points, points.dropFirst()))
-        let radius = max(8, stroke.width * 2)
-        return stroke.samples.contains { sample in
-          scratchSegments.contains { a, b in
-            Editing.distance(sample.point, toSegmentFrom: a, to: b) < radius
+        guard stroke.tool != .highlighter else { return false }
+        let tolerance = stroke.width / 2 + 2
+        let box = stroke.bounds
+        guard box.x - tolerance <= scratchBounds.x + scratchBounds.width,
+          box.x + box.width + tolerance >= scratchBounds.x,
+          box.y - tolerance <= scratchBounds.y + scratchBounds.height,
+          box.y + box.height + tolerance >= scratchBounds.y
+        else { return false }
+        guard stroke.samples.count > 1 else {
+          guard let only = stroke.samples.first?.point else { return false }
+          return scratchSegments.contains {
+            Editing.distance(only, toSegmentFrom: $0.0, to: $0.1) < tolerance
           }
         }
-          || strokeSegments.contains { a, b in
-            scratchSegments.contains { c, d in
-              segmentsIntersect(a.point, b.point, c, d)
-                || Editing.distance(c, toSegmentFrom: a.point, to: b.point) < radius
-                || Editing.distance(d, toSegmentFrom: a.point, to: b.point) < radius
-            }
+        return zip(stroke.samples, stroke.samples.dropFirst()).contains { a, b in
+          scratchSegments.contains { c, d in
+            segmentDistance(a.point, b.point, c, d) <= tolerance
           }
+        }
       }.map(\.id))
+  }
+  private static func touches(
+    _ stroke: Stroke, scribble: [(Point, Point)], bounds: Rect
+  ) -> Bool {
+    let tolerance = stroke.width / 2 + 2
+    let box = stroke.bounds
+    guard box.x - tolerance <= bounds.x + bounds.width, box.x + box.width + tolerance >= bounds.x,
+      box.y - tolerance <= bounds.y + bounds.height, box.y + box.height + tolerance >= bounds.y
+    else { return false }
+    guard stroke.samples.count > 1 else {
+      guard let only = stroke.samples.first?.point else { return false }
+      return scribble.contains { Editing.distance(only, toSegmentFrom: $0.0, to: $0.1) < tolerance }
+    }
+    return zip(stroke.samples, stroke.samples.dropFirst()).contains { a, b in
+      scribble.contains { c, d in segmentDistance(a.point, b.point, c, d) <= tolerance }
+    }
+  }
+  // Erases what the scribble really covers. A stroke that mostly lies under the scribble
+  // (a single letter) disappears as a whole; a stroke that only passes through it (a long
+  // underline, a cursive word) is cut open along the scribble path so the rest survives.
+  // Returns nil when the gesture is not a scribble.
+  public static func scratchErase(_ points: [Point], strokes: [Stroke]) -> [Stroke]? {
+    guard isScratch(points) else { return nil }
+    let segments = Array(zip(points, points.dropFirst()))
+    let minX = points.map(\.x).min()!
+    let minY = points.map(\.y).min()!
+    let bounds = Rect(
+      x: minX, y: minY, width: points.map(\.x).max()! - minX,
+      height: points.map(\.y).max()! - minY)
+    let cover = Rect(
+      x: bounds.x - 3, y: bounds.y - 3, width: bounds.width + 6, height: bounds.height + 6)
+    var path: [Point] = []
+    for (a, b) in segments {
+      let steps = max(1, Int(a.distance(to: b) / 2))
+      for i in 0..<steps {
+        let t = Double(i) / Double(steps)
+        path.append(Point(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t))
+      }
+    }
+    if let last = points.last { path.append(last) }
+    func coveredShare(_ stroke: Stroke) -> Double {
+      var total = 0.0
+      var inside = 0.0
+      for (a, b) in zip(stroke.samples, stroke.samples.dropFirst()) {
+        let length = a.point.distance(to: b.point)
+        total += length
+        if cover.contains(Point((a.point.x + b.point.x) / 2, (a.point.y + b.point.y) / 2)) {
+          inside += length
+        }
+      }
+      return total > 0 ? inside / total : 1
+    }
+    return strokes.flatMap { stroke -> [Stroke] in
+      guard stroke.tool != .highlighter, touches(stroke, scribble: segments, bounds: bounds)
+      else { return [stroke] }
+      if coveredShare(stroke) >= 0.6 { return [] }
+      let box = stroke.bounds
+      let reach = stroke.width / 2 + 3
+      var pieces = [stroke]
+      for point in path
+      where point.x >= box.x - reach && point.x <= box.x + box.width + reach
+        && point.y >= box.y - reach && point.y <= box.y + box.height + reach
+      {
+        pieces = Editing.erase(
+          strokes: pieces, at: point, radius: 2, mode: .precision, highlighterOnly: false)
+        if pieces.isEmpty { break }
+      }
+      // Drop specks the cut leaves behind; they read as stray dots.
+      return pieces.filter { piece in
+        zip(piece.samples, piece.samples.dropFirst()).reduce(0.0) {
+          $0 + $1.0.point.distance(to: $1.1.point)
+        } >= max(2, piece.width)
+      }
+    }
+  }
+  private static func segmentDistance(_ a: Point, _ b: Point, _ c: Point, _ d: Point) -> Double {
+    if segmentsIntersect(a, b, c, d) { return 0 }
+    return min(
+      Editing.distance(a, toSegmentFrom: c, to: d), Editing.distance(b, toSegmentFrom: c, to: d),
+      Editing.distance(c, toSegmentFrom: a, to: b), Editing.distance(d, toSegmentFrom: a, to: b))
   }
   private static func segmentsIntersect(_ a: Point, _ b: Point, _ c: Point, _ d: Point) -> Bool {
     let rx = b.x - a.x
