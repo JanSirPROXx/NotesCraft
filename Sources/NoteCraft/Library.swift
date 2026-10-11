@@ -6,10 +6,13 @@ import UniformTypeIdentifiers
 struct VaultRoot: View {
   @State private var vault = VaultController()
   @State private var folderPicker = false
+  @State private var restoringStorage = true
   @Environment(\.scenePhase) private var scenePhase
   var body: some View {
     Group {
-      if vault.root == nil {
+      if restoringStorage {
+        ProgressView("Opening your library…").frame(maxWidth: .infinity, maxHeight: .infinity)
+      } else if vault.root == nil {
         welcome
       } else if vault.showLibrary {
         Library(vault: vault, chooseFolder: { folderPicker = true })
@@ -25,7 +28,10 @@ struct VaultRoot: View {
               set: {
                 session.document = $0
                 vault.changed(session)
-              }), fileURL: session.url,
+              }),
+            activePage: Binding(
+              get: { session.currentPageIndex },
+              set: { vault.rememberPage(session, index: $0) }), fileURL: session.url,
             onBack: { Task { await vault.library() } }, tabs: vault.tabs,
             onSelectTab: { id in Task { await vault.selectTab(id) } }, saveStatus: session.status,
             history: session.history
@@ -33,6 +39,10 @@ struct VaultRoot: View {
           .id(session.id)
         }
       }
+    }
+    .task {
+      await vault.restoreLastStorage()
+      restoringStorage = false
     }
     .sheet(item: $vault.lockedPDF) { entry in PDFUnlockSheet(vault: vault, entry: entry) }
     .preferredColorScheme(vault.root == nil || vault.showLibrary ? .dark : .light)
@@ -59,7 +69,12 @@ struct VaultRoot: View {
     #endif
     .onChange(of: scenePhase) {
       if scenePhase != .active {
-        Task { for session in vault.sessions where session.dirty { await vault.save(session) } }
+        Task {
+          for session in vault.sessions {
+            vault.rememberPage(session, index: session.currentPageIndex)
+            if session.dirty { await vault.save(session) }
+          }
+        }
       } else if vault.showLibrary {
         Task { await vault.refresh() }
       }
@@ -84,8 +99,8 @@ struct VaultRoot: View {
       }
       .buttonStyle(.borderedProminent).tint(Color(red: 0.02, green: 0.46, blue: 0.76))
       .accessibilityIdentifier("chooseStorageFolder")
-      if let previous = vault.previousFolder() {
-        Button("Open \(previous.lastPathComponent)") { Task { await vault.choose(previous) } }
+      ForEach(vault.storages) { storage in
+        Button("Open \(storage.name)") { Task { await vault.selectStorage(storage) } }
           .foregroundStyle(Color(white: 0.8))
       }
     }.padding(40).frame(maxWidth: .infinity, maxHeight: .infinity).foregroundStyle(Color.white)
@@ -169,7 +184,7 @@ struct Library: View {
             Text("\(trashVisible ? filteredTrash.count : filtered.count) items")
             Spacer()
             Text(vault.folder?.lastPathComponent ?? "")
-            Button("Change folder", action: chooseFolder)
+            Button("Add storage", action: chooseFolder)
           }.font(.system(size: 12)).foregroundStyle(secondary)
         }.padding(.horizontal, geometry.size.width > 700 ? 30 : 20).padding(.top, 28).padding(
           .bottom, 16)
@@ -204,6 +219,12 @@ struct Library: View {
         Task { await importFile(url) }
       } catch { vault.error = error.localizedDescription }
     }
+    .onChange(of: vault.activeStorageID) {
+      favoritesOnly = false
+      trashVisible = false
+      search = ""
+      lastTrashed = nil
+    }
     .task { await vault.refresh() }
   }
   private var navigation: some View {
@@ -234,12 +255,30 @@ struct Library: View {
         Task { await vault.refresh() }
       }
       Divider().padding(.vertical, 12)
-      Text("STORAGE FOLDER").font(.system(size: 11, weight: .medium)).foregroundStyle(secondary)
-      Label(vault.root?.lastPathComponent ?? "", systemImage: "externaldrive").font(
-        .system(size: 14)
-      ).lineLimit(2)
-      Button("Choose another folder", action: chooseFolder).font(.system(size: 13)).foregroundStyle(
-        secondary)
+      Text("STORAGE FOLDERS").font(.system(size: 11, weight: .medium)).foregroundStyle(secondary)
+      ForEach(vault.storages) { storage in
+        Button {
+          favoritesOnly = false
+          trashVisible = false
+          search = ""
+          lastTrashed = nil
+          Task { await vault.selectStorage(storage) }
+        } label: {
+          HStack(spacing: 10) {
+            Image(systemName: "externaldrive")
+            Text(storage.name).lineLimit(2)
+            Spacer(minLength: 0)
+            if storage.id == vault.activeStorageID { Image(systemName: "checkmark").font(.caption) }
+          }.font(.system(size: 14)).padding(10)
+            .background(
+              storage.id == vault.activeStorageID ? Color(white: 0.18) : .clear,
+              in: RoundedRectangle(cornerRadius: 10))
+        }.accessibilityIdentifier("storage-" + storage.id.uuidString)
+          .disabled(vault.busy)
+      }
+      Button(action: chooseFolder) { Label("Add storage folder", systemImage: "plus") }
+        .font(.system(size: 13)).foregroundStyle(secondary).accessibilityIdentifier(
+          "addStorageFolder")
       Spacer()
       if !vault.sessions.isEmpty {
         Text("OPEN DOCUMENTS").font(.system(size: 11, weight: .medium)).foregroundStyle(secondary)

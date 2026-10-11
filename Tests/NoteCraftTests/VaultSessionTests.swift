@@ -280,3 +280,87 @@ import Testing
   #expect(reopened.active?.document.package.notebook.pages[0].strokes == [ink])
   #expect(FileManager.default.fileExists(atPath: sidecar.path))
 }
+
+@MainActor @Test func storageListRestoresLastFolderAndDocumentPositions() async throws {
+  let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+  let zhaw = temporary.appendingPathComponent("ZHAW")
+  let books = temporary.appendingPathComponent("Books")
+  try FileManager.default.createDirectory(at: zhaw, withIntermediateDirectories: true)
+  try FileManager.default.createDirectory(at: books, withIntermediateDirectories: true)
+  defer { try? FileManager.default.removeItem(at: temporary) }
+  let preferences = try #require(UserDefaults(suiteName: UUID().uuidString))
+  let notebookURL = zhaw.appendingPathComponent("Courses.notecraft")
+  let package = NotebookPackage(
+    notebook: Notebook(title: "Courses", pages: [Page(), Page(), Page(), Page()]))
+  try await PackageStore().save(package, to: notebookURL)
+  let pdfURL = books.appendingPathComponent("Book.pdf")
+  try PageRenderer.export(package).write(to: pdfURL)
+  let vault = VaultController(preferences: preferences)
+  await vault.choose(zhaw)
+  await vault.open(try #require(vault.entries.first))
+  let notebook = try #require(vault.active)
+  vault.rememberPage(notebook, index: 2)
+  #expect(!notebook.dirty)
+  let ink = Stroke(samples: [Sample(point: Point(40, 40)), Sample(point: Point(100, 70))])
+  notebook.document.package.notebook.pages[2].strokes.append(ink)
+  notebook.document.package.notebook.revision += 1
+  vault.changed(notebook)
+  await vault.choose(books)
+  #expect(!notebook.dirty)
+  #expect(vault.storages.map(\.name) == ["ZHAW", "Books"])
+  await vault.choose(books)
+  #expect(vault.storages.count == 2)
+  await vault.open(try #require(vault.entries.first))
+  let pdf = try #require(vault.active)
+  vault.rememberPage(pdf, index: 3)
+  #expect(!pdf.dirty)
+  await vault.library()
+  let restarted = VaultController(preferences: preferences)
+  await restarted.restoreLastStorage()
+  #expect(restarted.root?.vaultPath == books.vaultPath)
+  #expect(restarted.storages.count == 2)
+  await restarted.open(try #require(restarted.entries.first))
+  #expect(restarted.active?.currentPageIndex == 3)
+  // PDFs without edits are freshly imported, so their regenerated page IDs use the index fallback.
+  #expect(
+    restarted.active?.document.package.notebook.pages[3].id
+      != pdf.document.package.notebook.pages[3].id)
+  await restarted.selectStorage(try #require(restarted.storages.first { $0.name == "ZHAW" }))
+  await restarted.open(try #require(restarted.entries.first))
+  #expect(restarted.active?.currentPageIndex == 2)
+  #expect(restarted.active?.document.package.notebook.pages[2].strokes == [ink])
+  await restarted.library()
+  await restarted.rename(try #require(restarted.entries.first), to: "Study")
+  let renamed = try #require(restarted.entries.first)
+  var reordered = try await restarted.packages.read(from: renamed.url)
+  reordered.notebook.pages.swapAt(0, 2)
+  reordered.notebook.revision += 1
+  try await restarted.packages.save(reordered, to: renamed.url)
+  let reopened = VaultController(preferences: preferences)
+  await reopened.restoreLastStorage()
+  #expect(reopened.root?.vaultPath == zhaw.vaultPath)
+  await reopened.open(try #require(reopened.entries.first))
+  #expect(
+    reopened.active?.currentPageIndex == 0, "Follow the saved page ID when pages are reordered")
+  let storageID = reopened.activeStorageID
+  await reopened.choose(temporary.appendingPathComponent("Missing"))
+  #expect(reopened.root?.vaultPath == zhaw.vaultPath && reopened.activeStorageID == storageID)
+  #expect(reopened.storages.count == 2 && reopened.error != nil)
+}
+
+@MainActor @Test func legacyStorageBookmarkMigratesWithoutAskingForAnotherFolder() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+  try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let preferences = try #require(UserDefaults(suiteName: UUID().uuidString))
+  let vault = VaultController(preferences: preferences)
+  await vault.choose(root)
+  preferences.removeObject(forKey: "savedStorages")
+  preferences.removeObject(forKey: "activeStorageID")
+  let restarted = VaultController(preferences: preferences)
+  await restarted.restoreLastStorage()
+  #expect(restarted.root?.vaultPath == root.vaultPath)
+  #expect(restarted.storages.count == 1)
+  await restarted.restoreLastStorage()
+  #expect(restarted.storages.count == 1)
+}

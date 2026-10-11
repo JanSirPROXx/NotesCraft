@@ -4,6 +4,17 @@ import NoteCraftCore
 import Observation
 import PDFKit
 
+struct SavedStorage: Codable, Identifiable {
+  let id: UUID
+  var name: String
+  var path: String
+  var bookmark: Data
+}
+private struct ReadingPosition: Codable {
+  var pageID: UUID
+  var index: Int
+}
+
 struct WorkspaceTab: Identifiable {
   let id: UUID
   var title: String
@@ -25,6 +36,7 @@ struct WorkspaceTab: Identifiable {
   var status = "Saved"
   var saving = false
   var stamp: FileStamp?
+  var currentPageIndex = 0
   var savedRevision: UInt64
   var sidecarURL: URL?
   var diskSidecarRevision: UInt64?
@@ -59,7 +71,16 @@ struct WorkspaceTab: Identifiable {
   var lockedPDF: VaultEntry?
   @ObservationIgnored var managing = false
   @ObservationIgnored private let preferences: UserDefaults
-  init(preferences: UserDefaults = .standard) { self.preferences = preferences }
+  var storages: [SavedStorage] = []
+  var activeStorageID: UUID?
+  @ObservationIgnored private var restoredStorage = false
+  init(preferences: UserDefaults = .standard) {
+    self.preferences = preferences
+    if let data = preferences.data(forKey: "savedStorages") {
+      storages = (try? JSONDecoder().decode([SavedStorage].self, from: data)) ?? []
+    }
+    activeStorageID = preferences.string(forKey: "activeStorageID").flatMap(UUID.init(uuidString:))
+  }
   @ObservationIgnored let files = VaultFiles()
   @ObservationIgnored let packages = PackageStore()
   @ObservationIgnored private var listGeneration = 0
@@ -67,44 +88,117 @@ struct WorkspaceTab: Identifiable {
   var tabs: [WorkspaceTab] {
     sessions.map { WorkspaceTab(id: $0.id, title: $0.title, selected: $0.id == activeID) }
   }
-  func choose(_ url: URL) async {
-    if sessions.contains(where: \.dirty) {
-      error = "Save open edits before changing the storage folder."
+  func choose(_ url: URL, storageID: UUID? = nil) async {
+    guard !busy else { return }
+    busy = true
+    defer { busy = false }
+    for session in sessions {
+      rememberPage(session, index: session.currentPageIndex)
+      session.saveTask?.cancel()
+      while session.saving { try? await Task.sleep(for: .milliseconds(20)) }
+      await save(session)
+    }
+    guard !sessions.contains(where: \.dirty) else {
+      error = "Unable to switch storage until open changes are saved."
       return
     }
-    if let root { root.stopAccessingSecurityScopedResource() }
-    _ = url.startAccessingSecurityScopedResource()
-    root = url
-    folder = url
-    sessions = []
-    activeID = nil
-    showLibrary = true
+    let scoped = url.startAccessingSecurityScopedResource()
     do {
+      // Validate the new location before releasing the current folder's access.
+      _ = try await files.list(url)
       #if os(macOS)
         let bookmark = try url.bookmarkData(options: .withSecurityScope)
       #else
         let bookmark = try url.bookmarkData(
           options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
       #endif
+      let existing = storages.firstIndex { $0.id == storageID || $0.path == url.vaultPath }
+      let storage = SavedStorage(
+        id: existing.map { storages[$0].id } ?? UUID(),
+        name: url.lastPathComponent, path: url.vaultPath, bookmark: bookmark)
+      if let existing { storages[existing] = storage } else { storages.append(storage) }
+      if let root { root.stopAccessingSecurityScopedResource() }
+      root = url
+      folder = url
+      activeStorageID = storage.id
+      preferences.set(try JSONEncoder().encode(storages), forKey: "savedStorages")
+      preferences.set(storage.id.uuidString, forKey: "activeStorageID")
       preferences.set(bookmark, forKey: "vaultBookmark")
+      sessions = []
+      activeID = nil
+      showLibrary = true
       favorites = Set(
         (preferences.stringArray(forKey: favoritesKey) ?? []).map {
           URL(fileURLWithPath: $0).vaultPath
         })
+      favoriteEntries = []
+      entries = []
+      trashItems = []
+      error = nil
       await refresh()
-    } catch { self.error = error.localizedDescription }
+    } catch {
+      if scoped { url.stopAccessingSecurityScopedResource() }
+      self.error = error.localizedDescription
+    }
+  }
+  private func resolveBookmark(_ data: Data) throws -> URL {
+    var stale = false
+    #if os(macOS)
+      return try URL(
+        resolvingBookmarkData: data, options: .withSecurityScope,
+        relativeTo: nil, bookmarkDataIsStale: &stale)
+    #else
+      return try URL(
+        resolvingBookmarkData: data, options: [], relativeTo: nil,
+        bookmarkDataIsStale: &stale)
+    #endif
+  }
+  func selectStorage(_ storage: SavedStorage) async {
+    do { await choose(try resolveBookmark(storage.bookmark), storageID: storage.id) } catch {
+      self.error =
+        "Unable to open \(storage.name). Re-add the folder to restore access. \(error.localizedDescription)"
+    }
+  }
+  func restoreLastStorage() async {
+    guard !restoredStorage else { return }
+    restoredStorage = true
+    if let storage = storages.first(where: { $0.id == activeStorageID }) ?? storages.first {
+      await selectStorage(storage)
+    } else if let previous = previousFolder() {
+      await choose(previous)
+    }
   }
   func previousFolder() -> URL? {
     guard let data = preferences.data(forKey: "vaultBookmark") else { return nil }
-    var stale = false
-    #if os(macOS)
-      return try? URL(
-        resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil,
-        bookmarkDataIsStale: &stale)
-    #else
-      return try? URL(
-        resolvingBookmarkData: data, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
-    #endif
+    return try? resolveBookmark(data)
+  }
+  private var readingPositions: [String: ReadingPosition] {
+    get {
+      guard let data = preferences.data(forKey: "readingPositions") else { return [:] }
+      return (try? JSONDecoder().decode([String: ReadingPosition].self, from: data)) ?? [:]
+    }
+    set { preferences.set(try? JSONEncoder().encode(newValue), forKey: "readingPositions") }
+  }
+  func rememberPage(_ session: VaultSession, index: Int) {
+    guard session.entryKind != .markdown && session.entryKind != .image,
+      !session.document.package.notebook.pages.isEmpty
+    else { return }
+    let pages = session.document.package.notebook.pages
+    let index = min(max(0, index), pages.count - 1)
+    session.currentPageIndex = index
+    var positions = readingPositions
+    positions[session.url.vaultPath] = ReadingPosition(pageID: pages[index].id, index: index)
+    readingPositions = positions
+  }
+  func relocateReadingPositions(_ source: URL, to destination: URL, copy: Bool = false) {
+    var positions = readingPositions
+    for (path, position) in positions
+    where path == source.vaultPath || path.hasPrefix(source.vaultPath + "/") {
+      let suffix = String(path.dropFirst(source.vaultPath.count))
+      positions[destination.vaultPath + suffix] = position
+      if !copy { positions.removeValue(forKey: path) }
+    }
+    readingPositions = positions
   }
   private var favoritesKey: String { "favorites." + (root?.absoluteString ?? "") }
   func persistFavorites() { preferences.set(Array(favorites), forKey: favoritesKey) }
@@ -217,6 +311,12 @@ struct WorkspaceTab: Identifiable {
         error = "This file type can be browsed, but is not editable in NoteCraft."
         return
       }
+      if let position = readingPositions[session.url.vaultPath] {
+        let pages = session.document.package.notebook.pages
+        session.currentPageIndex =
+          pages.firstIndex(where: { $0.id == position.pageID })
+          ?? min(max(0, position.index), max(0, pages.count - 1))
+      }
       sessions.append(session)
       activeID = session.id
       showLibrary = false
@@ -322,12 +422,18 @@ struct WorkspaceTab: Identifiable {
     } catch { self.error = error.localizedDescription }
   }
   func library() async {
-    if let active { await save(active) }
+    if let active {
+      rememberPage(active, index: active.currentPageIndex)
+      await save(active)
+    }
     showLibrary = true
     await refresh()
   }
   func selectTab(_ id: UUID) async {
-    if let active { await save(active) }
+    if let active {
+      rememberPage(active, index: active.currentPageIndex)
+      await save(active)
+    }
     activeID = id
     showLibrary = false
   }

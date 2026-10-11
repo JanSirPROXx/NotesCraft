@@ -22,6 +22,7 @@ struct NotebookExport: FileDocument {
 
 struct Workspace: View {
   @Binding var document: NoteDocument
+  @Binding var activePage: Int
   let fileURL: URL?
   var onBack: (() -> Void)? = nil
   var tabs: [WorkspaceTab] = []
@@ -73,7 +74,6 @@ struct Workspace: View {
   @State private var clipboardImages: [PageAsset] = []
   @State private var clipboardTexts: [TextBox] = []
   @State private var errorMessage: String?
-  @State private var activePage = 0
   @State private var selection: Set<UUID> = []
   @State private var selectionMenuPresented = false
   private var undoStack: [NotebookPackage] {
@@ -180,6 +180,9 @@ struct Workspace: View {
                   }
                 }.onChange(of: horizontal) {
                   horizontalPageID = page.id
+                }.onAppear {
+                  horizontalPageID = page.id
+                  if !horizontal { proxy.scrollTo(page.id, anchor: .top) }
                 }
             }
           }

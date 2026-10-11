@@ -31,6 +31,7 @@ extension VaultController {
         : destination.appendingPathComponent(
           String(url.vaultPath.dropFirst(source.vaultPath.count + 1)))
     }
+    relocateReadingPositions(source, to: destination)
     for session in affected(by: source) {
       session.url = update(session.url)
       if session.entryKind == .pdf || session.entryKind == .image {
@@ -109,6 +110,7 @@ extension VaultController {
         title: entry.title + " copy",
         extension: entry.kind == .folder ? "" : entry.url.pathExtension)
       try await files.transfer(entry.url, to: destination, in: root, copy: true)
+      relocateReadingPositions(entry.url, to: destination, copy: true)
       if entry.kind == .notebook || entry.kind == .whiteboard {
         var package = try await packages.read(from: destination)
         let revision = package.notebook.revision

@@ -151,7 +151,7 @@ final class VaultUITests: XCTestCase {
     let pageNumber = app.textFields["pageNumberField"]
     XCTAssertTrue(pageNumber.waitForExistence(timeout: 5))
     pageNumber.tap()
-    pageNumber.typeText(XCUIKeyboardKey.delete.rawValue + "1")
+    pageNumber.typeText(XCUIKeyboardKey.delete.rawValue + "3")
     app.buttons["Go"].tap()
     XCTAssertTrue(app.buttons["More"].waitForExistence(timeout: 5))
     app.buttons["Documents"].tap()
@@ -171,6 +171,21 @@ final class VaultUITests: XCTestCase {
     canvas.pinch(withScale: 1.4, velocity: 1)
     XCTAssertEqual(canvas.value as? String, "1 strokes")
     capture(app, name: "Whiteboard after drawing and pinch zoom")
+    app.buttons["Documents"].tap()
+    app.terminate()
+    app.launchArguments = []
+    app.launch()
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 15), app.debugDescription)
+    XCTAssertFalse(
+      app.buttons["chooseStorageFolder"].exists, "The last storage must open automatically")
+    XCTAssertTrue(app.buttons["addStorageFolder"].exists)
+    app.buttons["Study Notes"].firstMatch.tap()
+    XCTAssertTrue(app.buttons["More"].waitForExistence(timeout: 5))
+    app.buttons["More"].tap()
+    app.buttons["documentNavigatorMenu"].tap()
+    XCTAssertTrue(pageNumber.waitForExistence(timeout: 5))
+    XCTAssertEqual(pageNumber.value as? String, "3", "Resume the notebook after app relaunch")
+    capture(app, name: "Last storage and notebook page restored after relaunch")
 
   }
   @MainActor private func capture(_ app: XCUIApplication, name: String) {

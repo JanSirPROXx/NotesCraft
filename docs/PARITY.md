@@ -25,6 +25,12 @@ has not been established.
 - Standalone images open in a read-only, zoomable preview. Explicit import creates an editable
   notebook; images inserted into existing notebooks retain move/resize/rotation controls.
   Previously saved image annotation packages can be recovered through notebook import.
+- Multiple storage folders persist as security-scoped bookmarks in the sidebar. Startup
+  opens the last storage automatically and migrates the previous single-folder bookmark.
+  Switching storage flushes open edits before releasing the old folder.
+- Each PDF/notebook remembers its page independently across reopen and app restart.
+  Stored page IDs survive reordering; page indexes provide a fallback for fresh PDF imports.
+  Positions follow file renames and moves without changing document content.
 - The user-provided NotesCraft artwork is configured as the iPad and macOS app icon.
 - The bottom status/zoom bar is removed. A page indicator fades after navigation or strong scrolling.
 - Password entry opens a separate unlocked PDF copy. Page-number navigation, bookmarks,
@@ -58,5 +64,5 @@ drawing input and export. Native UI coverage exercises folder selection, default
 finger navigation, opt-in finger ink, erase/undo, reopen, pull-to-add-page, thumbnail
 duplication, both paging directions, transient page indicators, notebook pinch zoom,
 immediate image source selection, library rename/duplicate/trash/restore, page-number
-navigation and whiteboard drawing/zoom. Simulator input does
+navigation, whiteboard drawing/zoom and last-storage/page restoration after app relaunch. Simulator input does
 not establish physical Pencil or palm behavior.
