@@ -127,8 +127,10 @@ public actor PackageStore {
     guard let result else { throw PackageError.invalidPackage }
     return try result.get()
   }
-  public func save(_ package: NotebookPackage, to url: URL, expectedRevision: UInt64? = nil) throws
-  {
+  public func save(
+    _ package: NotebookPackage, to url: URL, expectedRevision: UInt64? = nil,
+    createOnly: Bool = false
+  ) throws {
     let wrapper = try package.fileWrapper()
     let scoped = url.startAccessingSecurityScopedResource()
     defer { if scoped { url.stopAccessingSecurityScopedResource() } }
@@ -138,6 +140,9 @@ public actor PackageStore {
       writingItemAt: url, options: .forReplacing, error: &coordinationError
     ) { coordinatedURL in
       result = Result {
+        if createOnly && FileManager.default.fileExists(atPath: coordinatedURL.path) {
+          throw PackageError.conflict
+        }
         if let expectedRevision {
           guard FileManager.default.fileExists(atPath: coordinatedURL.path) else {
             throw PackageError.conflict

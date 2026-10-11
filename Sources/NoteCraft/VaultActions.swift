@@ -33,7 +33,7 @@ extension VaultController {
     }
     for session in affected(by: source) {
       session.url = update(session.url)
-      if session.entryKind == .pdf {
+      if session.entryKind == .pdf || session.entryKind == .image {
         session.sidecarURL = session.url.deletingLastPathComponent().appendingPathComponent(
           "." + session.url.lastPathComponent + ".notecraft")
       }
@@ -73,7 +73,7 @@ extension VaultController {
           for i in session.history.undo.indices { session.history.undo[i].notebook.title = name }
           for i in session.history.redo.indices { session.history.redo[i].notebook.title = name }
         }
-      } else if entry.kind == .pdf,
+      } else if entry.kind == .pdf || entry.kind == .image,
         let session = sessions.first(where: { $0.url.vaultPath == destination.vaultPath })
       {
         session.document.package.notebook.title = name

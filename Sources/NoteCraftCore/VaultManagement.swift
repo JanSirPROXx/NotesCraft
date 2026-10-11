@@ -22,7 +22,7 @@ extension VaultFiles {
     return value
   }
 
-  // Coordinate the primary file and its adjacent editable PDF data together. Roll back
+  // Coordinate the primary file and its adjacent editable annotation data together. Roll back
   // the primary operation if the sidecar cannot follow it; never replace a destination.
   public func transfer(_ source: URL, to destination: URL, in root: URL, copy: Bool = false) throws
   {
@@ -49,7 +49,7 @@ extension VaultFiles {
             !manager.fileExists(atPath: targetSidecar.path)
           else { throw VaultOperationError.destinationExists }
           let hasSidecar =
-            origin.pathExtension.lowercased() == "pdf" && manager.fileExists(atPath: sideFrom.path)
+            manager.fileExists(atPath: sideFrom.path)
           if copy {
             try manager.copyItem(at: from, to: to)
           } else {
@@ -74,9 +74,7 @@ extension VaultFiles {
         }
       }
       if !copy { coordinator.item(at: from, willMoveTo: to) }
-      if origin.pathExtension.lowercased() == "pdf",
-        FileManager.default.fileExists(atPath: sourceSidecar.path)
-      {
+      if FileManager.default.fileExists(atPath: sourceSidecar.path) {
         var sideError: NSError?
         let sideCoordinator = NSFileCoordinator()
         sideCoordinator.coordinate(

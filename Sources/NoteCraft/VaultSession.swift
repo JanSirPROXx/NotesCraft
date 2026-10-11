@@ -194,6 +194,20 @@ struct WorkspaceTab: Identifiable {
         session.markdown = text
       case .image:
         let snapshot = try await files.read(entry.url)
+        let sidecar = await files.sidecar(for: entry.url)
+        let cached =
+          FileManager.default.fileExists(atPath: sidecar.path)
+          ? try await packages.read(from: sidecar) : nil
+        if let cached, cached.assets["source.sha256"] == snapshot.stamp.digest {
+          var package = cached
+          package.notebook.title = entry.title
+          session = VaultSession(
+            url: entry.url, kind: .image, package: package, stamp: snapshot.stamp)
+          session.sidecarURL = sidecar
+          session.diskSidecarRevision = cached.notebook.revision
+          break
+        }
+        if cached != nil { throw PackageError.conflict }
         let name = entry.url.lastPathComponent
         var page = Page(paper: Paper(pattern: .blank))
         guard let image = CGImageSourceCreateWithData(snapshot.data as CFData, nil),
@@ -209,13 +223,11 @@ struct WorkspaceTab: Identifiable {
           PageAsset(filename: name, frame: Rect(x: 30, y: 30, width: size.x, height: size.y))
         ]
         session = VaultSession(
-          url: await files.availableURL(
-            in: entry.url.deletingLastPathComponent(), title: entry.title, extension: "notecraft"),
-          kind: .notebook,
+          url: entry.url, kind: .image,
           package: NotebookPackage(
-            notebook: Notebook(title: entry.title, pages: [page]), assets: [name: snapshot.data]))
-        try await packages.save(session.document.package, to: session.url)
-        session.status = "Saved · imported image notebook"
+            notebook: Notebook(title: entry.title, pages: [page]), assets: [name: snapshot.data]),
+          stamp: snapshot.stamp)
+        session.sidecarURL = sidecar
       default:
         error = "This file type can be browsed, but is not editable in NoteCraft."
         return
@@ -239,7 +251,7 @@ struct WorkspaceTab: Identifiable {
     }
   }
   func save(_ session: VaultSession) async {
-    guard session.dirty, !session.saving, !managing, session.entryKind != .image else { return }
+    guard session.dirty, !session.saving, !managing else { return }
     session.saving = true
     session.status = "Saving…"
     let generation = session.generation
@@ -249,6 +261,17 @@ struct WorkspaceTab: Identifiable {
       case .markdown:
         session.stamp = try await files.write(
           Data(session.markdown.utf8), to: session.url, expected: session.stamp)
+      case .image:
+        let current = try await files.read(session.url)
+        guard current.stamp == session.stamp, let sidecar = session.sidecarURL else {
+          throw PackageError.conflict
+        }
+        var editable = snapshot
+        editable.assets["source.sha256"] = current.stamp.digest
+        try await packages.save(
+          editable, to: sidecar, expectedRevision: session.diskSidecarRevision,
+          createOnly: session.diskSidecarRevision == nil)
+        session.diskSidecarRevision = editable.notebook.revision
       case .pdf:
         let pdf = try PDFEditor.export(snapshot)
         session.stamp = try await files.write(pdf, to: session.url, expected: session.stamp)
