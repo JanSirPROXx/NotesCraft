@@ -80,11 +80,22 @@ public struct Paper: Codable, Equatable, Sendable {
   public var size: PaperSize = .a4
   public var pattern: PaperPattern = .ruled
   public var landscape = false
-  public init(size: PaperSize = .a4, pattern: PaperPattern = .ruled, landscape: Bool = false) {
+  // Sheet color; nil is white. Absent in older files.
+  public var color: InkColor?
+  public init(
+    size: PaperSize = .a4, pattern: PaperPattern = .ruled, landscape: Bool = false,
+    color: InkColor? = nil
+  ) {
     self.size = size
     self.pattern = pattern
     self.landscape = landscape
+    self.color = color
   }
+  public static let colors: [(name: String, color: InkColor?)] = [
+    ("White", nil), ("Cream", InkColor(hex: "#FFF8E7")), ("Yellow", InkColor(hex: "#FEF7C3")),
+    ("Blue", InkColor(hex: "#E8F0FE")), ("Mint", InkColor(hex: "#E6F4EA")),
+    ("Gray", InkColor(hex: "#ECEFF1")),
+  ]
   public var dimensions: Point {
     landscape ? Point(size.dimensions.y, size.dimensions.x) : size.dimensions
   }

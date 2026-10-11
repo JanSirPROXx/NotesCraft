@@ -147,3 +147,15 @@ must use original code and assets, without proprietary Goodnotes source or artwo
 
 MIT. Goodnotes is a trademark of its respective owner. NoteCraft is independent and
 is not affiliated with or endorsed by Goodnotes.
+
+## Shapes, stickers, text and images
+
+- **Shapes** tool: pick a shape (line, arrow, right angle, rectangle, circle, triangle, …) and tap the
+  page or drag to size it. Freehand mode snaps clear lines, rectangles, circles, triangles and right
+  angles and leaves anything else as ink.
+- Shapes, stickers, images and text boxes share one editor: drag to move, corners scale, edge handles
+  stretch, the top handle rotates (snapping to 15°). The bar below the selection recolors, deletes and
+  opens the full menu (line width, fill, order, duplicate, save as element).
+- **Elements** tool: vector stickers, emoji and saved elements; tap the page to place one.
+- **Text** tool: tap to type in a small box right on the page; the slider icon opens font options.
+- Paper background: pattern and paper color, for one page or all non-PDF pages.

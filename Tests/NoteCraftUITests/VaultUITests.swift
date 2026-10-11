@@ -290,6 +290,64 @@ final class VaultUITests: XCTestCase {
     XCTAssertFalse(app.buttons["pageThumbnail-2"].exists, "Only one blank page is kept ahead")
     app.buttons["Documents"].tap()
   }
+  @MainActor func testShapesStickersTextAndSelectionWorkflow() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input"]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    let canvas = app.descendants(matching: .any)["drawingCanvas"].firstMatch
+    XCTAssertTrue(canvas.waitForExistence(timeout: 10))
+    app.buttons["More"].tap()
+    let pencilOnly = app.descendants(matching: .any)["Apple Pencil only"].firstMatch
+    XCTAssertTrue(pencilOnly.waitForExistence(timeout: 5))
+    pencilOnly.tap()
+
+    // Insert a rectangle by dragging, then stretch it by its right edge.
+    app.buttons["Shapes"].tap()
+    app.buttons["Shape: Freehand"].tap()
+    XCTAssertTrue(app.buttons["Rectangle"].waitForExistence(timeout: 5))
+    app.buttons["Rectangle"].tap()
+    func point(_ x: Double, _ y: Double) -> XCUICoordinate {
+      canvas.coordinate(withNormalizedOffset: CGVector(dx: x, dy: y))
+    }
+    point(0.2, 0.2).press(forDuration: 0.05, thenDragTo: point(0.5, 0.3))
+    XCTAssertEqual(canvas.value as? String, "1 strokes")
+    capture(app, name: "Rectangle inserted and selected")
+    point(0.5, 0.25).press(forDuration: 0.05, thenDragTo: point(0.8, 0.25))
+    XCTAssertEqual(canvas.value as? String, "1 strokes", "Stretching edits the shape in place")
+    capture(app, name: "Rectangle stretched")
+
+    // A heart sticker lands where the page is tapped, ready to move.
+    app.buttons["Elements"].tap()
+    XCTAssertTrue(app.buttons["Heart"].waitForExistence(timeout: 5))
+    app.buttons["Heart"].tap()
+    point(0.3, 0.6).tap()
+    XCTAssertEqual(canvas.value as? String, "2 strokes")
+    capture(app, name: "Sticker inserted")
+
+    // Text is typed straight onto the page.
+    app.buttons["Text"].tap()
+    point(0.5, 0.55).tap()
+    let field = app.descendants(matching: .any)["inlineTextField"].firstMatch
+    XCTAssertTrue(field.waitForExistence(timeout: 5), app.debugDescription)
+    field.typeText("Hello")
+    capture(app, name: "Inline text editor")
+    app.buttons["Done editing text"].tap()
+
+    // Tapping with the lasso selects the rectangle, whose menu opens from the ellipsis.
+    app.buttons["Lasso"].tap()
+    point(0.2, 0.25).tap()
+    XCTAssertTrue(app.buttons["Selection actions"].waitForExistence(timeout: 5))
+    app.buttons["Selection actions"].tap()
+    XCTAssertTrue(app.buttons["Bring to front"].waitForExistence(timeout: 5))
+    capture(app, name: "Selection menu")
+  }
   @MainActor func testLargeNotebookKeepsOnlyVisibleCanvasesLoaded() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     defer { XCUIDevice.shared.orientation = .portrait }

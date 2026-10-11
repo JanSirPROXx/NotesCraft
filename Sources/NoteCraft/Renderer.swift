@@ -41,8 +41,9 @@ import SwiftUI
   ) {
     if includeBackground {
       let size = page.dimensions
-      c.setFillColor(CGColor(gray: 1, alpha: 1))
-      c.fill(CGRect(x: 0, y: 0, width: size.x, height: size.y))
+      c.setFillColor(page.paper.color.map { color($0) } ?? CGColor(gray: 1, alpha: 1))
+      // A whiteboard has no edge, so its sheet color fills the whole visible area.
+      c.fill(paperBounds ?? CGRect(x: 0, y: 0, width: size.x, height: size.y))
       if let pdf = backgroundDocument, let p = pdf.page(at: page.backgroundPage ?? 0),
         let reference = p.pageRef
       {

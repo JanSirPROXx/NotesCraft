@@ -313,6 +313,7 @@ struct Workspace: View {
       refreshTrailingPage()
     }
     .onChange(of: horizontal) { refreshTrailingPage() }
+    .onChange(of: notebook.pages.last?.paper) { refreshTrailingPage() }
     .onChange(of: lastPageHasContent) { ensureBlankTrailingPage() }
     .onChange(of: infinite) { ensureBlankTrailingPage() }
     .onAppear {
@@ -336,8 +337,9 @@ struct Workspace: View {
     }
     .sheet(isPresented: $paperSheet) {
       PaperBackgroundSheet(
-        initialPattern: page.paper.pattern, whiteboard: notebook.kind == .whiteboard
-      ) { pattern, allPages in
+        initialPattern: page.paper.pattern, initialColor: page.paper.color,
+        isPDFPage: page.backgroundPDF != nil, whiteboard: notebook.kind == .whiteboard
+      ) { pattern, color, allPages in
         let currentID = page.id
         edit { package in
           for index in package.notebook.pages.indices {
@@ -345,6 +347,7 @@ struct Workspace: View {
               allPages || package.notebook.pages[index].id == currentID
             {
               package.notebook.pages[index].paper.pattern = pattern
+              package.notebook.pages[index].paper.color = color
             }
           }
         }
@@ -1718,11 +1721,13 @@ struct TemplatePicker: View {
   @State private var pattern: PaperPattern = .ruled
   @State private var size: PaperSize = .a4
   @State private var landscape = false
+  @State private var color: InkColor?
   let onCreate: (Paper) -> Void
   init(initialPaper: Paper = Paper(), onCreate: @escaping (Paper) -> Void) {
     _pattern = State(initialValue: initialPaper.pattern)
     _size = State(initialValue: initialPaper.size)
     _landscape = State(initialValue: initialPaper.landscape)
+    _color = State(initialValue: initialPaper.color)
     self.onCreate = onCreate
   }
   var body: some View {
@@ -1736,9 +1741,10 @@ struct TemplatePicker: View {
         ForEach(PaperSize.allCases, id: \.self) { Text($0.rawValue).tag($0) }
       }.pickerStyle(.segmented)
       Toggle("Landscape", isOn: $landscape)
-      PaperPatternPicker(pattern: $pattern)
+      PaperPatternPicker(pattern: $pattern, color: color)
+      PaperColorRow(color: $color)
       Button("Add page") {
-        onCreate(Paper(size: size, pattern: pattern, landscape: landscape))
+        onCreate(Paper(size: size, pattern: pattern, landscape: landscape, color: color))
         dismiss()
       }.buttonStyle(.borderedProminent).frame(maxWidth: .infinity, alignment: .trailing)
         .accessibilityIdentifier("confirmAddPage")
@@ -1762,6 +1768,7 @@ private struct NotebookPageBehavior: ScrollTargetBehavior {
 struct PaperPatternPicker: View {
   @Binding var pattern: PaperPattern
   var whiteboard = false
+  var color: InkColor?
   var body: some View {
     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 14) {
       ForEach(PaperPattern.allCases.filter { !whiteboard || $0 != .planner }, id: \.self) {
@@ -1777,7 +1784,8 @@ struct PaperPatternPicker: View {
                   Paper(pattern: option), in: c,
                   bounds: option == .planner ? nil : CGRect(x: 0, y: 0, width: 200, height: 140))
               }
-            }.frame(height: 68).background(.white).clipShape(RoundedRectangle(cornerRadius: 6))
+            }.frame(height: 68).background(color?.swiftUI ?? .white)
+              .clipShape(RoundedRectangle(cornerRadius: 6))
               .overlay(
                 RoundedRectangle(cornerRadius: 6).stroke(
                   pattern == option ? Color.blue : Color.gray.opacity(0.35),
@@ -1791,31 +1799,64 @@ struct PaperPatternPicker: View {
   }
 }
 
+struct PaperColorRow: View {
+  @Binding var color: InkColor?
+  var body: some View {
+    HStack(spacing: 12) {
+      ForEach(Array(Paper.colors.enumerated()), id: \.offset) { _, option in
+        let selected = option.color == color
+        Button {
+          color = option.color
+        } label: {
+          Circle().fill(option.color?.swiftUI ?? .white).frame(width: 30, height: 30)
+            .overlay(Circle().stroke(Color.gray.opacity(0.5), lineWidth: 1))
+            .padding(4)
+            .overlay(Circle().stroke(selected ? Color.blue : .clear, lineWidth: 2.5))
+            .hitTarget(width: 44, height: 44)
+        }
+        .buttonStyle(.plain).accessibilityLabel("\(option.name) paper")
+        .accessibilityAddTraits(selected ? .isSelected : [])
+      }
+    }
+  }
+}
+
 private struct PaperBackgroundSheet: View {
   @Environment(\.dismiss) private var dismiss
   @State private var pattern: PaperPattern
+  @State private var color: InkColor?
   @State private var allPages = false
+  let isPDFPage: Bool
   let whiteboard: Bool
-  let onApply: (PaperPattern, Bool) -> Void
+  let onApply: (PaperPattern, InkColor?, Bool) -> Void
   init(
-    initialPattern: PaperPattern, whiteboard: Bool, onApply: @escaping (PaperPattern, Bool) -> Void
+    initialPattern: PaperPattern, initialColor: InkColor?, isPDFPage: Bool, whiteboard: Bool,
+    onApply: @escaping (PaperPattern, InkColor?, Bool) -> Void
   ) {
     _pattern = State(initialValue: initialPattern)
+    _color = State(initialValue: initialColor)
+    self.isPDFPage = isPDFPage
     self.whiteboard = whiteboard
     self.onApply = onApply
   }
   var body: some View {
     VStack(alignment: .leading, spacing: 22) {
       Text("Paper background").font(.title2.bold())
-      PaperPatternPicker(pattern: $pattern, whiteboard: whiteboard)
+      if isPDFPage && !allPages {
+        Text("This page is a PDF, so its own background stays. Turn on “Apply to all non-PDF pages” to change the others.")
+          .font(.callout).foregroundStyle(.secondary)
+      }
+      PaperPatternPicker(pattern: $pattern, whiteboard: whiteboard, color: color)
+      Text("Paper color").font(.headline)
+      PaperColorRow(color: $color)
       if !whiteboard { Toggle("Apply to all non-PDF pages", isOn: $allPages) }
       HStack {
         Button("Cancel") { dismiss() }
         Spacer()
         Button("Apply") {
-          onApply(pattern, allPages)
+          onApply(pattern, color, allPages)
           dismiss()
-        }.buttonStyle(.borderedProminent)
+        }.buttonStyle(.borderedProminent).disabled(isPDFPage && !allPages)
       }
     }.padding(28).frame(minWidth: 340, idealWidth: 440).preferredColorScheme(.light)
   }
