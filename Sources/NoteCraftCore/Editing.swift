@@ -148,7 +148,40 @@ public enum Editing {
       }
     }
   }
-  public static func shape(from stroke: Stroke) -> Stroke {
+  public static func shape(from stroke: Stroke, preset: ShapePreset = .automatic) -> Stroke {
+    if preset != .automatic {
+      guard let first = stroke.samples.first, let last = stroke.samples.last else { return stroke }
+      var result = stroke
+      let b = stroke.bounds
+      let center = Point(b.x + b.width / 2, b.y + b.height / 2)
+      let points: [Point]
+      switch preset {
+      case .automatic: return stroke
+      case .line: points = [first.point, last.point]
+      case .rectangle:
+        points = [
+          Point(b.x, b.y), Point(b.x + b.width, b.y), Point(b.x + b.width, b.y + b.height),
+          Point(b.x, b.y + b.height), Point(b.x, b.y),
+        ]
+      case .ellipse:
+        points = (0...64).map { i in
+          let angle = Double(i % 64) / 64 * 2 * Double.pi
+          return Point(center.x + b.width / 2 * cos(angle), center.y + b.height / 2 * sin(angle))
+        }
+      case .triangle:
+        points = [
+          Point(center.x, b.y), Point(b.x + b.width, b.y + b.height), Point(b.x, b.y + b.height),
+          Point(center.x, b.y),
+        ]
+      case .diamond:
+        points = [
+          Point(center.x, b.y), Point(b.x + b.width, center.y), Point(center.x, b.y + b.height),
+          Point(b.x, center.y), Point(center.x, b.y),
+        ]
+      }
+      result.samples = points.map { Sample(point: $0) }
+      return result
+    }
     guard let first = stroke.samples.first, let last = stroke.samples.last, stroke.samples.count > 2
     else { return stroke }
     var result = stroke
@@ -232,7 +265,7 @@ public enum InkGestures {
       let xRadius = circular ? (rx + ry) / 2 : rx
       let yRadius = circular ? xRadius : ry
       result.samples = (0...64).map { i in
-        let angle = Double(i) / 64 * 2 * Double.pi
+        let angle = Double(i % 64) / 64 * 2 * Double.pi
         return Sample(
           point: Point(center.x + xRadius * cos(angle), center.y + yRadius * sin(angle)))
       }
@@ -446,5 +479,36 @@ extension InkGestures {
       result.texts[i].rotation = (original.rotation ?? 0) + transform.angle
     }
     return result
+  }
+}
+
+public enum NotebookPaging {
+  public static func target(
+    origin: Double, projected: Double, velocity: Double,
+    pageWidth: Double, contentWidth: Double
+  ) -> Double {
+    guard pageWidth > 0 else { return 0 }
+    let current = (origin / pageWidth).rounded()
+    let delta = projected - origin
+    let direction =
+      abs(velocity) > 80
+      ? (velocity > 0 ? 1.0 : -1.0)
+      : abs(delta) > pageWidth * 0.15 ? (delta > 0 ? 1.0 : -1.0) : 0
+    let last = max(0, (contentWidth / pageWidth).rounded() - 1)
+    return min(last, max(0, current + direction)) * pageWidth
+  }
+}
+
+public enum ShapePreset: String, CaseIterable, Sendable {
+  case automatic, line, rectangle, ellipse, triangle, diamond
+  public var symbol: String {
+    switch self {
+    case .automatic: "scribble"
+    case .line: "line.diagonal"
+    case .rectangle: "rectangle"
+    case .ellipse: "circle"
+    case .triangle: "triangle"
+    case .diamond: "diamond"
+    }
   }
 }

@@ -271,3 +271,39 @@ import Testing
   #expect(duplicate.strokes[0].id != result.strokes[0].id)
   #expect(duplicate.images[0].filename == result.images[0].filename)
 }
+
+@Test func magneticPagingMovesAtMostOnePageAndClampsAtEdges() {
+  #expect(
+    NotebookPaging.target(
+      origin: 800, projected: 3300, velocity: 2000,
+      pageWidth: 800, contentWidth: 4000) == 1600)
+  #expect(
+    NotebookPaging.target(
+      origin: 800, projected: 500, velocity: -500,
+      pageWidth: 800, contentWidth: 4000) == 0)
+  #expect(
+    NotebookPaging.target(
+      origin: 800, projected: 850, velocity: 0,
+      pageWidth: 800, contentWidth: 4000) == 800)
+  #expect(
+    NotebookPaging.target(
+      origin: 3200, projected: 3800, velocity: 500,
+      pageWidth: 800, contentWidth: 4000) == 3200)
+  #expect(
+    NotebookPaging.target(
+      origin: 0, projected: -800, velocity: -500,
+      pageWidth: 800, contentWidth: 4000) == 0)
+}
+
+@Test func explicitShapeToolsCreateClosedGeometryAndPreserveInkAttributes() {
+  let raw = Stroke(
+    samples: [Sample(point: Point(30, 50)), Sample(point: Point(100, 120))],
+    color: .red, width: 3, tool: .shapes)
+  for preset in [ShapePreset.rectangle, .ellipse, .triangle, .diamond] {
+    let result = Editing.shape(from: raw, preset: preset)
+    #expect(result.samples.first?.point == result.samples.last?.point)
+    #expect(result.color == raw.color && result.width == raw.width && result.id == raw.id)
+    #expect(result.samples.count >= 4)
+  }
+  #expect(Editing.shape(from: raw, preset: .line).samples == raw.samples)
+}
