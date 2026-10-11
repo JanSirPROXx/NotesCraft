@@ -217,13 +217,44 @@ import SwiftUI
             x: first.point.x - s.width / 2, y: first.point.y - s.width / 2, width: s.width,
             height: s.width))
       }
-      for (a, b) in zip(s.samples, s.samples.dropFirst()) {
-        let pressure = s.style == .ballpoint ? 1 : max(0.2, (a.pressure + b.pressure) / 2)
-        let tilt = s.style == .brush ? 1 + (1 - sin((a.altitude + b.altitude) / 2)) : 1
-        c.setLineWidth(s.width * pressure * tilt * (s.style == .brush ? 1.7 : 1))
-        c.move(to: CGPoint(x: a.point.x, y: a.point.y))
-        c.addLine(to: CGPoint(x: b.point.x, y: b.point.y))
+      let smooth = s.tool == .pen && s.samples.count > 5
+      if smooth && s.style == .ballpoint {
+        c.setLineWidth(s.width)
+        c.move(to: CGPoint(x: first.point.x, y: first.point.y))
+        for i in 1..<s.samples.count {
+          let control = s.samples[i - 1].point
+          let point = s.samples[i].point
+          let end =
+            i == s.samples.count - 1
+            ? point
+            : Point((control.x + point.x) / 2, (control.y + point.y) / 2)
+          c.addQuadCurve(
+            to: CGPoint(x: end.x, y: end.y),
+            control: CGPoint(x: control.x, y: control.y))
+        }
         c.strokePath()
+      } else {
+        var start = first.point
+        for i in 1..<s.samples.count {
+          let a = s.samples[i - 1]
+          let b = s.samples[i]
+          let pressure = s.style == .ballpoint ? 1 : max(0.2, (a.pressure + b.pressure) / 2)
+          let tilt = s.style == .brush ? 1 + (1 - sin((a.altitude + b.altitude) / 2)) : 1
+          c.setLineWidth(s.width * pressure * tilt * (s.style == .brush ? 1.7 : 1))
+          c.move(to: CGPoint(x: start.x, y: start.y))
+          let end =
+            smooth && i < s.samples.count - 1
+            ? Point((a.point.x + b.point.x) / 2, (a.point.y + b.point.y) / 2) : b.point
+          if smooth {
+            c.addQuadCurve(
+              to: CGPoint(x: end.x, y: end.y),
+              control: CGPoint(x: a.point.x, y: a.point.y))
+          } else {
+            c.addLine(to: CGPoint(x: end.x, y: end.y))
+          }
+          c.strokePath()
+          start = end
+        }
       }
     }
     c.restoreGState()

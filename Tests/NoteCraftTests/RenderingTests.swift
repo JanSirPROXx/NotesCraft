@@ -400,3 +400,26 @@ import UniformTypeIdentifiers
     #expect(markedPixels > 20, "Background must cover distant whiteboard regions: \(pattern)")
   }
 }
+
+@MainActor @Test func handwritingUsesCurvesWhileGeometricStrokesKeepCorners() throws {
+  let samples = [
+    Point(20, 100), Point(50, 20), Point(80, 100), Point(110, 20),
+    Point(140, 100), Point(170, 20), Point(200, 100),
+  ].map { Sample(point: $0) }
+  func red(_ tool: InkTool, at point: Point) throws -> UInt8 {
+    let c = try #require(
+      CGContext(
+        data: nil, width: 220, height: 200,
+        bitsPerComponent: 8, bytesPerRow: 880, space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    c.setFillColor(CGColor(gray: 1, alpha: 1))
+    c.fill(CGRect(x: 0, y: 0, width: 220, height: 200))
+    PageRenderer.stroke(Stroke(samples: samples, width: 4, tool: tool, style: .ballpoint), in: c)
+    return try #require(c.data).assumingMemoryBound(to: UInt8.self)[
+      Int(point.y) * 880 + Int(point.x) * 4]
+  }
+  #expect(try red(.pen, at: Point(80, 100)) > 240)
+  #expect(try red(.shapes, at: Point(80, 100)) < 100)
+  #expect(try red(.pen, at: Point(20, 100)) < 100)
+  #expect(try red(.pen, at: Point(200, 100)) < 100)
+}
