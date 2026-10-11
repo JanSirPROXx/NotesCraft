@@ -98,6 +98,19 @@ public struct Sample: Codable, Equatable, Sendable {
     self.altitude = altitude
   }
 }
+// Nib behaviour of the fountain pen, stored per stroke so changing the settings later never
+// restyles ink that is already on the page. Absent in older files, which keep the default.
+public struct PenTip: Codable, Equatable, Hashable, Sendable {
+  public var sharpness: Double
+  public var pressure: Double
+  public var flatness: Double
+  public init(sharpness: Double = 0.5, pressure: Double = 0.5, flatness: Double = 0) {
+    self.sharpness = min(1, max(0, sharpness))
+    self.pressure = min(1, max(0, pressure))
+    self.flatness = min(1, max(0, flatness))
+  }
+  public static let standard = PenTip()
+}
 public struct Stroke: Codable, Equatable, Identifiable, Sendable {
   public var id: UUID
   public var samples: [Sample]
@@ -106,9 +119,10 @@ public struct Stroke: Codable, Equatable, Identifiable, Sendable {
   public var tool: InkTool
   public var style: PenStyle
   public var fillColor: InkColor?
+  public var tip: PenTip?
   public init(
     id: UUID = UUID(), samples: [Sample], color: InkColor = .ink, width: Double = 2,
-    tool: InkTool = .pen, style: PenStyle = .ballpoint
+    tool: InkTool = .pen, style: PenStyle = .ballpoint, tip: PenTip? = nil
   ) {
     self.id = id
     self.samples = samples
@@ -116,6 +130,7 @@ public struct Stroke: Codable, Equatable, Identifiable, Sendable {
     self.width = width
     self.tool = tool
     self.style = style
+    self.tip = tip
   }
   public var bounds: Rect {
     guard let first = samples.first else { return Rect(x: 0, y: 0, width: 0, height: 0) }

@@ -51,6 +51,10 @@ struct Workspace: View {
   @State private var shapePreset: ShapePreset = .automatic
   @State private var hexColor = "#1F2B3D"
   @AppStorage("penStyle") private var penStyle: PenStyle = .ballpoint
+  @AppStorage("fountainSharpness") private var tipSharpness = 0.5
+  @AppStorage("fountainPressure") private var tipPressure = 0.5
+  @AppStorage("fountainFlatness") private var tipFlatness = 0.0
+  @AppStorage("penStabilization") private var stabilization = 0.0
   @State private var eraserMode: EraserMode = .stroke
   @State private var highlighterOnly = false
   @State private var autoDeselect = false
@@ -576,7 +580,10 @@ struct Workspace: View {
             .help(label(item)).accessibilityLabel(label(item))
             .popover(
               isPresented: Binding(get: { settings && tool == item }, set: { settings = $0 })
-            ) { toolSettings.padding(22).frame(width: 320).preferredColorScheme(.dark) }
+            ) {
+              ScrollView { toolSettings.padding(22) }
+                .frame(width: 320).frame(maxHeight: 640).preferredColorScheme(.dark)
+            }
           }
           Spacer(minLength: 8)
           exportButton
@@ -668,6 +675,12 @@ struct Workspace: View {
         Picker("Pen style", selection: $penStyle) {
           ForEach(PenStyle.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
         }.pickerStyle(.segmented)
+        if penStyle == .fountain {
+          PenTipSettings(
+            sharpness: $tipSharpness, pressure: $tipPressure, flatness: $tipFlatness,
+            color: color, width: width)
+        }
+        DraftSlider(title: "Stroke stabilization", value: $stabilization)
         Text("Thickness \(width.formatted()) pt")
         Slider(value: widthBinding, in: 0.5...12)
         ColorPicker("Custom color", selection: $customColor).onChange(of: customColor) {
@@ -917,7 +930,9 @@ struct Workspace: View {
           onScrollActivity: { showPageIndicator() }, holdToShape: holdToShape,
           eraserMode: eraserMode, highlighterOnly: highlighterOnly,
           searchHighlights: searchVisible
-            ? documentSearch.results.first(where: { $0.pageID == p.id })?.highlights ?? [] : [])
+            ? documentSearch.results.first(where: { $0.pageID == p.id })?.highlights ?? [] : [],
+          tip: PenTip(sharpness: tipSharpness, pressure: tipPressure, flatness: tipFlatness),
+          stabilization: stabilization)
       )
       .accessibilityElement()
       .accessibilityLabel("Drawing canvas")

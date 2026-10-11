@@ -26,6 +26,7 @@ struct NoteDocument: FileDocument {
         UserDefaults.standard.removeObject(forKey: "pencilOnlyDrawing")
         UserDefaults.standard.removeObject(forKey: "horizontalNotebookPages")
         UserDefaults.standard.removeObject(forKey: "keepZoomOnNewPage")
+        UserDefaults.standard.removeObject(forKey: "infiniteScroll")
         for key in ["savedStorages", "activeStorageID", "vaultBookmark", "readingPositions"] {
           UserDefaults.standard.removeObject(forKey: key)
         }

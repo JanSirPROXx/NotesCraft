@@ -187,3 +187,81 @@ struct WidthEditor: View {
     .onDisappear { value = (draft * 10).rounded() / 10 }
   }
 }
+
+// Sliders keep a local draft and commit on release, like WidthEditor: each tick would otherwise
+// re-evaluate the whole workspace.
+struct DraftSlider: View {
+  let title: String
+  @Binding var value: Double
+  var display: (Double) -> String = { "\(Int(($0 * 100).rounded()))%" }
+  @State private var draft = 0.0
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      HStack {
+        Text(title.uppercased()).font(.caption).foregroundStyle(.secondary)
+        Spacer()
+        Text(display(draft)).font(.caption).monospacedDigit()
+      }
+      Slider(value: $draft, in: 0...1) { editing in
+        if !editing { value = draft }
+      }
+    }
+    .onAppear { draft = value }
+    .onChange(of: value) { draft = value }
+    .onDisappear { value = draft }
+  }
+}
+
+struct FountainPreview: View {
+  let tip: PenTip
+  let color: InkColor
+  let width: Double
+  var stabilization = 0.0
+
+  var body: some View {
+    Canvas { context, size in
+      let samples = (0...90).map { i -> Sample in
+        let t = Double(i) / 90
+        // A pen stroke that starts slowly, speeds up through the middle and slows again.
+        let eased = t * t * (3 - 2 * t)
+        let x = 16 + eased * (size.width - 32)
+        let y = size.height * (0.62 - 0.38 * sin(eased * .pi * 1.35 + 0.2) * (1 - eased * 0.2))
+        let pressure = 0.12 + 0.4 * sin(t * .pi)
+        return Sample(point: Point(x, y), pressure: pressure)
+      }
+      context.withCGContext { c in
+        c.translateBy(x: 0, y: 0)
+        PageRenderer.stroke(
+          Stroke(
+            samples: samples, color: color, width: max(1, width * 1.6), style: .fountain,
+            tip: tip), in: c)
+      }
+    }
+    .frame(height: 96).background(Color.white, in: RoundedRectangle(cornerRadius: 12))
+  }
+}
+
+struct PenTipSettings: View {
+  @Binding var sharpness: Double
+  @Binding var pressure: Double
+  @Binding var flatness: Double
+  var color: InkColor
+  var width: Double
+  @State private var draftTip = PenTip.standard
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      FountainPreview(tip: draftTip, color: color, width: width)
+      DraftSlider(title: "Tip sharpness", value: $sharpness)
+      DraftSlider(title: "Pressure sensitivity", value: $pressure)
+      DraftSlider(
+        title: "Tip flatness", value: $flatness,
+        display: { $0 < 0.02 ? "Round" : "\(Int(($0 * 100).rounded()))%" })
+    }
+    .onAppear { draftTip = PenTip(sharpness: sharpness, pressure: pressure, flatness: flatness) }
+    .onChange(of: sharpness) { draftTip.sharpness = sharpness }
+    .onChange(of: pressure) { draftTip.pressure = pressure }
+    .onChange(of: flatness) { draftTip.flatness = flatness }
+  }
+}

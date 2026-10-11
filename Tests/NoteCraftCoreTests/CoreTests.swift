@@ -404,3 +404,49 @@ import Testing
   #expect(InkGestures.blankPageNeeded(after: [pdf]) != nil)
   #expect(InkGestures.blankPageNeeded(after: []) == nil)
 }
+
+@Test func fountainWidthsRespondToPressureSpeedAndEndsDeterministically() {
+  func line(spacing: Double, pressure: Double, count: Int = 40) -> [Sample] {
+    (0..<count).map { Sample(point: Point(Double($0) * spacing, 0), pressure: pressure) }
+  }
+  let tip = PenTip(sharpness: 0.5, pressure: 0.5, flatness: 0)
+  let slow = FountainInk.widths(for: line(spacing: 0.5, pressure: 0.3), base: 3, tip: tip)
+  let fast = FountainInk.widths(for: line(spacing: 8, pressure: 0.3), base: 3, tip: tip)
+  #expect(fast[20] < slow[20], "Faster strokes must be thinner")
+  let light = FountainInk.widths(for: line(spacing: 1, pressure: 0.05), base: 3, tip: tip)
+  let firm = FountainInk.widths(for: line(spacing: 1, pressure: 0.7), base: 3, tip: tip)
+  #expect(firm[20] > light[20], "Harder pressure must be thicker")
+  let blind = PenTip(sharpness: 0.5, pressure: 0, flatness: 0)
+  let a = FountainInk.widths(for: line(spacing: 1, pressure: 0.05), base: 3, tip: blind)
+  let b = FountainInk.widths(for: line(spacing: 1, pressure: 0.7), base: 3, tip: blind)
+  #expect(abs(a[20] - b[20]) < 0.001, "Zero sensitivity ignores pressure")
+  let constant = FountainInk.widths(for: line(spacing: 1, pressure: 1), base: 3, tip: tip)
+  #expect(abs(constant[20] - FountainInk.widths(for: line(spacing: 1, pressure: 1), base: 3, tip: PenTip(sharpness: 0.5, pressure: 1, flatness: 0))[20]) < 0.001, "Pressure 1 means no pressure data")
+  #expect(slow[0] < slow[20] && slow.last! < slow[20], "Ink enters and leaves tapered")
+  var state = FountainInk.State()
+  let samples = line(spacing: 2, pressure: 0.4)
+  let incremental = samples.map { FountainInk.advance(&state, sample: $0, base: 3, tip: tip) }
+  let batch = FountainInk.widths(for: samples, base: 3, tip: tip, finished: false)
+  #expect(incremental == batch, "Live widths must equal the committed ones before the end taper")
+  let flat = PenTip(sharpness: 0.5, pressure: 0.5, flatness: 1)
+  let diagonal = (0..<40).map { Sample(point: Point(Double($0), Double($0)), pressure: 0.3) }
+  let anti = (0..<40).map { Sample(point: Point(Double($0), -Double($0)), pressure: 0.3) }
+  #expect(
+    FountainInk.widths(for: anti, base: 3, tip: flat)[20]
+      != FountainInk.widths(for: diagonal, base: 3, tip: flat)[20],
+    "A flat nib draws differently along and across its edge")
+}
+
+@Test func strokeTipRoundTripsAndOlderFilesStillDecode() throws {
+  let tip = PenTip(sharpness: 0.8, pressure: 0.3, flatness: 0.6)
+  let stroke = Stroke(
+    samples: [Sample(point: Point(1, 2))], style: .fountain, tip: tip)
+  let decoded = try JSONDecoder().decode(Stroke.self, from: JSONEncoder().encode(stroke))
+  #expect(decoded.tip == tip)
+  var legacy = try #require(
+    JSONSerialization.jsonObject(with: JSONEncoder().encode(stroke)) as? [String: Any])
+  legacy.removeValue(forKey: "tip")
+  let old = try JSONDecoder().decode(
+    Stroke.self, from: JSONSerialization.data(withJSONObject: legacy))
+  #expect(old.tip == nil)
+}

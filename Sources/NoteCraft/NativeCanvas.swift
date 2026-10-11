@@ -28,6 +28,8 @@ import SwiftUI
   var eraserMode: EraserMode = .stroke
   var highlighterOnly = false
   var searchHighlights: [Rect] = []
+  var tip: PenTip = .standard
+  var stabilization = 0.0
 }
 #if os(macOS)
   struct NativeCanvas: NSViewRepresentable {
@@ -468,6 +470,9 @@ import SwiftUI
   var selectionTransform: SelectionTransform?
   var invalidatedSamples = 0
   var lastInkRect = CGRect.null
+  var fountain = FountainInk.State()
+  var fountainWidths: [Double] = []
+  var lastRaw: Point?
 }
 enum SelectionHandle { case move, resize, rotate }
 
@@ -644,7 +649,22 @@ extension DrawingView {
       predictedSamples = []
       return
     }
+    var sample = sample
+    input.lastRaw = sample.point
+    // Stabilization trails the pen through an exponential filter; the true end point is
+    // restored in finish() so the stroke still lands where the tip lifted.
+    if configuration.tool == .pen, configuration.stabilization > 0, let last = samples.last {
+      let follow = 1 - 0.9 * configuration.stabilization
+      sample.point = Point(
+        last.point.x + (sample.point.x - last.point.x) * follow,
+        last.point.y + (sample.point.y - last.point.y) * follow)
+    }
     samples.append(sample)
+    if configuration.tool == .pen, configuration.style == .fountain {
+      input.fountainWidths.append(
+        FountainInk.advance(
+          &input.fountain, sample: sample, base: configuration.width, tip: configuration.tip))
+    }
     if configuration.tool == .eraser { cachedPage = nil }
     guard configuration.holdToShape, [.pen, .shapes].contains(configuration.tool) else { return }
     if let anchor = input.holdPoint, anchor.distance(to: sample.point) < 3 { return }
@@ -659,7 +679,8 @@ extension DrawingView {
         self.input.holdTask = nil
         let raw = Stroke(
           samples: self.samples, color: configuration.color,
-          width: configuration.width, tool: configuration.tool, style: configuration.style)
+          width: configuration.width, tool: configuration.tool, style: configuration.style,
+          tip: configuration.tip)
         guard let shape = InkGestures.heldShape(raw) else { return }
         self.input.held = shape
         self.input.resizeStart = self.samples.last?.point
@@ -766,7 +787,8 @@ extension DrawingView {
           PageRenderer.stroke(
             Stroke(
               samples: samples + predictedSamples, color: configuration.color,
-              width: configuration.width, tool: configuration.tool, style: configuration.style),
+              width: configuration.width, tool: configuration.tool, style: configuration.style,
+              tip: configuration.tip),
             in: c
           )
         }
@@ -823,9 +845,16 @@ extension DrawingView {
     }
     switch configuration.tool {
     case .pen, .highlighter, .shapes:
+      if configuration.tool == .pen, configuration.stabilization > 0, let raw = input.lastRaw,
+        let last = samples.last, raw != last.point
+      {
+        samples.append(Sample(point: raw, pressure: last.pressure, altitude: last.altitude))
+      }
       let stroke = Stroke(
         samples: samples, color: configuration.color, width: configuration.width,
-        tool: configuration.tool, style: configuration.style)
+        tool: configuration.tool, style: configuration.style,
+        tip: configuration.style == .fountain && configuration.tool == .pen
+          ? configuration.tip : nil)
       input.pendingStroke = stroke
       configuration.onStroke(stroke)
     case .eraser, .lasso: configuration.onGesture(samples.map(\.point))
@@ -859,7 +888,8 @@ extension DrawingView {
       PageRenderer.stroke(
         Stroke(
           samples: samples + predictedSamples, color: configuration.color,
-          width: configuration.width, tool: .pen, style: configuration.style), in: c)
+          width: configuration.width, tool: .pen, style: configuration.style,
+          tip: configuration.tip), in: c)
       return
     }
     let stableEnd = samples.count - 2
@@ -867,16 +897,28 @@ extension DrawingView {
       let range = (input.bakedThrough + 1)..<(stableEnd + 1)
       PageRenderer.smoothInkSegments(
         samples, range: range, color: configuration.color,
-        width: configuration.width, style: configuration.style, in: context)
+        width: configuration.width, style: configuration.style, in: context,
+        widths: input.fountainWidths)
       input.renderedSegments += range.count
       input.bakedThrough = stableEnd
     }
     c.draw(layer, in: rect)
     let tail = Array(samples.suffix(3)) + predictedSamples
     // Include one already-baked sample to preserve the tail's midpoint tangent.
+    var tailWidths: [Double]?
+    if configuration.style == .fountain, input.fountainWidths.count == samples.count {
+      var state = input.fountain
+      tailWidths =
+        Array(input.fountainWidths.suffix(3))
+        + predictedSamples.map {
+          FountainInk.advance(
+            &state, sample: $0, base: configuration.width, tip: configuration.tip)
+        }
+    }
     PageRenderer.smoothInkSegments(
       tail, range: 2..<tail.count, color: configuration.color,
-      width: configuration.width, style: configuration.style, in: c, finish: true)
+      width: configuration.width, style: configuration.style, in: c, finish: true,
+      widths: tailWidths)
     input.renderedSegments += max(0, tail.count - 2)
   }
 }
