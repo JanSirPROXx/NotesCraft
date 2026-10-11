@@ -112,6 +112,9 @@ struct Workspace: View {
   @State private var pageHUDTask: Task<Void, Never>?
   @State private var horizontalPageID: UUID?
   @State private var pageChangedByScroll = false
+  // A blank page after the last one: swiping onto it turns it into a real page, so adding a
+  // page is part of the swipe instead of a separate pull-and-hold gesture.
+  @State private var trailingPage: Page?
   @AppStorage("keepZoomOnNewPage") private var keepZoomOnNewPage = true
   @State private var pageZoom = NotebookZoomMemory()
   @State private var zoom = 1.0
@@ -194,6 +197,11 @@ struct Workspace: View {
                       notebookPage(p, index: index, size: geometry.size)
                         .frame(width: geometry.size.width).id(p.id)
                     }
+                    if let next = trailingPage {
+                      // Same ID as the page it becomes, so committing it causes no visual jump.
+                      notebookPage(next, index: notebook.pages.count, size: geometry.size)
+                        .frame(width: geometry.size.width).id(next.id).allowsHitTesting(false)
+                    }
                   }.scrollTargetLayout()
                 } else {
                   LazyVStack(spacing: 28) {
@@ -222,6 +230,12 @@ struct Workspace: View {
                   // A distant jump should not build/render every page along an animation.
                   if abs(current - previous) > 1 { move() } else { withAnimation { move() } }
                 }.onChange(of: horizontalPageID) {
+                  if let id = horizontalPageID, let next = trailingPage, id == next.id {
+                    pageChangedByScroll = true
+                    trailingPage = nil
+                    appendPage(next)
+                    return
+                  }
                   if let id = horizontalPageID,
                     let index = notebook.pages.firstIndex(where: { $0.id == id })
                   {
@@ -268,7 +282,12 @@ struct Workspace: View {
     .environment(\.colorScheme, .light).preferredColorScheme(.dark)
     .frame(minWidth: minimumWidth, minHeight: 500)
     .onChange(of: activePage) { showPageIndicator() }
-    .onChange(of: notebook.pages.count) { showPageIndicator() }
+    .onChange(of: notebook.pages.count) {
+      showPageIndicator()
+      refreshTrailingPage()
+    }
+    .onChange(of: horizontal) { refreshTrailingPage() }
+    .onAppear { refreshTrailingPage() }
     .onDisappear { pageHUDTask?.cancel() }
     .sheet(isPresented: $templateSheet) {
       TemplatePicker(initialPaper: page.paper) { paper in
@@ -854,7 +873,7 @@ struct Workspace: View {
               tool = .eraser
             }
           },
-          onAppendPage: boardHeight == nil && index == notebook.pages.count - 1
+          onAppendPage: boardHeight == nil && !horizontal && index == notebook.pages.count - 1
             ? {
               let next = InkGestures.blankPage(matching: p)
               appendPage(next)
@@ -952,6 +971,13 @@ struct Workspace: View {
       ).shadow(
         color: Color.black.opacity(0.10), radius: 6, y: 2)
     }.id(p.id)
+  }
+  private func refreshTrailingPage() {
+    guard horizontal, notebook.kind != .whiteboard, let last = notebook.pages.last else {
+      trailingPage = nil
+      return
+    }
+    trailingPage = InkGestures.blankPage(matching: last)
   }
   private func appendPage(_ next: Page) {
     pageZoom[next.id] = keepZoomOnNewPage ? (pageZoom[page.id] ?? zoom) : 1

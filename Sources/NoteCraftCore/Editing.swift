@@ -596,7 +596,7 @@ public enum NotebookPaging {
     let direction =
       abs(velocity) > 80
       ? (velocity > 0 ? 1.0 : -1.0)
-      : abs(delta) > pageWidth * 0.15 ? (delta > 0 ? 1.0 : -1.0) : 0
+      : abs(delta) > pageWidth * 0.1 ? (delta > 0 ? 1.0 : -1.0) : 0
     return min(last, max(0, current + direction)) * pageWidth
   }
 }

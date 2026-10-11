@@ -55,10 +55,12 @@ in one undoable operation. Both gestures can be disabled in the overflow menu. T
 shows a live preview. Lasso handwriting, images and text, then drag inside the selection to
 move the group with a live preview; release commits one undoable change.
 
-At the bottom of a vertical notebook, pull upward beyond the end and hold for about half a
-second to append a blank page with the previous page's paper, orientation and dimensions.
-In finger-drawing mode use two fingers; with Pencil-only or read-only mode use one finger.
-On Mac, continue scrolling downward at the end with the trackpad. The new page retains
+In the default horizontal mode a swipe settles on exactly one page, and swiping past the last
+page turns the blank page waiting there into a real one with the previous page's paper,
+orientation and dimensions; undo removes it. At the bottom of a vertical notebook, pull upward
+beyond the end and hold for a moment to append the same kind of page. In finger-drawing mode use
+two fingers; with Pencil-only or read-only mode use one finger. On Mac, continue scrolling
+downward at the end with the trackpad. The new page retains
 the format but does not duplicate PDF content. Whiteboards support finger pan and two-finger
 pinch zoom on iPad (pan uses two fingers unless Pencil-only mode is enabled), and trackpad scrolling/magnification on Mac. Whiteboard export fits the
 content, including objects outside the initial page area. Open documents appear in the

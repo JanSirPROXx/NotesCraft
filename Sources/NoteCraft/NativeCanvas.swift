@@ -266,14 +266,14 @@ import SwiftUI
           -scroll.adjustedContentInset.top,
           scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
       let overshoot = (horizontal ? scroll.contentOffset.x : scroll.contentOffset.y) - end
-      guard overshoot > 70 else {
+      guard overshoot > 60 else {
         pullStarted = nil
         configuration?.onPagePull?(0)
         return
       }
       let now = ProcessInfo.processInfo.systemUptime
       if pullStarted == nil { pullStarted = now }
-      let progress = min(1, (now - (pullStarted ?? now)) / 0.45)
+      let progress = min(1, (now - (pullStarted ?? now)) / 0.2)
       configuration?.onPagePull?(progress)
       if progress >= 1 {
         pullTriggered = true
@@ -352,6 +352,8 @@ import SwiftUI
             paper.pinchGestureRecognizer?.isEnabled = paper.allowsZoom && !pencilActive
           }
           if !(scroll is NotebookZoomScrollView) {
+            // A page swipe should settle quickly onto the target page rather than glide.
+            scroll.decelerationRate = .fast
             scroll.alwaysBounceVertical = configuration?.horizontalPages != true
             scroll.alwaysBounceHorizontal = configuration?.horizontalPages == true
           }
