@@ -230,6 +230,66 @@ final class VaultUITests: XCTestCase {
     capture(app, name: "Magnetic paging settles on the previous page")
 
   }
+  @MainActor private func chooseFreshStorageFolder(_ app: XCUIApplication) {
+    XCTAssertTrue(app.buttons["chooseStorageFolder"].waitForExistence(timeout: 10))
+    app.buttons["chooseStorageFolder"].tap()
+    let localStorage = app.cells["DOC.sidebar.item.On My iPad"]
+    if !localStorage.waitForExistence(timeout: 15) {
+      let browse = app.buttons["Browse"].firstMatch
+      if browse.exists { browse.tap() }
+    }
+    XCTAssertTrue(localStorage.waitForExistence(timeout: 30), app.debugDescription)
+    localStorage.tap()
+    app.buttons["New Folder"].tap()
+    let field = app.textViews["DOC.inlineRenameField"]
+    XCTAssertTrue(field.waitForExistence(timeout: 10))
+    let folderName = "NoteCraft Test " + UUID().uuidString.prefix(8)
+    field.typeText(
+      String(
+        repeating: XCUIKeyboardKey.delete.rawValue, count: (field.value as? String ?? "").count)
+        + folderName + "\n")
+    let hideKeyboard = app.keyboards.buttons.matching(
+      NSPredicate(format: "label CONTAINS[c] 'hide' OR label CONTAINS[c] 'dismiss'")
+    ).firstMatch
+    if hideKeyboard.exists { hideKeyboard.tap() }
+    let open = app.buttons["Open"]
+    let tappable = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "hittable == true"), object: open)
+    XCTAssertEqual(XCTWaiter.wait(for: [tappable], timeout: 20), .completed, app.debugDescription)
+    open.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+  }
+  @MainActor func testInfiniteScrollingAddsABlankPageAfterWriting() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input"]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    let canvas = app.descendants(matching: .any)["drawingCanvas"].firstMatch
+    XCTAssertTrue(canvas.waitForExistence(timeout: 10))
+    app.buttons["More"].tap()
+    let infinite = app.descendants(matching: .any)["Infinite scrolling"].firstMatch
+    XCTAssertTrue(infinite.waitForExistence(timeout: 5))
+    infinite.tap()
+    app.buttons["More"].tap()
+    let pencilOnly = app.descendants(matching: .any)["Apple Pencil only"].firstMatch
+    XCTAssertTrue(pencilOnly.waitForExistence(timeout: 5))
+    pencilOnly.tap()
+    app.buttons["Pages"].tap()
+    XCTAssertTrue(app.buttons["pageThumbnail-0"].waitForExistence(timeout: 5))
+    XCTAssertFalse(app.buttons["pageThumbnail-1"].exists, "A blank last page needs no successor")
+    canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.2)).press(
+      forDuration: 0.05,
+      thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.3)))
+    XCTAssertTrue(
+      app.buttons["pageThumbnail-1"].waitForExistence(timeout: 5), app.debugDescription)
+    XCTAssertFalse(app.buttons["pageThumbnail-2"].exists, "Only one blank page is kept ahead")
+    app.buttons["Documents"].tap()
+  }
   @MainActor func testLargeNotebookKeepsOnlyVisibleCanvasesLoaded() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     defer { XCUIDevice.shared.orientation = .portrait }

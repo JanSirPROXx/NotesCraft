@@ -497,6 +497,16 @@ public enum InkGestures {
     return result
   }
 
+  // Infinite scrolling keeps a blank page below the writing: once the last page holds ink,
+  // media, text or a PDF background, the caller should append the page returned here.
+  public static func blankPageNeeded(after pages: [Page]) -> Page? {
+    guard let last = pages.last,
+      !(last.strokes.isEmpty && last.images.isEmpty && last.texts.isEmpty)
+        || last.backgroundPDF != nil
+    else { return nil }
+    return blankPage(matching: last)
+  }
+
   public static func blankPage(matching previous: Page) -> Page {
     var page = Page(paper: previous.paper)
     page.backgroundSize = previous.dimensions

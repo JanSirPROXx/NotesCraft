@@ -78,6 +78,10 @@ library. Elements preserve handwriting, images and rotated text across notebooks
 size, alignment, width, border and background; tap an existing box to edit it. Images can
 be imported from Files or Photos, dropped as file URLs, moved, pinched and rotated.
 
+Infinite scrolling (overflow menu, off by default) turns a notebook into one continuous vertical
+sheet: pages join without gaps, and a blank page is quietly appended below as soon as the last
+page holds anything, so writing never runs out of room. Page zoom is disabled in this mode.
+
 The thumbnail button reveals pages and bookmarks; its context menu inserts, duplicates,
 reorders and deletes pages. Horizontal navigation snaps to one page. The plus button opens paper templates.
 Use the overflow menu for page direction, import, scan, paste, PDF forms and input settings.

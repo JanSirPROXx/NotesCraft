@@ -390,3 +390,17 @@ import Testing
   #expect(restored.notebook.pages[0].strokes.count == 1)
   #expect(package.pruneMissingAssets().isEmpty)
 }
+
+@Test func infiniteScrollingAppendsABlankPageOnlyAfterTheLastPageHasContent() throws {
+  var first = Page(paper: Paper(pattern: .ruled))
+  #expect(InkGestures.blankPageNeeded(after: [first]) == nil)
+  first.strokes = [Stroke(samples: [Sample(point: Point(5, 5))])]
+  let next = try #require(InkGestures.blankPageNeeded(after: [first]))
+  #expect(next.id != first.id && next.strokes.isEmpty)
+  #expect(next.paper == first.paper && next.dimensions == first.dimensions)
+  #expect(InkGestures.blankPageNeeded(after: [first, next]) == nil)
+  var pdf = Page(paper: Paper(pattern: .blank))
+  pdf.backgroundPDF = "source.pdf"
+  #expect(InkGestures.blankPageNeeded(after: [pdf]) != nil)
+  #expect(InkGestures.blankPageNeeded(after: []) == nil)
+}

@@ -115,7 +115,10 @@ struct Workspace: View {
   @State private var searchVisible = false
   @State private var search = ""
   @State private var documentSearch = DocumentSearch()
-  @AppStorage("horizontalNotebookPages") private var horizontal = true
+  @AppStorage("horizontalNotebookPages") private var horizontalSetting = true
+  @AppStorage("infiniteScroll") private var infinite = false
+  // Infinite scrolling is one continuous vertical sheet, so it overrides page-by-page layout.
+  private var horizontal: Bool { horizontalSetting && !infinite }
   @State private var pageHUD = false
   @State private var lastHUDActivation = Date.distantPast
   @State private var pageHUDTask: Task<Void, Never>?
@@ -182,9 +185,75 @@ struct Workspace: View {
         set: { (firstWidth, secondWidth, thirdWidth) = ($0[0], $0[1], $0[2]) })
     }
   }
+  @ViewBuilder private func notebookScroller(_ geometry: GeometryProxy) -> some View {
+    ScrollViewReader { proxy in
+      ScrollView(horizontal ? .horizontal : .vertical, showsIndicators: false) {
+        if horizontal {
+          LazyHStack(alignment: .top, spacing: 0) {
+            ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
+              notebookPage(p, index: index, size: geometry.size)
+                .frame(width: geometry.size.width).id(p.id)
+            }
+            if let next = trailingPage {
+              // Same ID as the page it becomes, so committing it causes no visual jump.
+              notebookPage(next, index: notebook.pages.count, size: geometry.size)
+                .frame(width: geometry.size.width).id(next.id).allowsHitTesting(false)
+            }
+          }.scrollTargetLayout()
+        } else {
+          LazyVStack(spacing: infinite ? 0 : 28) {
+            ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
+              notebookPage(p, index: index, size: geometry.size, vertical: true)
+            }
+          }.scrollTargetLayout().frame(maxWidth: .infinity)
+        }
+      }.frame(width: geometry.size.width, height: geometry.size.height)
+        .scrollTargetBehavior(NotebookPageBehavior(horizontal: horizontal))
+        .scrollPosition(id: $horizontalPageID, anchor: .topLeading)
+        .accessibilityIdentifier("notebookScrollView")
+        .background(Color(red: 0.105, green: 0.11, blue: 0.115)).onChange(of: activePage) {
+          previous, current in
+          if pageChangedByScroll {
+            pageChangedByScroll = false
+            return
+          }
+          let move = {
+            if horizontal {
+              horizontalPageID = page.id
+            } else {
+              proxy.scrollTo(page.id, anchor: .top)
+            }
+          }
+          // A distant jump should not build/render every page along an animation.
+          if abs(current - previous) > 1 { move() } else { withAnimation { move() } }
+        }.onChange(of: horizontalPageID) {
+          if let id = horizontalPageID, let next = trailingPage, id == next.id {
+            pageChangedByScroll = true
+            trailingPage = nil
+            appendPage(next)
+            return
+          }
+          if let id = horizontalPageID,
+            let index = notebook.pages.firstIndex(where: { $0.id == id })
+          {
+            if activePage != index {
+              pageChangedByScroll = true
+              activePage = index
+            }
+          }
+        }.task(id: horizontal) {
+          let targetID = page.id
+          // Changing axes rebuilds the page layout. Reapply the position even when
+          // the selected page ID has not changed.
+          await Task.yield()
+          proxy.scrollTo(targetID, anchor: .topLeading)
+          horizontalPageID = targetID
+        }
+    }
+  }
   private var notebook: Notebook { document.package.notebook }
   private var page: Page { notebook.pages[min(activePage, notebook.pages.count - 1)] }
-  var body: some View {
+  private var editorContent: some View {
     VStack(spacing: 0) {
       tabBar
       toolBar
@@ -198,70 +267,7 @@ struct Workspace: View {
               page, index: 0, availableWidth: geometry.size.width, boardHeight: geometry.size.height
             )
           } else {
-            ScrollViewReader { proxy in
-              ScrollView(horizontal ? .horizontal : .vertical, showsIndicators: false) {
-                if horizontal {
-                  LazyHStack(alignment: .top, spacing: 0) {
-                    ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
-                      notebookPage(p, index: index, size: geometry.size)
-                        .frame(width: geometry.size.width).id(p.id)
-                    }
-                    if let next = trailingPage {
-                      // Same ID as the page it becomes, so committing it causes no visual jump.
-                      notebookPage(next, index: notebook.pages.count, size: geometry.size)
-                        .frame(width: geometry.size.width).id(next.id).allowsHitTesting(false)
-                    }
-                  }.scrollTargetLayout()
-                } else {
-                  LazyVStack(spacing: 28) {
-                    ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
-                      notebookPage(p, index: index, size: geometry.size, vertical: true)
-                    }
-                  }.scrollTargetLayout().frame(maxWidth: .infinity)
-                }
-              }.frame(width: geometry.size.width, height: geometry.size.height)
-                .scrollTargetBehavior(NotebookPageBehavior(horizontal: horizontal))
-                .scrollPosition(id: $horizontalPageID, anchor: .topLeading)
-                .accessibilityIdentifier("notebookScrollView")
-                .background(Color(red: 0.105, green: 0.11, blue: 0.115)).onChange(of: activePage) {
-                  previous, current in
-                  if pageChangedByScroll {
-                    pageChangedByScroll = false
-                    return
-                  }
-                  let move = {
-                    if horizontal {
-                      horizontalPageID = page.id
-                    } else {
-                      proxy.scrollTo(page.id, anchor: .top)
-                    }
-                  }
-                  // A distant jump should not build/render every page along an animation.
-                  if abs(current - previous) > 1 { move() } else { withAnimation { move() } }
-                }.onChange(of: horizontalPageID) {
-                  if let id = horizontalPageID, let next = trailingPage, id == next.id {
-                    pageChangedByScroll = true
-                    trailingPage = nil
-                    appendPage(next)
-                    return
-                  }
-                  if let id = horizontalPageID,
-                    let index = notebook.pages.firstIndex(where: { $0.id == id })
-                  {
-                    if activePage != index {
-                      pageChangedByScroll = true
-                      activePage = index
-                    }
-                  }
-                }.task(id: horizontal) {
-                  let targetID = page.id
-                  // Changing axes rebuilds the page layout. Reapply the position even when
-                  // the selected page ID has not changed.
-                  await Task.yield()
-                  proxy.scrollTo(targetID, anchor: .topLeading)
-                  horizontalPageID = targetID
-                }
-            }
+            notebookScroller(geometry)
           }
         }
       }
@@ -290,13 +296,22 @@ struct Workspace: View {
     .background(Color.white).foregroundStyle(Color(red: 0.12, green: 0.16, blue: 0.22)).tint(accent)
     .environment(\.colorScheme, .light).preferredColorScheme(.dark)
     .frame(minWidth: minimumWidth, minHeight: 500)
+  }
+  private var syncedContent: some View {
+    // Split into stages: one chained expression this long exceeds the type checker.
+    editorContent
     .onChange(of: activePage) { showPageIndicator() }
     .onChange(of: notebook.pages.count) {
       showPageIndicator()
       refreshTrailingPage()
     }
     .onChange(of: horizontal) { refreshTrailingPage() }
-    .onAppear { refreshTrailingPage() }
+    .onChange(of: lastPageHasContent) { ensureBlankTrailingPage() }
+    .onChange(of: infinite) { ensureBlankTrailingPage() }
+    .onAppear {
+      refreshTrailingPage()
+      ensureBlankTrailingPage()
+    }
     .onChange(of: notebook.pages.first?.id) {
       // The tab switched to another notebook; this view's state is reused across tabs.
       selection = []
@@ -304,6 +319,9 @@ struct Workspace: View {
       refreshTrailingPage()
     }
     .onDisappear { pageHUDTask?.cancel() }
+  }
+  var body: some View {
+    syncedContent
     .sheet(isPresented: $templateSheet) {
       TemplatePicker(initialPaper: page.paper) { paper in
         appendPage(Page(paper: paper))
@@ -435,7 +453,8 @@ struct Workspace: View {
       Button("Add page", systemImage: "plus") { templateSheet = true }
       Button("Paste ink", systemImage: "doc.on.clipboard") { paste() }.disabled(
         clipboard.isEmpty && clipboardImages.isEmpty && clipboardTexts.isEmpty)
-      Toggle("Horizontal pages", isOn: $horizontal)
+      Toggle("Infinite scrolling", isOn: $infinite)
+      Toggle("Horizontal pages", isOn: $horizontalSetting).disabled(infinite)
       Toggle("Keep zoom on new pages", isOn: $keepZoomOnNewPage)
       Toggle("Apple Pencil only", isOn: $pencilOnly)
       Toggle("Draw and hold for shapes", isOn: $holdToShape)
@@ -888,7 +907,8 @@ struct Workspace: View {
               tool = .eraser
             }
           },
-          onAppendPage: boardHeight == nil && !horizontal && index == notebook.pages.count - 1
+          onAppendPage: boardHeight == nil && !horizontal && !infinite
+            && index == notebook.pages.count - 1
             ? {
               let next = InkGestures.blankPage(matching: p)
               appendPage(next)
@@ -984,8 +1004,20 @@ struct Workspace: View {
       .frame(width: w, height: boardHeight ?? (w * p.dimensions.y / p.dimensions.x)).background(
         .white
       ).shadow(
-        color: Color.black.opacity(0.10), radius: 6, y: 2)
+        color: Color.black.opacity(infinite ? 0 : 0.10), radius: infinite ? 0 : 6, y: 2)
     }.id(p.id)
+  }
+  private var lastPageHasContent: Bool {
+    InkGestures.blankPageNeeded(after: notebook.pages) != nil
+  }
+  // Infinite mode keeps one blank page below the writing at all times. It is added outside the
+  // undo history so undoing a stroke never leaves the user at a visible "page break".
+  private func ensureBlankTrailingPage() {
+    guard infinite, notebook.kind != .whiteboard,
+      let next = InkGestures.blankPageNeeded(after: notebook.pages)
+    else { return }
+    document.package.notebook.pages.append(next)
+    document.package.notebook.revision += 1
   }
   private func refreshTrailingPage() {
     guard horizontal, notebook.kind != .whiteboard, let last = notebook.pages.last else {
@@ -1119,7 +1151,7 @@ struct Workspace: View {
       ZoomableNotebookPage(
         contentSize: CGSize(width: width, height: height),
         viewportSize: CGSize(width: size.width, height: vertical ? height : size.height),
-        pencilOnly: pencilOnly || tool == .readOnly, zoomEnabled: imageSelection == nil,
+        pencilOnly: pencilOnly || tool == .readOnly, zoomEnabled: imageSelection == nil && !infinite,
         initialZoom: pageZoom[p.id] ?? 1,
         onZoomChange: {
           pageZoom[p.id] = $0
