@@ -17,7 +17,12 @@ has not been established.
 - Library rename, move, duplicate, recoverable trash, restore, permanent deletion and
   Empty Trash; PDF sidecars and open sessions follow file operations.
 - Visible file actions, folder breadcrumbs, persistent view/sort settings and trash undo.
-- Horizontal pages fit the viewport height; status labels use an explicit contrasting color.
+- Notebook papers support native finger pinch zoom up to 6× and panning while zoomed.
+- Horizontal paging is the persistent default; the editor menu can switch to vertical.
+  Holding an outward pull beyond the last page appends matching paper in either direction.
+- Image tool immediately offers Files/Photos, selects inserted images, and provides direct
+  move, corner resize, pinch resize and rotation gestures with undo.
+- The bottom status/zoom bar is removed. A page indicator fades after navigation or strong scrolling.
 - Password entry opens a separate unlocked PDF copy. Page-number navigation, bookmarks,
   PDF table of contents, single-page export and basic form filling are available.
 - Export preserves outlines and remaps internal link destinations after page reordering;
@@ -47,6 +52,7 @@ Swift tests cover group geometry, rotated text/PDF round trips, reusable element
 persistence and collision-safe insertion, page cloning, PDF search, vault conflicts,
 drawing input and export. Native UI coverage exercises folder selection, default
 finger navigation, opt-in finger ink, erase/undo, reopen, pull-to-add-page, thumbnail
-duplication, horizontal snapping, library rename/duplicate/trash/restore, page-number
+duplication, both paging directions, transient page indicators, notebook pinch zoom,
+immediate image source selection, library rename/duplicate/trash/restore, page-number
 navigation and whiteboard drawing/zoom. Simulator input does
 not establish physical Pencil or palm behavior.

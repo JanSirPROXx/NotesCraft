@@ -71,39 +71,51 @@ final class VaultUITests: XCTestCase {
     app.buttons["Undo"].tap()
     XCTAssertEqual(canvas.value as? String, "1 strokes")
     app.buttons["Read only"].tap()
-    let pageCount = app.staticTexts["pageCount"]
-    XCTAssertEqual(pageCount.label, "1 page")
+    let zoomSurface = app.scrollViews["notebookZoomSurface"].firstMatch
+    XCTAssertTrue(zoomSurface.exists)
+    canvas.pinch(withScale: 1.8, velocity: 1)
+    let zoomed = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value != 'Zoom 100 percent'"), object: zoomSurface)
+    XCTAssertEqual(XCTWaiter.wait(for: [zoomed], timeout: 5), .completed)
+    XCTAssertEqual(canvas.value as? String, "1 strokes")
+    XCTAssertGreaterThan(Int((zoomSurface.value as? String ?? "").filter(\.isNumber)) ?? 0, 100)
+    capture(app, name: "Notebook pinch zoom")
+    canvas.pinch(withScale: 0.4, velocity: -1)
+    app.buttons["Image"].tap()
+    XCTAssertTrue(app.buttons["Files"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Photo library"].exists)
+    app.buttons["Cancel"].tap()
+    app.buttons["Read only"].tap()
     let pageScroll = app.scrollViews["notebookScrollView"]
     XCTAssertTrue(pageScroll.exists)
+    let right = pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.65))
+    let left = pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.65))
+    right.press(forDuration: 0.05, thenDragTo: left, withVelocity: .slow, thenHoldForDuration: 0.8)
+    app.buttons["Pages"].tap()
+    XCTAssertTrue(app.buttons["pageThumbnail-1"].waitForExistence(timeout: 5), app.debugDescription)
+    capture(app, name: "Horizontal pull creates matching page")
+    let thumbnail = app.buttons["pageThumbnail-0"]
+    thumbnail.press(forDuration: 0.8)
+    app.buttons["Duplicate page"].tap()
+    XCTAssertTrue(app.buttons["pageThumbnail-2"].waitForExistence(timeout: 5))
+    app.buttons["Pages"].tap()
+    app.buttons["More"].tap()
+    app.descendants(matching: .any)["Horizontal pages"].firstMatch.tap()
+    app.buttons["Pages"].tap()
+    app.buttons["pageThumbnail-2"].tap()
+    app.buttons["Pages"].tap()
     let bottom = pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.9))
     let top = pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.05))
     bottom.press(forDuration: 0.05, thenDragTo: top)
     bottom.press(forDuration: 0.05, thenDragTo: top, withVelocity: .slow, thenHoldForDuration: 0.8)
-    let addedPage = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "label == '2 pages'"), object: pageCount)
-    XCTAssertEqual(XCTWaiter.wait(for: [addedPage], timeout: 5), .completed, app.debugDescription)
-    capture(app, name: "Continued page after pulling past the end")
     app.buttons["Pages"].tap()
-    let thumbnail = app.buttons["pageThumbnail-0"]
-    XCTAssertTrue(thumbnail.waitForExistence(timeout: 5))
-    thumbnail.press(forDuration: 0.8)
-    app.buttons["Duplicate page"].tap()
-    XCTAssertEqual(pageCount.label, "3 pages")
+    XCTAssertTrue(app.buttons["pageThumbnail-3"].waitForExistence(timeout: 5), app.debugDescription)
+    capture(app, name: "Vertical setting retains pull-to-add-page")
     app.buttons["Pages"].tap()
-    app.buttons["More"].tap()
-    app.descendants(matching: .any)["Horizontal pages"].firstMatch.tap()
-    let currentPage = app.buttons.matching(
-      NSPredicate(format: "label MATCHES %@", "[0-9]+ / [0-9]+")
-    ).firstMatch
-    XCTAssertEqual(currentPage.label, "2 / 3")
-    pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.4)).press(
-      forDuration: 0.05,
-      thenDragTo: pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.4)),
-      withVelocity: .slow, thenHoldForDuration: 0)
-    let snappedPage = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "label == '3 / 3'"), object: currentPage)
-    XCTAssertEqual(XCTWaiter.wait(for: [snappedPage], timeout: 5), .completed, app.debugDescription)
-    capture(app, name: "Horizontal pages after snapping")
+    let hiddenIndicator = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "exists == false"), object: app.staticTexts["pageIndicator"])
+    XCTAssertEqual(XCTWaiter.wait(for: [hiddenIndicator], timeout: 5), .completed)
+    XCTAssertFalse(app.staticTexts["pageCount"].exists)
     app.buttons["Documents"].tap()
     XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 10))
     capture(app, name: "Documents library")

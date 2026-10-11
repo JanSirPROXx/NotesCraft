@@ -24,6 +24,7 @@ struct NoteDocument: FileDocument {
     #if DEBUG
       if CommandLine.arguments.contains("--ui-test-reset-input") {
         UserDefaults.standard.removeObject(forKey: "pencilOnlyDrawing")
+        UserDefaults.standard.removeObject(forKey: "horizontalNotebookPages")
       }
     #endif
   }
