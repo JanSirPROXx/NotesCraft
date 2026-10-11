@@ -22,6 +22,8 @@ import SwiftUI
   var onToggleEraser: (() -> Void)? = nil
   var onAppendPage: (() -> Void)? = nil
   var onPagePull: ((Double) -> Void)? = nil
+  var horizontalPages = false
+  var onScrollActivity: (() -> Void)? = nil
   var holdToShape = true
   var eraserMode: EraserMode = .stroke
   var highlighterOnly = false
@@ -87,9 +89,14 @@ import SwiftUI
           pullStarted = nil
           pullTriggered = false
         }
-        let bottom = scroll.contentView.bounds.maxY >= content.bounds.maxY - 2
-        if bottom && event.scrollingDeltaY < 0 && !pullTriggered && event.momentumPhase.isEmpty {
-          pullDistance -= event.scrollingDeltaY
+        let horizontal = configuration?.horizontalPages == true
+        let bottom =
+          horizontal
+          ? scroll.contentView.bounds.maxX >= content.bounds.maxX - 2
+          : scroll.contentView.bounds.maxY >= content.bounds.maxY - 2
+        let delta = horizontal ? event.scrollingDeltaX : event.scrollingDeltaY
+        if bottom && delta < 0 && !pullTriggered && event.momentumPhase.isEmpty {
+          pullDistance -= delta
           let now = ProcessInfo.processInfo.systemUptime
           if pullStarted == nil { pullStarted = now }
           let progress = min(1, min(pullDistance / 100, (now - (pullStarted ?? now)) / 0.45))
@@ -98,7 +105,7 @@ import SwiftUI
             pullTriggered = true
             configuration?.onAppendPage?()
           }
-        } else if !bottom || event.scrollingDeltaY > 0 {
+        } else if !bottom || delta > 0 {
           pullDistance = 0
           pullStarted = nil
           configuration?.onPagePull?(0)
@@ -204,7 +211,9 @@ import SwiftUI
         configureScrolling()
       } else {
         guard activeTouch == nil,
-          configuration.tool == .readOnly || (!pencilSeen && !configuration.pencilOnly),
+          configuration.tool == .readOnly || configuration.tool == .image
+            || configuration.tool == .text
+            || (!pencilSeen && !configuration.pencilOnly),
           let touch = touches.first(where: { $0.type == .direct && $0.majorRadius < 60 })
         else { return }
         resetInput()
@@ -240,10 +249,16 @@ import SwiftUI
       guard let scroll = observedScroll, configuration?.onAppendPage != nil,
         !pullTriggered, scroll.isDragging, activeTouch?.type != .pencil
       else { return }
-      let bottom = max(
-        -scroll.adjustedContentInset.top,
-        scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
-      let overshoot = scroll.contentOffset.y - bottom
+      let horizontal = configuration?.horizontalPages == true
+      let end =
+        horizontal
+        ? max(
+          -scroll.adjustedContentInset.left,
+          scroll.contentSize.width - scroll.bounds.width + scroll.adjustedContentInset.right)
+        : max(
+          -scroll.adjustedContentInset.top,
+          scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
+      let overshoot = (horizontal ? scroll.contentOffset.x : scroll.contentOffset.y) - end
       guard overshoot > 70 else {
         pullStarted = nil
         configuration?.onPagePull?(0)
@@ -268,6 +283,11 @@ import SwiftUI
       if gesture.state == .ended || gesture.state == .cancelled {
         pullStarted = nil
         configuration?.onPagePull?(0)
+      }
+      if gesture.state == .changed,
+        abs(gesture.velocity(in: self).x) + abs(gesture.velocity(in: self).y) > 250
+      {
+        configuration?.onScrollActivity?()
       }
       checkPagePull()
     }
@@ -316,8 +336,14 @@ import SwiftUI
             configuration?.tool == .readOnly || configuration?.pencilOnly == true || pencilSeen
             ? 1 : 2
           scroll.panGestureRecognizer.isEnabled = !pencilActive
-          scroll.alwaysBounceVertical = true
-          if configuration?.onAppendPage != nil, observedScroll !== scroll {
+          if let paper = scroll as? NotebookZoomScrollView {
+            paper.pinchGestureRecognizer?.isEnabled = paper.allowsZoom && !pencilActive
+          }
+          if !(scroll is NotebookZoomScrollView) {
+            scroll.alwaysBounceVertical = configuration?.horizontalPages != true
+            scroll.alwaysBounceHorizontal = configuration?.horizontalPages == true
+          }
+          if !(scroll is NotebookZoomScrollView), observedScroll !== scroll {
             observedScroll?.panGestureRecognizer.removeTarget(
               self, action: #selector(scrollGesture(_:)))
             observedScroll = scroll
@@ -658,3 +684,112 @@ extension DrawingView {
     resetInput()
   }
 }
+
+#if os(iOS)
+  // Each paper has its own native zoom surface. The outer scroll view remains responsible for paging.
+  @MainActor final class NotebookZoomScrollView: UIScrollView {
+    var allowsZoom = true
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+      if gestureRecognizer === panGestureRecognizer {
+        guard zoomScale > minimumZoomScale + 0.01 else { return false }
+        let velocity = panGestureRecognizer.velocity(in: self)
+        let horizontal = abs(velocity.x) > abs(velocity.y)
+        let position = horizontal ? contentOffset.x : contentOffset.y
+        let maximum =
+          horizontal ? contentSize.width - bounds.width : contentSize.height - bounds.height
+        let delta = horizontal ? velocity.x : velocity.y
+        // Outward gestures at an edge go to the parent, so paging also works while zoomed.
+        if (position <= 1 && delta > 0) || (position >= maximum - 1 && delta < 0) { return false }
+      }
+      return super.gestureRecognizerShouldBegin(gestureRecognizer)
+    }
+  }
+
+  struct ZoomableNotebookPage<Content: View>: UIViewControllerRepresentable {
+    let contentSize: CGSize
+    let viewportSize: CGSize
+    let pencilOnly: Bool
+    let zoomEnabled: Bool
+    let onActivity: () -> Void
+    @ViewBuilder var content: () -> Content
+
+    func makeCoordinator() -> Coordinator { Coordinator(onActivity: onActivity) }
+    func makeUIViewController(context: Context) -> UIViewController {
+      let controller = UIViewController()
+      let scroll = context.coordinator.scroll
+      scroll.delegate = context.coordinator
+      scroll.minimumZoomScale = 1
+      scroll.maximumZoomScale = 6
+      scroll.showsHorizontalScrollIndicator = false
+      scroll.showsVerticalScrollIndicator = false
+      scroll.backgroundColor = .clear
+      scroll.bounces = false
+      scroll.bouncesZoom = true
+      scroll.pinchGestureRecognizer?.allowedTouchTypes = [
+        NSNumber(value: UITouch.TouchType.direct.rawValue)
+      ]
+      controller.view = scroll
+      let host = UIHostingController(rootView: content())
+      host.view.backgroundColor = .clear
+      controller.addChild(host)
+      scroll.addSubview(host.view)
+      host.didMove(toParent: controller)
+      context.coordinator.host = host
+      return controller
+    }
+    func updateUIViewController(_ controller: UIViewController, context: Context) {
+      let coordinator = context.coordinator
+      coordinator.onActivity = onActivity
+      coordinator.host?.rootView = content()
+      let scroll = coordinator.scroll
+      scroll.allowsZoom = zoomEnabled
+      scroll.pinchGestureRecognizer?.isEnabled = zoomEnabled
+      scroll.panGestureRecognizer.allowedTouchTypes = [
+        NSNumber(value: UITouch.TouchType.direct.rawValue)
+      ]
+      scroll.panGestureRecognizer.minimumNumberOfTouches = pencilOnly ? 1 : 2
+      if coordinator.paperSize != contentSize || coordinator.viewportSize != viewportSize {
+        scroll.setZoomScale(1, animated: false)
+        coordinator.paperSize = contentSize
+        coordinator.viewportSize = viewportSize
+        coordinator.host?.view.frame = CGRect(origin: .zero, size: contentSize)
+        scroll.contentSize = contentSize
+        coordinator.centerPaper()
+      }
+    }
+    @MainActor final class Coordinator: NSObject, UIScrollViewDelegate {
+      let scroll = NotebookZoomScrollView()
+      var host: UIHostingController<Content>?
+      var paperSize = CGSize.zero
+      var viewportSize = CGSize.zero
+      var onActivity: () -> Void
+      init(onActivity: @escaping () -> Void) { self.onActivity = onActivity }
+      func viewForZooming(in scrollView: UIScrollView) -> UIView? { host?.view }
+      func scrollViewDidZoom(_ scrollView: UIScrollView) {
+        centerPaper()
+        onActivity()
+      }
+      func scrollViewDidEndZooming(
+        _ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat
+      ) {
+        func refresh(_ view: UIView) {
+          if let canvas = view as? DrawingView {
+            canvas.contentScaleFactor = UIScreen.main.scale * min(4, scale)
+            canvas.cachedPage = nil
+            canvas.setNeedsDisplay()
+          }
+          for child in view.subviews { refresh(child) }
+        }
+        if let view { refresh(view) }
+      }
+      func centerPaper() {
+        guard let view = host?.view else { return }
+        view.center = CGPoint(
+          x: max(viewportSize.width, scroll.contentSize.width) / 2,
+          y: max(viewportSize.height, scroll.contentSize.height) / 2)
+        scroll.accessibilityValue = "Zoom \(Int(scroll.zoomScale * 100)) percent"
+        scroll.accessibilityIdentifier = "notebookZoomSurface"
+      }
+    }
+  }
+#endif

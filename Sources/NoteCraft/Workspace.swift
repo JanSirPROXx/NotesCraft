@@ -98,9 +98,13 @@ struct Workspace: View {
   @State private var searchVisible = false
   @State private var search = ""
   @State private var documentSearch = DocumentSearch()
-  @State private var horizontal = false
+  @AppStorage("horizontalNotebookPages") private var horizontal = true
+  @State private var pageHUD = false
+  @State private var pageHUDTask: Task<Void, Never>?
   @State private var horizontalPageID: UUID?
+  @State private var pageChangedByScroll = false
   @State private var zoom = 1.0
+  @State private var zoomBase = 1.0
   @State private var customColor = Color.black
   @State private var imageSelection: UUID?
   private var boardViewport: ViewTransform {
@@ -140,49 +144,61 @@ struct Workspace: View {
                 if horizontal {
                   HStack(alignment: .top, spacing: 0) {
                     ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
-                      pageView(
-                        p, index: index, availableWidth: geometry.size.width,
-                        availableHeight: geometry.size.height
-                      )
-                      .frame(width: geometry.size.width).id(p.id)
+                      notebookPage(p, index: index, size: geometry.size)
+                        .frame(width: geometry.size.width).id(p.id)
                     }
                   }.scrollTargetLayout().padding(.vertical, 28)
                 } else {
                   VStack(spacing: 28) {
                     ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
-                      pageView(p, index: index, availableWidth: geometry.size.width)
+                      notebookPage(p, index: index, size: geometry.size, vertical: true)
                     }
-                  }.frame(maxWidth: .infinity).padding(.vertical, 28)
+                  }.scrollTargetLayout().frame(maxWidth: .infinity).padding(.vertical, 28)
                 }
               }.frame(width: geometry.size.width, height: geometry.size.height)
                 .scrollTargetBehavior(NotebookPageBehavior(horizontal: horizontal))
                 .scrollPosition(id: $horizontalPageID)
                 .accessibilityIdentifier("notebookScrollView")
                 .background(Color(red: 0.90, green: 0.92, blue: 0.94)).onChange(of: activePage) {
+                  if pageChangedByScroll {
+                    pageChangedByScroll = false
+                    return
+                  }
                   if horizontal {
                     withAnimation { horizontalPageID = page.id }
                   } else {
                     withAnimation { proxy.scrollTo(page.id, anchor: .top) }
                   }
                 }.onChange(of: horizontalPageID) {
-                  if horizontal, let id = horizontalPageID,
+                  if let id = horizontalPageID,
                     let index = notebook.pages.firstIndex(where: { $0.id == id })
                   {
-                    activePage = index
+                    if activePage != index {
+                      pageChangedByScroll = true
+                      activePage = index
+                    }
                   }
                 }.onChange(of: horizontal) {
-                  if horizontal { horizontalPageID = page.id } else { horizontalPageID = nil }
+                  horizontalPageID = page.id
                 }
             }
           }
         }
       }
-      footer.overlay(alignment: .top) {
+      .overlay(alignment: .bottomTrailing) {
+        if pageHUD && notebook.kind != .whiteboard {
+          Text("\(activePage + 1) / \(notebook.pages.count)")
+            .font(.system(size: 13, weight: .medium)).monospacedDigit()
+            .padding(10).background(.regularMaterial, in: Capsule()).padding(18)
+            .allowsHitTesting(false).accessibilityIdentifier("pageIndicator")
+        }
+      }
+      .overlay(alignment: .bottom) {
         if pagePullProgress > 0 {
           HStack(spacing: 10) {
             ProgressView(value: pagePullProgress).frame(width: 60)
             Text("Keep pulling to add a page").font(.system(size: 12))
-          }.padding(10).background(.regularMaterial, in: Capsule()).offset(y: -44)
+          }.padding(10).background(.regularMaterial, in: Capsule()).padding(18)
             .allowsHitTesting(false).accessibilityIdentifier("pagePullProgress")
         }
       }
@@ -191,6 +207,9 @@ struct Workspace: View {
     .background(Color.white).foregroundStyle(Color(red: 0.12, green: 0.16, blue: 0.22)).tint(accent)
     .environment(\.colorScheme, .light)
     .frame(minWidth: minimumWidth, minHeight: 500)
+    .onChange(of: activePage) { showPageIndicator() }
+    .onChange(of: notebook.pages.count) { showPageIndicator() }
+    .onDisappear { pageHUDTask?.cancel() }
     .sheet(isPresented: $templateSheet) {
       TemplatePicker { paper in
         edit { $0.notebook.pages.append(Page(paper: paper)) }
@@ -405,7 +424,7 @@ struct Workspace: View {
               tool = item
               selection = []
               imageSelection = nil
-              if item == .elements { settings = true }
+              if item == .elements || item == .image { settings = true }
             }
           } label: {
             Image(systemName: icon(item)).font(.system(size: 20)).frame(width: 36, height: 38)
@@ -486,7 +505,8 @@ struct Workspace: View {
         Toggle("Text boxes", isOn: $selectTexts)
         Text("Circle content to select it, then use the selection menu.").font(.callout)
       case .image:
-        Button("Import image") {
+        Text("Insert image from").font(.headline)
+        Button("Files") {
           settings = false
           importType = .image
           importer = true
@@ -495,6 +515,8 @@ struct Workspace: View {
           settings = false
           photoLibrary = true
         }
+        Divider()
+        Button("Cancel") { settings = false }
       case .text: Text("Tap the page to add a text box.")
       case .elements:
         ElementPicker(
@@ -686,13 +708,14 @@ struct Workspace: View {
               tool = .eraser
             }
           },
-          onAppendPage: boardHeight == nil && !horizontal && index == notebook.pages.count - 1
+          onAppendPage: boardHeight == nil && index == notebook.pages.count - 1
             ? {
               let next = InkGestures.blankPage(matching: p)
               edit { $0.notebook.pages.append(next) }
               activePage = notebook.pages.count - 1
             } : nil,
-          onPagePull: { pagePullProgress = $0 }, holdToShape: holdToShape,
+          onPagePull: { pagePullProgress = $0 }, horizontalPages: horizontal,
+          onScrollActivity: { showPageIndicator() }, holdToShape: holdToShape,
           eraserMode: eraserMode, highlighterOnly: highlighterOnly,
           searchHighlights: searchVisible
             ? documentSearch.results.first(where: { $0.pageID == p.id })?.highlights ?? [] : [])
@@ -760,10 +783,6 @@ struct Workspace: View {
         .white
       ).shadow(
         color: Color.black.opacity(0.10), radius: 6, y: 2)
-      if boardHeight == nil {
-        Text("\(index + 1) / \(notebook.pages.count)").font(.system(size: 11)).foregroundStyle(
-          Color(white: 0.4))
-      }
     }.id(p.id)
   }
   private func displayPage(_ page: Page, index: Int) -> Page {
@@ -858,51 +877,41 @@ struct Workspace: View {
         }
       }
   }
-  private var footer: some View {
-    HStack {
-      Text(
-        fileURL == nil
-          ? "New notebook · Save to choose a location"
-          : "\(fileURL!.lastPathComponent) · \(saveStatus)"
-      ).lineLimit(1)
-      Spacer()
-      Text(
-        notebook.kind == .whiteboard
-          ? "Whiteboard" : "\(notebook.pages.count) \(notebook.pages.count == 1 ? "page" : "pages")"
-      ).accessibilityIdentifier("pageCount")
-      if notebook.kind != .whiteboard {
-        Button {
-          navigator = true
-        } label: {
-          Text("\(activePage + 1) / \(notebook.pages.count)")
-        }.accessibilityElement(children: .ignore).accessibilityIdentifier("pageNavigator")
-          .accessibilityLabel("Navigate document").accessibilityValue(
-            "\(activePage + 1) / \(notebook.pages.count)")
-      }
-      Button {
-        if notebook.kind == .whiteboard {
-          boardViewport.scale = max(0.1, boardViewport.scale / 1.2)
-        } else {
-          zoom = max(0.5, zoom - 0.1)
-        }
-      } label: {
-        Image(systemName: "minus.magnifyingglass")
-      }
-      Text("\(Int((notebook.kind == .whiteboard ? boardViewport.scale : zoom) * 100))%")
-        .monospacedDigit().frame(width: 42)
-      Button {
-        if notebook.kind == .whiteboard {
-          boardViewport.scale = min(12, boardViewport.scale * 1.2)
-        } else {
-          zoom = min(2, zoom + 0.1)
-        }
-      } label: {
-        Image(systemName: "plus.magnifyingglass")
-      }
-    }.font(.system(size: 11)).foregroundStyle(Color(red: 0.32, green: 0.37, blue: 0.43))
-      .buttonStyle(.plain).padding(
-        .horizontal, 18
-      ).frame(height: 30)
+  private func showPageIndicator() {
+    pageHUDTask?.cancel()
+    pageHUD = true
+    pageHUDTask = Task { @MainActor in
+      try? await Task.sleep(for: .seconds(1.5))
+      if !Task.isCancelled { pageHUD = false }
+    }
+  }
+  @ViewBuilder private func notebookPage(
+    _ p: Page, index: Int, size: CGSize, vertical: Bool = false
+  ) -> some View {
+    let width = max(
+      120,
+      min(
+        size.width - 56, 780,
+        vertical ? 780 : max(120, (size.height - 56) * p.dimensions.x / p.dimensions.y)))
+    let height = width * p.dimensions.y / p.dimensions.x
+    #if os(iOS)
+      ZoomableNotebookPage(
+        contentSize: CGSize(width: width, height: height),
+        viewportSize: CGSize(width: size.width, height: vertical ? height + 28 : size.height - 56),
+        pencilOnly: pencilOnly || tool == .readOnly, zoomEnabled: imageSelection == nil,
+        onActivity: { showPageIndicator() }
+      ) {
+        pageView(p, index: index, availableWidth: width + 56, availableHeight: height + 80)
+      }.frame(width: size.width, height: vertical ? height + 28 : size.height - 56)
+    #else
+      pageView(
+        p, index: index, availableWidth: size.width, availableHeight: vertical ? nil : size.height
+      )
+      .simultaneousGesture(
+        MagnifyGesture().onChanged { value in
+          zoom = min(5, max(1, zoomBase * value.magnification))
+        }.onEnded { _ in zoomBase = zoom })
+    #endif
   }
   private var textEditor: some View {
     VStack(alignment: .leading, spacing: 18) {
@@ -969,29 +978,9 @@ struct Workspace: View {
   }
   private func imageControls(_ id: UUID) -> some View {
     HStack {
-      Text("Image").font(.caption)
-      Button("Move right") {
-        edit { p in
-          if let i = p.notebook.pages[activePage].images.firstIndex(where: { $0.id == id }) {
-            p.notebook.pages[activePage].images[i].frame.x += 20
-          }
-        }
-      }
-      Button("Enlarge") {
-        edit { p in
-          if let i = p.notebook.pages[activePage].images.firstIndex(where: { $0.id == id }) {
-            p.notebook.pages[activePage].images[i].frame.width *= 1.1
-            p.notebook.pages[activePage].images[i].frame.height *= 1.1
-          }
-        }
-      }
-      Button("Rotate") {
-        edit { p in
-          if let i = p.notebook.pages[activePage].images.firstIndex(where: { $0.id == id }) {
-            p.notebook.pages[activePage].images[i].rotation += .pi / 12
-          }
-        }
-      }
+      Text("Drag to move · Drag the corner to resize · Pinch or rotate with two fingers")
+        .font(.caption).foregroundStyle(.secondary)
+      Spacer()
       Button("Delete", role: .destructive) {
         edit { $0.notebook.pages[activePage].images.removeAll { $0.id == id } }
         imageSelection = nil
@@ -1167,11 +1156,14 @@ struct Workspace: View {
     let w =
       board
       ? 260 : max(20, min(260, page.dimensions.x - x - 20, (page.dimensions.y - y - 20) / ratio))
+    let asset = PageAsset(filename: name, frame: Rect(x: x, y: y, width: w, height: w * ratio))
     edit {
       $0.assets[name] = data
-      $0.notebook.pages[activePage].images.append(
-        PageAsset(filename: name, frame: Rect(x: x, y: y, width: w, height: w * ratio)))
+      $0.notebook.pages[activePage].images.append(asset)
     }
+    tool = .image
+    selection = []
+    imageSelection = asset.id
   }
   private func insertScans(_ scans: [Data]) {
     edit { package in
