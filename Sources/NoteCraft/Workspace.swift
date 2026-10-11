@@ -177,7 +177,7 @@ struct Workspace: View {
       }
     }
   }
-  private var widthBinding: Binding<Double> { Binding(get: { width }, set: { width = $0 }) }
+  private var widthBinding: Binding<Double> { Binding(get: { width.tenths }, set: { width = $0.tenths }) }
   private var widthSlots: Binding<[Double]> {
     if tool == .highlighter {
       Binding(
@@ -681,8 +681,7 @@ struct Workspace: View {
             color: color, width: width)
         }
         DraftSlider(title: "Stroke stabilization", value: $stabilization)
-        Text("Thickness \(width.formatted()) pt")
-        Slider(value: widthBinding, in: 0.5...12)
+        PointSlider(title: "Thickness", value: widthBinding, range: 0.5...12)
         ColorPicker("Custom color", selection: $customColor).onChange(of: customColor) {
           color = convertColor(customColor)
         }
@@ -690,23 +689,21 @@ struct Workspace: View {
           if let parsed = InkColor(hex: hexColor) { color = parsed }
         }
         Stepper(
-          "Preset 1: \(firstWidth.formatted()) pt", value: $firstWidth, in: 0.5...12, step: 0.5)
+          "Preset 1: \(firstWidth.pointLabel) pt", value: $firstWidth, in: 0.5...12, step: 0.1)
         Stepper(
-          "Preset 2: \(secondWidth.formatted()) pt", value: $secondWidth, in: 0.5...12, step: 0.5)
+          "Preset 2: \(secondWidth.pointLabel) pt", value: $secondWidth, in: 0.5...12, step: 0.1)
         Stepper(
-          "Preset 3: \(thirdWidth.formatted()) pt", value: $thirdWidth, in: 0.5...12, step: 0.5)
+          "Preset 3: \(thirdWidth.pointLabel) pt", value: $thirdWidth, in: 0.5...12, step: 0.1)
       case .eraser:
         Picker("Mode", selection: $eraserMode) {
           ForEach(EraserMode.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
         }
         Toggle("Erase highlighter only", isOn: $highlighterOnly)
         Toggle("Auto-deselect", isOn: $autoDeselect)
-        Text("Radius \(width.formatted()) pt")
-        Slider(value: widthBinding, in: 3...40)
+        PointSlider(title: "Radius", value: widthBinding, range: 3...40)
       case .highlighter:
         Toggle("Draw straight lines", isOn: $straightHighlight)
-        Text("Width \(width.formatted()) pt")
-        Slider(value: widthBinding, in: 6...40)
+        PointSlider(title: "Width", value: widthBinding, range: 6...40)
       case .shapes:
         Toggle("Fill closed shapes", isOn: $fillShapes)
         Text("Draw a line, rectangle or circle. Closed strokes snap to geometric shapes.").font(

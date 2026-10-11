@@ -280,14 +280,20 @@ import SwiftUI
     }
     c.restoreGState()
   }
-  // Fountain ink is a union of discs along each smoothed segment. Disc stamping gives a
-  // continuous, bead-free edge for any width change, and a segment depends only on the samples
-  // around it, which keeps incremental live drawing identical to a full redraw.
+  // Fountain ink is a strip of quads along each smoothed midpoint segment. Adjacent segments share
+  // position, tangent and width at their joins, so the strips meet without gaps; only the ends of a
+  // range get a round cap. One fill per range keeps the cost near a plain stroke (disc stamping was
+  // about ten times slower) and a segment still depends only on the samples around it, so
+  // incremental live drawing matches a full redraw.
   nonisolated static func fountainSegments(
     _ samples: [Sample], widths: [Double], range: Range<Int>, in c: CGContext,
     finish: Bool = false
   ) {
     guard samples.count > 1, widths.count == samples.count else { return }
+    let path = CGMutablePath()
+    var previousNormal = CGPoint(x: 0, y: 1)
+    var rangeStart: (CGPoint, Double)?
+    var rangeEnd: (CGPoint, Double)?
     for i in range where i > 0 && i < samples.count {
       let a = samples[i - 1].point
       let b = samples[i].point
@@ -298,18 +304,45 @@ import SwiftUI
       let startWidth = i == 1 ? widths[0] : (widths[i - 2] + widths[i - 1]) / 2
       let endWidth = isLast ? widths[i] : (widths[i - 1] + widths[i]) / 2
       let length = start.distance(to: a) + a.distance(to: end)
-      let smallest = max(0.2, min(startWidth, endWidth) / 2)
-      let steps = min(600, max(1, Int((length / (smallest * 0.5)).rounded(.up))))
+      let steps = min(24, max(1, Int((length / 3).rounded(.up))))
+      if rangeStart == nil { rangeStart = (CGPoint(x: start.x, y: start.y), startWidth) }
+      rangeEnd = (CGPoint(x: end.x, y: end.y), endWidth)
+      var last: (left: CGPoint, right: CGPoint)?
       for step in 0...steps {
         let t = Double(step) / Double(steps)
         let u = 1 - t
         let x = u * u * start.x + 2 * u * t * a.x + t * t * end.x
         let y = u * u * start.y + 2 * u * t * a.y + t * t * end.y
-        let radius = (startWidth + (endWidth - startWidth) * t) / 2
-        c.addEllipse(in: CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2))
+        var dx = 2 * u * (a.x - start.x) + 2 * t * (end.x - a.x)
+        var dy = 2 * u * (a.y - start.y) + 2 * t * (end.y - a.y)
+        let norm = hypot(dx, dy)
+        if norm > 0.0001 {
+          dx /= norm
+          dy /= norm
+          previousNormal = CGPoint(x: -dy, y: dx)
+        }
+        let half = (startWidth + (endWidth - startWidth) * t) / 2
+        let left = CGPoint(x: x + previousNormal.x * half, y: y + previousNormal.y * half)
+        let right = CGPoint(x: x - previousNormal.x * half, y: y - previousNormal.y * half)
+        if let last {
+          path.move(to: last.left)
+          path.addLine(to: left)
+          path.addLine(to: right)
+          path.addLine(to: last.right)
+          path.closeSubpath()
+        }
+        last = (left, right)
       }
-      c.fillPath()
     }
+    for cap in [rangeStart, rangeEnd] {
+      guard let (center, width) = cap else { continue }
+      let radius = width / 2
+      path.addEllipse(
+        in: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+      )
+    }
+    c.addPath(path)
+    c.fillPath()
   }
   // Midpoint segments are final once their following sample arrives. Live ink can
   // rasterize that prefix once and redraw only the provisional/predicted tail.

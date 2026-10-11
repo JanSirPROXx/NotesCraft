@@ -30,7 +30,7 @@ public enum FountainInk {
     let ddy = sample.point.y - last.point.y
     let distance = hypot(ddx, ddy)
     // Samples arrive at a fixed rate, so spacing stands in for speed.
-    state.spacing += (distance - state.spacing) * 0.25
+    state.spacing += (distance - state.spacing) * 0.5
     if distance > 0.05 {
       let nx = state.dx * 0.7 + ddx / distance * 0.3
       let ny = state.dy * 0.7 + ddy / distance * 0.3
@@ -43,7 +43,10 @@ public enum FountainInk {
     // fatten every such stroke.
     if sample.pressure < 0.999 {
       let eased = min(1, max(0, sample.pressure)).squareRoot()
-      scale *= max(0.25, 1 + tip.pressure * 3 * (eased - 0.45))
+      // Pencil force starts near zero and builds over the first few samples; weighting it in
+      // gradually keeps the stroke from starting hair-thin and then visibly swelling.
+      let engaged = min(1, Double(state.count) / 8)
+      scale *= max(0.25, 1 + tip.pressure * 3 * (eased - 0.45) * engaged)
     }
     let thinning = 0.2 + 0.6 * tip.sharpness
     scale *= 1 - thinning * min(1, state.spacing / 6)
@@ -53,9 +56,9 @@ public enum FountainInk {
     }
     var target = base * scale
     let entry = startRatio(tip)
-    let ramp = min(1, Double(state.count) / 5)
+    let ramp = min(1, Double(state.count) / 3)
     target *= entry + (1 - entry) * ramp
-    state.width += (target - state.width) * 0.35
+    state.width += (target - state.width) * 0.6
     state.count += 1
     state.last = sample
     return max(base * 0.2, state.width)
@@ -77,5 +80,5 @@ public enum FountainInk {
     return result
   }
 
-  private static func startRatio(_ tip: PenTip) -> Double { 0.6 - 0.3 * tip.sharpness }
+  private static func startRatio(_ tip: PenTip) -> Double { 0.85 - 0.25 * tip.sharpness }
 }

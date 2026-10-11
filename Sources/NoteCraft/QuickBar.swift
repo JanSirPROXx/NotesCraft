@@ -9,6 +9,15 @@ extension View {
   }
 }
 
+extension Double {
+  // Sizes are shown with one decimal ("7.1 pt") and without a pointless ".0".
+  var pointLabel: String {
+    let rounded = (self * 10).rounded() / 10
+    return rounded == rounded.rounded() ? String(Int(rounded)) : String(format: "%.1f", rounded)
+  }
+  var tenths: Double { (self * 10).rounded() / 10 }
+}
+
 extension InkColor {
   var hex: String {
     func byte(_ v: Double) -> Int { Int((min(1, max(0, v)) * 255).rounded()) }
@@ -132,8 +141,8 @@ struct QuickWidthRow: View {
           .background(
             selected ? Color.white.opacity(0.22) : .clear, in: RoundedRectangle(cornerRadius: 8))
       }
-      .help("\(value.formatted()) pt")
-      .accessibilityLabel("Thickness \(value.formatted()) points")
+      .help("\(value.pointLabel) pt")
+      .accessibilityLabel("Thickness \(value.pointLabel) points")
       .accessibilityAddTraits(selected ? .isSelected : [])
       .popover(isPresented: Binding(get: { editing == index }, set: { if !$0 { editing = nil } })) {
         WidthEditor(
@@ -163,7 +172,7 @@ struct WidthEditor: View {
       HStack {
         Text("Thickness").font(.headline)
         Spacer()
-        Text("\(draft.formatted(.number.precision(.fractionLength(1)))) pt").monospacedDigit()
+        Text("\(draft.pointLabel) pt").monospacedDigit()
       }
       Canvas { context, size in
         var path = Path()
@@ -177,14 +186,14 @@ struct WidthEditor: View {
           style: StrokeStyle(lineWidth: draft, lineCap: .round, lineJoin: .round))
       }
       .frame(height: 64).background(Color.white, in: RoundedRectangle(cornerRadius: 10))
-      Slider(value: $draft, in: range) { editing in
-        if !editing { value = (draft * 10).rounded() / 10 }
+      Slider(value: $draft, in: range, step: 0.1) { editing in
+        if !editing { value = draft.tenths }
       }
       .accessibilityLabel("Thickness")
     }
     .padding(18).frame(width: 300).preferredColorScheme(.dark)
     .onAppear { draft = value }
-    .onDisappear { value = (draft * 10).rounded() / 10 }
+    .onDisappear { value = draft.tenths }
   }
 }
 
@@ -263,5 +272,30 @@ struct PenTipSettings: View {
     .onChange(of: sharpness) { draftTip.sharpness = sharpness }
     .onChange(of: pressure) { draftTip.pressure = pressure }
     .onChange(of: flatness) { draftTip.flatness = flatness }
+  }
+}
+
+// Size slider in 0.1 pt steps. Like DraftSlider it commits on release, so dragging does not
+// re-evaluate the whole workspace on every tick.
+struct PointSlider: View {
+  let title: String
+  @Binding var value: Double
+  var range: ClosedRange<Double>
+  @State private var draft = 0.0
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      HStack {
+        Text(title)
+        Spacer()
+        Text("\(draft.pointLabel) pt").monospacedDigit()
+      }
+      Slider(value: $draft, in: range, step: 0.1) { editing in
+        if !editing { value = draft.tenths }
+      }
+    }
+    .onAppear { draft = value.tenths }
+    .onChange(of: value) { draft = value.tenths }
+    .onDisappear { value = draft.tenths }
   }
 }
