@@ -27,6 +27,7 @@
 		69EAFE4AB51483ED766B6A76 /* Lifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67C08F26E3F21FCB9B603DDB /* Lifecycle.swift */; };
 		70983F5CE1C7B37D2D003C68 /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAEDCF2464F505B39B0EDDB7 /* Storage.swift */; };
 		8CBE6468DAB424A5B1A074C9 /* LibrarySheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CE25C9D08742478F1554ABA /* LibrarySheets.swift */; };
+		8E72C220865F59B0E7360574 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DCBBD880B488E8E9D9F78307 /* PrivacyInfo.xcprivacy */; };
 		8EC037F53FE3B30C5EC3B79F /* NoteCraftCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */; };
 		95091443F52CEA62893DEBA9 /* FountainInk.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B5E65BF43B80AFC81DD50F6 /* FountainInk.swift */; };
 		AF1CD09F689443B75C2D5CF7 /* VaultManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABB273F19C18B6124D82D232 /* VaultManagement.swift */; };
@@ -123,8 +124,10 @@
 		BB364BB9C08BDF203F68B72A /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		BC3F98C57C57515BE23CF610 /* ElementLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElementLibrary.swift; sourceTree = "<group>"; };
 		C2DF4BA61A4AD7E1CBD55E03 /* VaultTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultTests.swift; sourceTree = "<group>"; };
+		C333D04D3D29C51678F60A9F /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 		C34A621480C559D993C764C4 /* DocumentScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentScanner.swift; sourceTree = "<group>"; };
 		DC0F0A9A567741EBB11E3961 /* ElementClip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElementClip.swift; sourceTree = "<group>"; };
+		DCBBD880B488E8E9D9F78307 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		DEDE7BBF20C38FFBD70C07C6 /* ImageHandles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageHandles.swift; sourceTree = "<group>"; };
 		EBB02F7D207B76F150CD3E09 /* PDFForms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFForms.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -200,6 +203,7 @@
 				AA5A556A9C43AF11C3D163C6 /* PDFEditor.swift */,
 				EBB02F7D207B76F150CD3E09 /* PDFForms.swift */,
 				0ED3506C82DEE6478F5D3866 /* PDFNavigation.swift */,
+				DCBBD880B488E8E9D9F78307 /* PrivacyInfo.xcprivacy */,
 				B0E29D5CFE38AB19018FD578 /* QuickBar.swift */,
 				224B6213A14759EFA003EB49 /* Renderer.swift */,
 				082B492A0CAE47C877AA7C1E /* VaultActions.swift */,
@@ -214,12 +218,21 @@
 		A9B1C14E968552305FF1D27D = {
 			isa = PBXGroup;
 			children = (
+				B0431EDC3CF5137E295B92B2 /* Config */,
 				9EA4318C506E2DB7ACAE7E24 /* NoteCraft */,
 				064390D5E72308DD61EE33B6 /* NoteCraftCore */,
 				567B1279EBA5AD14B4C107BC /* NoteCraftCoreTests */,
 				5F7BF03C7996212496E48465 /* NoteCraftUITests */,
 				C4349EAD45EFB3F427B26487 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		B0431EDC3CF5137E295B92B2 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				C333D04D3D29C51678F60A9F /* Signing.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		C4349EAD45EFB3F427B26487 /* Products */ = {
@@ -364,6 +377,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3AEC50A27DE9FEA5BCD5E9C6 /* Assets.xcassets in Resources */,
+				8E72C220865F59B0E7360574 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -450,6 +464,7 @@
 /* Begin XCBuildConfiguration section */
 		645F8C08AD91245324A8DA2F /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = C333D04D3D29C51678F60A9F /* Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -532,19 +547,25 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CADisableMinimumFrameDurationOnPhone = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = NoteCraft;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSHighResolutionCapable = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIFileSharingEnabled = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.notecraft.app;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -606,19 +627,25 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CADisableMinimumFrameDurationOnPhone = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = NoteCraft;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSHighResolutionCapable = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIFileSharingEnabled = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.notecraft.app;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -676,6 +703,7 @@
 		};
 		E918CF705C3D51EEEB682ED9 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = C333D04D3D29C51678F60A9F /* Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;

@@ -1,0 +1,3 @@
+// Team and signing identity are machine specific and live in Config/Local.xcconfig (gitignored).
+// Copy Local.xcconfig.example to Local.xcconfig and set DEVELOPMENT_TEAM.
+#include? "Local.xcconfig"

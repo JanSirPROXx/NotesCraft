@@ -5,3 +5,7 @@ xcuserdata/
 .DS_Store
 .swiftpm/
 TestResults/
+Config/Local.xcconfig
+build/
+*.xcarchive
+*.ipa
