@@ -11,7 +11,7 @@ import SwiftUI
 #endif
 
 @MainActor enum PageRenderer {
-  static func color(_ ink: InkColor, alpha: Double = 1) -> CGColor {
+  nonisolated static func color(_ ink: InkColor, alpha: Double = 1) -> CGColor {
     CGColor(red: ink.red, green: ink.green, blue: ink.blue, alpha: alpha)
   }
   private static var pdfCache: [(Data, PDFDocument)] = []
@@ -26,12 +26,24 @@ import SwiftUI
     _ page: Page, assets: [String: Data], in c: CGContext, includePDFAnnotations: Bool = true,
     includeBackground: Bool = true, paperBounds: CGRect? = nil
   ) {
+    let pdf =
+      includeBackground
+      ? page.backgroundPDF.flatMap { assets[$0] }.flatMap { document($0) } : nil
+    renderContent(
+      page, assets: assets, in: c, backgroundDocument: pdf,
+      includePDFAnnotations: includePDFAnnotations, includeBackground: includeBackground,
+      paperBounds: paperBounds)
+  }
+  private nonisolated static func renderContent(
+    _ page: Page, assets: [String: Data], in c: CGContext, backgroundDocument: PDFDocument?,
+    includePDFAnnotations: Bool = true, includeBackground: Bool = true,
+    paperBounds: CGRect? = nil
+  ) {
     if includeBackground {
       let size = page.dimensions
       c.setFillColor(CGColor(gray: 1, alpha: 1))
       c.fill(CGRect(x: 0, y: 0, width: size.x, height: size.y))
-      if let name = page.backgroundPDF, let data = assets[name],
-        let pdf = document(data), let p = pdf.page(at: page.backgroundPage ?? 0),
+      if let pdf = backgroundDocument, let p = pdf.page(at: page.backgroundPage ?? 0),
         let reference = p.pageRef
       {
         c.saveGState()
@@ -116,7 +128,7 @@ import SwiftUI
     }
   }
 
-  static func paper(_ paper: Paper, in c: CGContext, bounds: CGRect? = nil) {
+  nonisolated static func paper(_ paper: Paper, in c: CGContext, bounds: CGRect? = nil) {
     let size = paper.dimensions
     c.setStrokeColor(CGColor(red: 0.79, green: 0.83, blue: 0.88, alpha: 0.65))
     c.setLineWidth(0.5)
@@ -185,7 +197,7 @@ import SwiftUI
       }
     }
   }
-  static func stroke(_ s: Stroke, in c: CGContext) {
+  nonisolated static func stroke(_ s: Stroke, in c: CGContext) {
     guard let first = s.samples.first else { return }
     c.saveGState()
     c.setLineCap(.round)
@@ -261,7 +273,7 @@ import SwiftUI
   }
   // Midpoint segments are final once their following sample arrives. Live ink can
   // rasterize that prefix once and redraw only the provisional/predicted tail.
-  static func smoothInkSegments(
+  nonisolated static func smoothInkSegments(
     _ samples: [Sample], range: Range<Int>, color ink: InkColor, width: Double,
     style: PenStyle, in c: CGContext, finish: Bool = false
   ) {
@@ -293,12 +305,14 @@ import SwiftUI
     }
     c.restoreGState()
   }
-  static func export(_ package: NotebookPackage, includePDFAnnotations: Bool = true) throws -> Data
+  nonisolated static func export(_ package: NotebookPackage, includePDFAnnotations: Bool = true)
+    throws -> Data
   {
     let data = NSMutableData()
     guard let consumer = CGDataConsumer(data: data),
       let c = CGContext(consumer: consumer, mediaBox: nil, nil)
     else { throw PackageError.invalidPackage }
+    var documents: [String: PDFDocument] = [:]
     for page in package.notebook.pages {
       let area =
         package.notebook.kind == .whiteboard
@@ -314,8 +328,13 @@ import SwiftUI
       c.translateBy(x: 0, y: size.y)
       c.scaleBy(x: 1, y: -1)
       c.translateBy(x: -area.x, y: -area.y)
-      render(
-        page, assets: package.assets, in: c, includePDFAnnotations: includePDFAnnotations,
+      if let name = page.backgroundPDF, documents[name] == nil, let bytes = package.assets[name] {
+        documents[name] = PDFDocument(data: bytes)
+      }
+      renderContent(
+        page, assets: package.assets, in: c,
+        backgroundDocument: page.backgroundPDF.flatMap { documents[$0] },
+        includePDFAnnotations: includePDFAnnotations,
         paperBounds: package.notebook.kind == .whiteboard
           ? CGRect(x: area.x, y: area.y, width: area.width, height: area.height) : nil)
       c.restoreGState()
@@ -324,7 +343,7 @@ import SwiftUI
     c.closePDF()
     return data as Data
   }
-  static func contentBounds(_ page: Page) -> Rect {
+  nonisolated static func contentBounds(_ page: Page) -> Rect {
     let rectangles =
       page.strokes.map(\.bounds) + page.images.map(\.bounds) + page.texts.map(\.bounds)
     guard !rectangles.isEmpty else { return Rect(x: 0, y: 0, width: 800, height: 600) }
@@ -334,7 +353,7 @@ import SwiftUI
       x: x, y: y, width: max(100, (rectangles.map { $0.x + $0.width }.max() ?? 0) - x + 40),
       height: max(100, (rectangles.map { $0.y + $0.height }.max() ?? 0) - y + 40))
   }
-  static func thumbnail(_ package: NotebookPackage) throws -> Data {
+  nonisolated static func thumbnail(_ package: NotebookPackage) throws -> Data {
     guard let page = package.notebook.pages.first else { throw PackageError.invalidPackage }
     let area =
       package.notebook.kind == .whiteboard
@@ -344,12 +363,14 @@ import SwiftUI
       page, assets: package.assets, bounds: area, width: max(1, Int(area.width * scale)),
       height: max(1, Int(area.height * scale)), infinitePaper: package.notebook.kind == .whiteboard)
   }
-  static func screenshot(_ page: Page, assets: [String: Data], bounds: Rect) throws -> Data {
+  nonisolated static func screenshot(_ page: Page, assets: [String: Data], bounds: Rect) throws
+    -> Data
+  {
     let width = min(4096, max(1, Int(bounds.width * 2)))
     let height = min(4096, max(1, Int(bounds.height * 2)))
     return try bitmap(page, assets: assets, bounds: bounds, width: width, height: height)
   }
-  private static func bitmap(
+  private nonisolated static func bitmap(
     _ page: Page, assets: [String: Data], bounds: Rect, width: Int, height: Int,
     infinitePaper: Bool = false
   ) throws -> Data {
@@ -364,8 +385,11 @@ import SwiftUI
     c.translateBy(x: 0, y: Double(height))
     c.scaleBy(x: Double(width) / bounds.width, y: -Double(height) / bounds.height)
     c.translateBy(x: -bounds.x, y: -bounds.y)
-    render(
+    renderContent(
       page, assets: assets, in: c,
+      backgroundDocument: page.backgroundPDF.flatMap { assets[$0] }.flatMap {
+        PDFDocument(data: $0)
+      },
       paperBounds: infinitePaper
         ? CGRect(x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height) : nil)
     let data = NSMutableData()
@@ -376,7 +400,7 @@ import SwiftUI
     guard CGImageDestinationFinalize(destination) else { throw PackageError.invalidPackage }
     return data as Data
   }
-  static func importPDF(_ data: Data) throws -> [Page] {
+  nonisolated static func importPDF(_ data: Data) throws -> [Page] {
     guard let pdf = PDFDocument(data: data), pdf.pageCount > 0 else {
       throw PackageError.invalidPackage
     }
@@ -390,5 +414,73 @@ import SwiftUI
       }
       return page
     }
+  }
+}
+
+// PDFKit objects and graphics contexts stay on this worker; only bytes cross to the UI.
+actor DocumentRenderWorker {
+  static let shared = DocumentRenderWorker()
+  private let files = VaultFiles()
+  private let packages = PackageStore()
+  private var covers: [String: (Date, Data)] = [:]
+  private var coverOrder: [String] = []
+
+  func exportPDF(_ package: NotebookPackage) throws -> Data {
+    try autoreleasepool { try PDFEditor.export(package) }
+  }
+
+  func cover(_ entry: VaultEntry) async throws -> Data? {
+    let key = entry.url.vaultPath
+    if let cached = covers[key], cached.0 == entry.modified { return cached.1 }
+    try Task.checkCancellation()
+    let data: Data
+    if entry.kind == .whiteboard {
+      let package = try await packages.read(from: entry.url)
+      try Task.checkCancellation()
+      data = try autoreleasepool { try PageRenderer.thumbnail(package) }
+    } else {
+      let snapshot = try await files.read(entry.url)
+      try Task.checkCancellation()
+      data = try autoreleasepool {
+        if entry.kind == .image {
+          guard let source = CGImageSourceCreateWithData(snapshot.data as CFData, nil),
+            let image = CGImageSourceCreateThumbnailAtIndex(
+              source, 0,
+              [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceThumbnailMaxPixelSize: 600,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+              ] as CFDictionary)
+          else { throw PackageError.invalidPackage }
+          let result = NSMutableData()
+          guard
+            let destination = CGImageDestinationCreateWithData(
+              result, "public.png" as CFString, 1, nil)
+          else { throw PackageError.invalidPackage }
+          CGImageDestinationAddImage(destination, image, nil)
+          guard CGImageDestinationFinalize(destination) else { throw PackageError.invalidPackage }
+          return result as Data
+        }
+        guard let pdf = PDFDocument(data: snapshot.data), let source = pdf.page(at: 0) else {
+          throw PackageError.invalidPackage
+        }
+        let bounds = source.bounds(for: .mediaBox)
+        let rotated = abs(source.rotation) % 180 == 90
+        var page = Page(paper: Paper(pattern: .blank))
+        page.backgroundPDF = "cover.pdf"
+        page.backgroundPage = 0
+        page.backgroundSize =
+          rotated ? Point(bounds.height, bounds.width) : Point(bounds.width, bounds.height)
+        return try PageRenderer.thumbnail(
+          NotebookPackage(
+            notebook: Notebook(pages: [page]), assets: ["cover.pdf": snapshot.data]))
+      }
+    }
+    try Task.checkCancellation()
+    covers[key] = (entry.modified, data)
+    coverOrder.removeAll { $0 == key }
+    coverOrder.append(key)
+    while coverOrder.count > 32 { covers.removeValue(forKey: coverOrder.removeFirst()) }
+    return data
   }
 }

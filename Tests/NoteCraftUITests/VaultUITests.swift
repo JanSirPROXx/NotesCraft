@@ -230,6 +230,44 @@ final class VaultUITests: XCTestCase {
     capture(app, name: "Magnetic paging settles on the previous page")
 
   }
+  @MainActor func testLargeNotebookKeepsOnlyVisibleCanvasesLoaded() throws {
+    XCUIDevice.shared.orientation = .landscapeLeft
+    defer { XCUIDevice.shared.orientation = .portrait }
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-large-notebook"]
+    app.launch()
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    let surfaces = app.scrollViews.matching(identifier: "notebookZoomSurface")
+    XCTAssertTrue(surfaces.firstMatch.waitForExistence(timeout: 20))
+    XCTAssertLessThan(surfaces.count, 12, "A large notebook must not allocate one canvas per page")
+    let options = XCTMeasureOptions()
+    options.iterationCount = 1
+    measure(metrics: [XCTMemoryMetric(application: app)], options: options) {
+      app.buttons["More"].tap()
+      app.buttons["documentNavigatorMenu"].tap()
+      let field = app.textFields["pageNumberField"]
+      XCTAssertTrue(field.waitForExistence(timeout: 5))
+      field.tap()
+      field.typeText(
+        String(
+          repeating: XCUIKeyboardKey.delete.rawValue, count: (field.value as? String ?? "").count)
+          + "300")
+      app.buttons["Go"].tap()
+      XCTAssertTrue(surfaces.firstMatch.waitForExistence(timeout: 5))
+      XCTAssertLessThan(surfaces.count, 12)
+    }
+    app.buttons["More"].tap()
+    app.buttons["documentNavigatorMenu"].tap()
+    XCTAssertEqual(app.textFields["pageNumberField"].value as? String, "300")
+    app.buttons["Done"].tap()
+    capture(app, name: "300-page notebook with bounded live canvases")
+    app.buttons["Documents"].tap()
+  }
+
   @MainActor private func visibleZoomSurface(_ app: XCUIApplication) throws -> XCUIElement {
     let surfaces = app.scrollViews.matching(identifier: "notebookZoomSurface")
     XCTAssertTrue(surfaces.firstMatch.waitForExistence(timeout: 5))

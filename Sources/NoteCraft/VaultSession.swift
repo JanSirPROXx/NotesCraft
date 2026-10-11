@@ -376,7 +376,7 @@ struct WorkspaceTab: Identifiable {
         session.stamp = try await files.write(
           Data(session.markdown.utf8), to: session.url, expected: session.stamp)
       case .pdf:
-        let pdf = try PDFEditor.export(snapshot)
+        let pdf = try await DocumentRenderWorker.shared.exportPDF(snapshot)
         session.stamp = try await files.write(pdf, to: session.url, expected: session.stamp)
         if let sidecar = session.sidecarURL {
           var editable = snapshot
@@ -422,24 +422,31 @@ struct WorkspaceTab: Identifiable {
     } catch { self.error = error.localizedDescription }
   }
   func library() async {
-    if let active {
-      rememberPage(active, index: active.currentPageIndex)
-      await save(active)
+    let previous = active
+    if let previous {
+      rememberPage(previous, index: previous.currentPageIndex)
     }
     showLibrary = true
+    if let previous { await save(previous) }
     await refresh()
   }
   func selectTab(_ id: UUID) async {
-    if let active {
-      rememberPage(active, index: active.currentPageIndex)
-      await save(active)
+    let previous = active
+    if let previous {
+      rememberPage(previous, index: previous.currentPageIndex)
     }
     activeID = id
     showLibrary = false
+    if let previous { await save(previous) }
   }
   func create(title: String, paper: Paper, whiteboard: Bool = false) async {
     guard let folder else { return }
     var notebook = Notebook(title: title, pages: [Page(paper: paper)])
+    #if DEBUG
+      if !whiteboard && CommandLine.arguments.contains("--ui-test-large-notebook") {
+        notebook.pages = (0..<300).map { _ in Page(paper: paper) }
+      }
+    #endif
     notebook.kind = whiteboard ? .whiteboard : .notebook
     if whiteboard { notebook.pages[0].backgroundSize = Point(2000, 2000) }
     let url = await files.availableURL(in: folder, title: title, extension: "notecraft")

@@ -33,7 +33,7 @@ struct VaultRoot: View {
               get: { session.currentPageIndex },
               set: { vault.rememberPage(session, index: $0) }), fileURL: session.url,
             onBack: { Task { await vault.library() } }, tabs: vault.tabs,
-            onSelectTab: { id in Task { await vault.selectTab(id) } }, saveStatus: session.status,
+            onSelectTab: { id in Task { await vault.selectTab(id) } },
             history: session.history
           )
           .id(session.id)

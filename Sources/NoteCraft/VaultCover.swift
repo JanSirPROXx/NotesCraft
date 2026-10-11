@@ -63,17 +63,9 @@ struct VaultCover: View {
   }
   private func thumbnail() async {
     guard entry.kind == .pdf || entry.kind == .image || entry.kind == .whiteboard else { return }
-    if entry.kind == .whiteboard, let package = try? await PackageStore().read(from: entry.url),
-      let data = try? PageRenderer.thumbnail(package)
-    {
-      preview = PlatformImage(data: data)
-    } else if let snapshot = try? await VaultFiles().read(entry.url) {
-      if entry.kind == .image {
-        preview = PlatformImage(data: snapshot.data)
-      } else {
-        preview = PDFDocument(data: snapshot.data)?.page(at: 0)?.thumbnail(
-          of: CGSize(width: 220, height: 300), for: .mediaBox)
-      }
+    guard let data = try? await DocumentRenderWorker.shared.cover(entry), !Task.isCancelled else {
+      return
     }
+    preview = PlatformImage(data: data)
   }
 }

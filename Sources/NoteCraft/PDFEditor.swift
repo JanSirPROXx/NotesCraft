@@ -57,7 +57,7 @@ import SwiftUI
     return bytes
   }
 
-  static func export(_ package: NotebookPackage) throws -> Data {
+  nonisolated static func export(_ package: NotebookPackage) throws -> Data {
     if package.notebook.kind == .whiteboard { return try PageRenderer.export(package) }
     let result = PDFDocument()
     var originals: [String: PDFDocument] = [:]
