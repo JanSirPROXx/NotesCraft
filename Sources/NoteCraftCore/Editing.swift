@@ -489,12 +489,16 @@ public enum NotebookPaging {
   ) -> Double {
     guard pageWidth > 0 else { return 0 }
     let current = (origin / pageWidth).rounded()
+    let last = max(0, (contentWidth / pageWidth).rounded() - 1)
+    // Programmatic navigation has no gesture velocity and may jump across several pages.
+    if abs(velocity) < 1 && abs(projected - origin) > pageWidth * 1.01 {
+      return min(last, max(0, (projected / pageWidth).rounded())) * pageWidth
+    }
     let delta = projected - origin
     let direction =
       abs(velocity) > 80
       ? (velocity > 0 ? 1.0 : -1.0)
       : abs(delta) > pageWidth * 0.15 ? (delta > 0 ? 1.0 : -1.0) : 0
-    let last = max(0, (contentWidth / pageWidth).rounded() - 1)
     return min(last, max(0, current + direction)) * pageWidth
   }
 }

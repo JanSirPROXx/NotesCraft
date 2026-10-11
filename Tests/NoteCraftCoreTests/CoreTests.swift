@@ -275,6 +275,10 @@ import Testing
 @Test func magneticPagingMovesAtMostOnePageAndClampsAtEdges() {
   #expect(
     NotebookPaging.target(
+      origin: 1600, projected: 3200, velocity: 0,
+      pageWidth: 800, contentWidth: 4000) == 3200)
+  #expect(
+    NotebookPaging.target(
       origin: 800, projected: 3300, velocity: 2000,
       pageWidth: 800, contentWidth: 4000) == 1600)
   #expect(
