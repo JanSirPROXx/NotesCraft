@@ -423,3 +423,82 @@ import UniformTypeIdentifiers
   #expect(try red(.pen, at: Point(20, 100)) < 100)
   #expect(try red(.pen, at: Point(200, 100)) < 100)
 }
+
+@MainActor @Test func liveInkReusesPaperAndOnlyRendersNewSegments() throws {
+  let view = DrawingView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
+  let configuration = CanvasConfiguration(
+    page: Page(), assets: [:], tool: .pen, color: .ink, width: 2,
+    style: .fountain, pencilOnly: true, selection: [], onStroke: { _ in },
+    onGesture: { _ in }, onTap: { _ in }, holdToShape: false)
+  view.configuration = configuration
+  let context = try #require(
+    CGContext(
+      data: nil, width: 595, height: 842, bitsPerComponent: 8, bytesPerRow: 595 * 4,
+      space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+  )
+  view.paint(configuration, context)
+  let paper = try #require(view.cachedPage)
+  view.resetInput()
+  #expect(view.cachedPage === paper)
+  for i in 0..<1000 {
+    view.accept(Sample(point: Point(30 + Double(i) * 0.4, 100 + sin(Double(i) * 0.05) * 20)))
+    view.paint(configuration, context)
+  }
+  #expect(view.cachedPage === paper)
+  #expect(view.input.bakedThrough == 998)
+  // At most one newly finalized segment and one provisional segment per frame.
+  #expect(view.input.renderedSegments < 2100)
+  let finalized = view.input.bakedThrough
+  let beforePrediction = try #require(context.makeImage()?.dataProvider?.data) as Data
+  view.predictedSamples = [Sample(point: Point(440, 140)), Sample(point: Point(450, 150))]
+  view.paint(configuration, context)
+  #expect(view.input.bakedThrough == finalized)
+  let prediction = try #require(context.makeImage()?.dataProvider?.data) as Data
+  #expect(prediction != beforePrediction)
+  view.predictedSamples = []
+  view.paint(configuration, context)
+  #expect(view.input.bakedThrough == finalized)
+  let corrected = try #require(context.makeImage()?.dataProvider?.data) as Data
+  #expect(corrected == beforePrediction)
+  view.finish()
+  #expect(view.input.pendingStroke?.samples.count == 1000)
+  #expect(view.cachedPage === paper)
+  var saved = configuration
+  saved.page.strokes = [try #require(view.input.pendingStroke)]
+  view.configuration = saved
+  #expect(view.input.pendingStroke == nil)
+  #expect(view.cachedPage === paper)
+}
+
+@MainActor @Test func longStrokeLiveRenderingBenchmark() throws {
+  let view = DrawingView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
+  let configuration = CanvasConfiguration(
+    page: Page(paper: Paper(pattern: .blank)), assets: [:], tool: .pen, color: .ink, width: 2,
+    style: .brush, pencilOnly: true, selection: [], onStroke: { _ in },
+    onGesture: { _ in }, onTap: { _ in }, holdToShape: false)
+  view.configuration = configuration
+  let context = try #require(
+    CGContext(
+      data: nil, width: 595, height: 842, bitsPerComponent: 8, bytesPerRow: 595 * 4,
+      space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+  )
+  for i in 0..<2000 {
+    view.accept(Sample(point: Point(50 + Double(i % 400), 100 + sin(Double(i) * 0.05) * 40)))
+  }
+  view.paint(configuration, context)
+  let rendered = view.input.renderedSegments
+  let clock = ContinuousClock()
+  let incremental = clock.measure {
+    for _ in 0..<120 { view.paint(configuration, context) }
+  }
+  let stroke = Stroke(samples: view.samples, width: 2, style: .brush)
+  let baseline = clock.measure {
+    for _ in 0..<120 {
+      context.setFillColor(CGColor(gray: 1, alpha: 1))
+      context.fill(CGRect(x: 0, y: 0, width: 595, height: 842))
+      PageRenderer.stroke(stroke, in: context)
+    }
+  }
+  #expect(view.input.renderedSegments - rendered == 120)
+  print("Long brush stroke, 120 frames: incremental \(incremental), full redraw \(baseline)")
+}

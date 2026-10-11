@@ -45,9 +45,7 @@ import SwiftUI
   @MainActor final class DrawingView: NSView {
     var configuration: CanvasConfiguration? {
       didSet {
-        if oldValue?.page != configuration?.page || oldValue?.assets != configuration?.assets {
-          cachedPage = nil
-        }
+        updatePageCache(from: oldValue, to: configuration)
       }
     }
     var cachedPage: CGLayer?
@@ -172,9 +170,7 @@ import SwiftUI
   final class DrawingView: UIView, UIPencilInteractionDelegate, UIGestureRecognizerDelegate {
     var configuration: CanvasConfiguration? {
       didSet {
-        if oldValue?.page != configuration?.page || oldValue?.assets != configuration?.assets {
-          cachedPage = nil
-        }
+        updatePageCache(from: oldValue, to: configuration)
         #if os(iOS)
           if oldValue?.pencilOnly == true && configuration?.pencilOnly == false {
             pencilSeen = false
@@ -204,8 +200,10 @@ import SwiftUI
       guard let configuration else { return }
       let pencil = touches.first { $0.type == .pencil }
       if let pencil {
-        pencilSeen = true
-        configuration.onPencilDetected?()
+        if !pencilSeen {
+          pencilSeen = true
+          configuration.onPencilDetected?()
+        }
         resetInput()
         activeTouch = pencil
         configureScrolling()
@@ -424,13 +422,19 @@ import SwiftUI
     @objc func update() {
       guard let view else { return }
       view.checkPagePull()
-      if !view.samples.isEmpty { view.setNeedsDisplay() }
     }
   }
 #endif
 
 @MainActor final class CanvasInputState {
+  var liveLayer: CGLayer?
+  var liveRect = CGRect.zero
+  var liveResolution = 0.0
+  var bakedThrough = 0
+  var renderedSegments = 0
+  var pendingStroke: Stroke?
   var holdTask: Task<Void, Never>?
+  var holdDeadline: ContinuousClock.Instant?
   var holdPoint: Point?
   var held: Stroke?
   var resizeStart: Point?
@@ -442,6 +446,23 @@ import SwiftUI
 enum SelectionHandle { case move, resize, rotate }
 
 extension DrawingView {
+  func updatePageCache(from old: CanvasConfiguration?, to new: CanvasConfiguration?) {
+    guard old?.page != new?.page || old?.assets != new?.assets else { return }
+    defer { input.pendingStroke = nil }
+    if let old, let new, let pending = input.pendingStroke,
+      pending.tool == .pen, old.assets == new.assets,
+      old.viewport == new.viewport, input.moveStart == nil,
+      new.page.strokes.last == pending, let context = cachedPage?.context
+    {
+      var previous = new.page
+      previous.strokes.removeLast()
+      if previous == old.page {
+        PageRenderer.stroke(pending, in: context)
+        return
+      }
+    }
+    cachedPage = nil
+  }
   func invalidateCanvas() {
     #if os(macOS)
       needsDisplay = true
@@ -450,8 +471,15 @@ extension DrawingView {
     #endif
   }
   func resetInput() {
+    if input.moveStart != nil || (configuration?.tool == .eraser && !samples.isEmpty) {
+      cachedPage = nil
+    }
+    input.liveLayer = nil
+    input.bakedThrough = 0
+    input.renderedSegments = 0
     input.holdTask?.cancel()
     input.holdTask = nil
+    input.holdDeadline = nil
     input.holdPoint = nil
     input.held = nil
     input.resizeStart = nil
@@ -461,7 +489,6 @@ extension DrawingView {
     input.selectionTransform = nil
     samples = []
     predictedSamples = []
-    cachedPage = nil
   }
   func accept(_ sample: Sample) {
     guard let configuration else { return }
@@ -491,7 +518,10 @@ extension DrawingView {
         input.selectionHandle = .move
         input.moveStart = sample.point
       }
-      if input.moveStart != nil { input.selectionTransform = SelectionTransform(center: center) }
+      if input.moveStart != nil {
+        input.selectionTransform = SelectionTransform(center: center)
+        cachedPage = nil
+      }
     }
     if let start = input.moveStart, var transform = input.selectionTransform {
       switch input.selectionHandle {
@@ -523,24 +553,29 @@ extension DrawingView {
     if configuration.tool == .eraser { cachedPage = nil }
     guard configuration.holdToShape, [.pen, .shapes].contains(configuration.tool) else { return }
     if let anchor = input.holdPoint, anchor.distance(to: sample.point) < 3 { return }
-    input.holdTask?.cancel()
     input.holdPoint = sample.point
-    let deadline = ContinuousClock.now.advanced(by: .milliseconds(450))
+    input.holdDeadline = ContinuousClock.now.advanced(by: .milliseconds(450))
+    guard input.holdTask == nil else { return }
     input.holdTask = Task { @MainActor [weak self] in
-      do { try await Task.sleep(until: deadline, clock: .continuous) } catch { return }
-      guard let self, let configuration = self.configuration else { return }
-      let raw = Stroke(
-        samples: self.samples, color: configuration.color,
-        width: configuration.width, tool: configuration.tool, style: configuration.style)
-      guard let shape = InkGestures.heldShape(raw) else { return }
-      self.input.held = shape
-      self.input.resizeStart = self.samples.last?.point
-      self.samples = shape.samples
-      self.predictedSamples = []
-      self.invalidateCanvas()
-      #if os(iOS)
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-      #endif
+      while let deadline = self?.input.holdDeadline {
+        do { try await Task.sleep(until: deadline, clock: .continuous) } catch { return }
+        guard let self, let configuration = self.configuration else { return }
+        guard deadline == self.input.holdDeadline else { continue }
+        self.input.holdTask = nil
+        let raw = Stroke(
+          samples: self.samples, color: configuration.color,
+          width: configuration.width, tool: configuration.tool, style: configuration.style)
+        guard let shape = InkGestures.heldShape(raw) else { return }
+        self.input.held = shape
+        self.input.resizeStart = self.samples.last?.point
+        self.samples = shape.samples
+        self.predictedSamples = []
+        self.invalidateCanvas()
+        #if os(iOS)
+          UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        #endif
+        return
+      }
     }
   }
   func paint(_ configuration: CanvasConfiguration, _ c: CGContext) {
@@ -601,6 +636,13 @@ extension DrawingView {
       cachedViewport = configuration.viewport
     }
     if let cachedPage { c.draw(cachedPage, in: cacheRect) }
+    if let pending = input.pendingStroke {
+      if configuration.page.strokes.contains(where: { $0.id == pending.id }) {
+        input.pendingStroke = nil
+      } else {
+        PageRenderer.stroke(pending, in: c)
+      }
+    }
     c.setFillColor(CGColor(red: 1, green: 0.8, blue: 0.1, alpha: 0.25))
     for r in configuration.searchHighlights {
       c.fill(CGRect(x: r.x, y: r.y, width: r.width, height: r.height))
@@ -620,17 +662,24 @@ extension DrawingView {
         c.addLines(between: samples.map { CGPoint(x: $0.point.x, y: $0.point.y) })
         c.strokePath()
       } else if [.pen, .highlighter, .shapes].contains(configuration.tool) {
-        PageRenderer.stroke(
-          Stroke(
-            samples: samples + predictedSamples, color: configuration.color,
-            width: configuration.width, tool: configuration.tool, style: configuration.style), in: c
-        )
+        if configuration.tool == .pen, input.held == nil, samples.count > 5 {
+          paintLiveInk(configuration, in: c, rect: cacheRect, resolution: resolution)
+        } else {
+          PageRenderer.stroke(
+            Stroke(
+              samples: samples + predictedSamples, color: configuration.color,
+              width: configuration.width, tool: configuration.tool, style: configuration.style),
+            in: c
+          )
+        }
       }
     }
     c.setLineDash(phase: 0, lengths: [4, 3])
     c.setStrokeColor(PageRenderer.color(.blue))
     c.setLineWidth(1)
-    if let b = InkGestures.selectionBounds(page: configuration.page, ids: configuration.selection) {
+    if !configuration.selection.isEmpty,
+      let b = InkGestures.selectionBounds(page: configuration.page, ids: configuration.selection)
+    {
       let scale = configuration.viewport?.scale ?? bounds.width / configuration.page.dimensions.x
       c.setLineWidth(1.5 / scale)
       c.stroke(CGRect(x: b.x, y: b.y, width: b.width, height: b.height))
@@ -676,10 +725,11 @@ extension DrawingView {
     }
     switch configuration.tool {
     case .pen, .highlighter, .shapes:
-      configuration.onStroke(
-        Stroke(
-          samples: samples, color: configuration.color, width: configuration.width,
-          tool: configuration.tool, style: configuration.style))
+      let stroke = Stroke(
+        samples: samples, color: configuration.color, width: configuration.width,
+        tool: configuration.tool, style: configuration.style)
+      input.pendingStroke = stroke
+      configuration.onStroke(stroke)
     case .eraser, .lasso: configuration.onGesture(samples.map(\.point))
     case .text, .image, .elements: configuration.onTap(first.point)
     case .readOnly:
@@ -688,6 +738,48 @@ extension DrawingView {
       }
     }
     resetInput()
+  }
+  private func paintLiveInk(
+    _ configuration: CanvasConfiguration, in c: CGContext, rect: CGRect, resolution: Double
+  ) {
+    if input.liveRect != rect || abs(input.liveResolution - resolution) > 0.001 {
+      input.liveLayer = nil
+      input.bakedThrough = 0
+    }
+    if input.liveLayer == nil {
+      input.liveLayer = CGLayer(
+        c, size: CGSize(width: rect.width * resolution, height: rect.height * resolution),
+        auxiliaryInfo: nil)
+      input.liveRect = rect
+      input.liveResolution = resolution
+      if let context = input.liveLayer?.context {
+        context.scaleBy(x: resolution, y: resolution)
+        context.translateBy(x: -rect.minX, y: -rect.minY)
+      }
+    }
+    guard let layer = input.liveLayer, let context = layer.context else {
+      PageRenderer.stroke(
+        Stroke(
+          samples: samples + predictedSamples, color: configuration.color,
+          width: configuration.width, tool: .pen, style: configuration.style), in: c)
+      return
+    }
+    let stableEnd = samples.count - 2
+    if stableEnd > input.bakedThrough {
+      let range = (input.bakedThrough + 1)..<(stableEnd + 1)
+      PageRenderer.smoothInkSegments(
+        samples, range: range, color: configuration.color,
+        width: configuration.width, style: configuration.style, in: context)
+      input.renderedSegments += range.count
+      input.bakedThrough = stableEnd
+    }
+    c.draw(layer, in: rect)
+    let tail = Array(samples.suffix(3)) + predictedSamples
+    // Include one already-baked sample to preserve the tail's midpoint tangent.
+    PageRenderer.smoothInkSegments(
+      tail, range: 2..<tail.count, color: configuration.color,
+      width: configuration.width, style: configuration.style, in: c, finish: true)
+    input.renderedSegments += max(0, tail.count - 2)
   }
 }
 

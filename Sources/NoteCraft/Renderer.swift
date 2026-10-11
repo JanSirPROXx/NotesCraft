@@ -259,6 +259,40 @@ import SwiftUI
     }
     c.restoreGState()
   }
+  // Midpoint segments are final once their following sample arrives. Live ink can
+  // rasterize that prefix once and redraw only the provisional/predicted tail.
+  static func smoothInkSegments(
+    _ samples: [Sample], range: Range<Int>, color ink: InkColor, width: Double,
+    style: PenStyle, in c: CGContext, finish: Bool = false
+  ) {
+    guard samples.count > 1 else { return }
+    c.saveGState()
+    c.setStrokeColor(color(ink))
+    c.setLineCap(.round)
+    c.setLineJoin(.round)
+    for i in range where i > 0 && i < samples.count {
+      let a = samples[i - 1]
+      let b = samples[i]
+      let start =
+        i == 1
+        ? a.point
+        : Point(
+          (samples[i - 2].point.x + a.point.x) / 2,
+          (samples[i - 2].point.y + a.point.y) / 2)
+      let end =
+        finish && i == samples.count - 1
+        ? b.point
+        : Point(
+          (a.point.x + b.point.x) / 2, (a.point.y + b.point.y) / 2)
+      let pressure = style == .ballpoint ? 1 : max(0.2, (a.pressure + b.pressure) / 2)
+      let tilt = style == .brush ? 1 + (1 - sin((a.altitude + b.altitude) / 2)) : 1
+      c.setLineWidth(width * pressure * tilt * (style == .brush ? 1.7 : 1))
+      c.move(to: CGPoint(x: start.x, y: start.y))
+      c.addQuadCurve(to: CGPoint(x: end.x, y: end.y), control: CGPoint(x: a.point.x, y: a.point.y))
+      c.strokePath()
+    }
+    c.restoreGState()
+  }
   static func export(_ package: NotebookPackage, includePDFAnnotations: Bool = true) throws -> Data
   {
     let data = NSMutableData()
