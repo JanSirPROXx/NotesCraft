@@ -194,20 +194,6 @@ struct WorkspaceTab: Identifiable {
         session.markdown = text
       case .image:
         let snapshot = try await files.read(entry.url)
-        let sidecar = await files.sidecar(for: entry.url)
-        let cached =
-          FileManager.default.fileExists(atPath: sidecar.path)
-          ? try await packages.read(from: sidecar) : nil
-        if let cached, cached.assets["source.sha256"] == snapshot.stamp.digest {
-          var package = cached
-          package.notebook.title = entry.title
-          session = VaultSession(
-            url: entry.url, kind: .image, package: package, stamp: snapshot.stamp)
-          session.sidecarURL = sidecar
-          session.diskSidecarRevision = cached.notebook.revision
-          break
-        }
-        if cached != nil { throw PackageError.conflict }
         let name = entry.url.lastPathComponent
         var page = Page(paper: Paper(pattern: .blank))
         guard let image = CGImageSourceCreateWithData(snapshot.data as CFData, nil),
@@ -227,7 +213,6 @@ struct WorkspaceTab: Identifiable {
           package: NotebookPackage(
             notebook: Notebook(title: entry.title, pages: [page]), assets: [name: snapshot.data]),
           stamp: snapshot.stamp)
-        session.sidecarURL = sidecar
       default:
         error = "This file type can be browsed, but is not editable in NoteCraft."
         return
@@ -239,7 +224,36 @@ struct WorkspaceTab: Identifiable {
       lockedPDF = entry
     } catch { self.error = error.localizedDescription }
   }
+  func importImageNotebook(_ session: VaultSession) async {
+    guard session.entryKind == .image, !busy else { return }
+    busy = true
+    let destination = await files.availableURL(
+      in: session.url.deletingLastPathComponent(),
+      title: session.title, extension: "notecraft")
+    do {
+      var package = session.document.package
+      // Existing annotation data remains recoverable by importing it into a notebook.
+      let sidecar = await files.sidecar(for: session.url)
+      if let previous = try? await packages.read(from: sidecar),
+        previous.assets["source.sha256"] == session.stamp?.digest
+      {
+        package = previous
+      }
+      package.notebook.id = UUID()
+      package.notebook.title = session.title
+      package.assets.removeValue(forKey: "source.sha256")
+      try await packages.save(package, to: destination, createOnly: true)
+      await refresh()
+      busy = false
+      await open(
+        VaultEntry(url: destination, kind: .notebook, title: session.title, modified: Date()))
+    } catch {
+      busy = false
+      self.error = error.localizedDescription
+    }
+  }
   func changed(_ session: VaultSession) {
+    guard session.entryKind != .image else { return }
     session.generation += 1
     session.dirty = true
     session.status = "Unsaved changes"
@@ -251,7 +265,7 @@ struct WorkspaceTab: Identifiable {
     }
   }
   func save(_ session: VaultSession) async {
-    guard session.dirty, !session.saving, !managing else { return }
+    guard session.entryKind != .image, session.dirty, !session.saving, !managing else { return }
     session.saving = true
     session.status = "Saving…"
     let generation = session.generation
@@ -261,17 +275,6 @@ struct WorkspaceTab: Identifiable {
       case .markdown:
         session.stamp = try await files.write(
           Data(session.markdown.utf8), to: session.url, expected: session.stamp)
-      case .image:
-        let current = try await files.read(session.url)
-        guard current.stamp == session.stamp, let sidecar = session.sidecarURL else {
-          throw PackageError.conflict
-        }
-        var editable = snapshot
-        editable.assets["source.sha256"] = current.stamp.digest
-        try await packages.save(
-          editable, to: sidecar, expectedRevision: session.diskSidecarRevision,
-          createOnly: session.diskSidecarRevision == nil)
-        session.diskSidecarRevision = editable.notebook.revision
       case .pdf:
         let pdf = try PDFEditor.export(snapshot)
         session.stamp = try await files.write(pdf, to: session.url, expected: session.stamp)

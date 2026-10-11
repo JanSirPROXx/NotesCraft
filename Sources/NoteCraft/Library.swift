@@ -1,3 +1,4 @@
+import ImageIO
 import NoteCraftCore
 import SwiftUI
 import UniformTypeIdentifiers
@@ -15,6 +16,8 @@ struct VaultRoot: View {
       } else if let session = vault.active {
         if session.entryKind == .markdown {
           MarkdownWorkspace(vault: vault, session: session)
+        } else if session.entryKind == .image {
+          ImageFilePreview(vault: vault, session: session).id(session.id)
         } else {
           Workspace(
             document: Binding(
@@ -636,5 +639,69 @@ private struct VaultCreationSheet: View {
       }
     }.padding(28).frame(minWidth: 340, idealWidth: 440).preferredColorScheme(.light)
       .foregroundStyle(Color.black)
+  }
+}
+
+private struct ImageFilePreview: View {
+  let vault: VaultController
+  let session: VaultSession
+  @State private var zoom = 1.0
+  @State private var zoomBase = 1.0
+  private var image: CGImage? {
+    guard let asset = session.document.package.notebook.pages.first?.images.first,
+      let data = session.document.package.assets[asset.filename],
+      let source = CGImageSourceCreateWithData(data as CFData, nil)
+    else { return nil }
+    return CGImageSourceCreateImageAtIndex(source, 0, nil)
+  }
+  var body: some View {
+    VStack(spacing: 0) {
+      HStack(spacing: 16) {
+        Button {
+          Task { await vault.library() }
+        } label: {
+          Label("Documents", systemImage: "chevron.left")
+        }
+        Spacer()
+        VStack(spacing: 3) {
+          Text(session.title).font(.headline).lineLimit(1)
+          Label("Read only", systemImage: "lock").font(.caption).foregroundStyle(.secondary)
+        }
+        Spacer()
+        Button("Import into notebook", systemImage: "square.and.arrow.down") {
+          Task { await vault.importImageNotebook(session) }
+        }.disabled(vault.busy).accessibilityIdentifier("importImageNotebook")
+      }.padding(16).background(.bar)
+      GeometryReader { geometry in
+        if let image {
+          let scale = min(
+            (geometry.size.width - 48) / Double(image.width),
+            (geometry.size.height - 48) / Double(image.height))
+          let size = CGSize(
+            width: Double(image.width) * max(0.01, scale),
+            height: Double(image.height) * max(0.01, scale))
+          #if os(iOS)
+            ZoomableNotebookPage(
+              contentSize: size, viewportSize: geometry.size,
+              pencilOnly: true, zoomEnabled: true, onActivity: {}
+            ) {
+              Image(decorative: image, scale: 1).resizable().frame(
+                width: size.width, height: size.height)
+            }
+          #else
+            ScrollView([.horizontal, .vertical]) {
+              Image(decorative: image, scale: 1).resizable()
+                .frame(width: size.width * zoom, height: size.height * zoom)
+                .frame(minWidth: geometry.size.width, minHeight: geometry.size.height)
+            }.simultaneousGesture(
+              MagnifyGesture().onChanged { value in
+                zoom = min(6, max(1, zoomBase * value.magnification))
+              }.onEnded { _ in zoomBase = zoom })
+          #endif
+        } else {
+          ContentUnavailableView("Unable to display image", systemImage: "photo")
+        }
+      }.accessibilityIdentifier("readOnlyImagePreview")
+    }.background(Color(white: 0.94)).preferredColorScheme(.light)
   }
 }
