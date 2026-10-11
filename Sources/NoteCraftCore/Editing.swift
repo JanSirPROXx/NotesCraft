@@ -307,7 +307,7 @@ public enum InkGestures {
     let width = xs.max()! - xs.min()!
     let height = ys.max()! - ys.min()!
     let diagonal = hypot(width, height)
-    guard max(width, height) >= 10 else { return false }
+    guard max(width, height) >= 6 else { return false }
     let step = min(8, max(2.5, diagonal * 0.1))
     var reduced = [first]
     for point in points.dropFirst() where point.distance(to: reduced.last!) >= step {
@@ -331,7 +331,7 @@ public enum InkGestures {
         }
       }
     }
-    return reversals >= 4 && length > 30 && length / max(1, diagonal) > 3
+    return reversals >= 4 && length > 18 && length / max(1, diagonal) > 3
   }
 
   // A stroke is erased only when the scribble actually touches its ink. The tolerance is the
@@ -370,8 +370,10 @@ public enum InkGestures {
   private static func touches(
     _ stroke: Stroke, scribble: [(Point, Point)], bounds: Rect
   ) -> Bool {
-    let tolerance = stroke.width / 2 + 2
     let box = stroke.bounds
+    // A dot or i-point is hard to hit precisely with a small scrub, so it gets a wider reach.
+    let isDot = box.width <= stroke.width + 4 && box.height <= stroke.width + 4
+    let tolerance = stroke.width / 2 + (isDot ? 4.5 : 2)
     guard box.x - tolerance <= bounds.x + bounds.width, box.x + box.width + tolerance >= bounds.x,
       box.y - tolerance <= bounds.y + bounds.height, box.y + box.height + tolerance >= bounds.y
     else { return false }

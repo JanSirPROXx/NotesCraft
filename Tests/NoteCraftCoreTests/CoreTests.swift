@@ -350,3 +350,26 @@ import Testing
   #expect(!InkGestures.isScratch(wave))
   #expect(InkGestures.scratchErase(wave, strokes: []) == nil)
 }
+
+@Test func scribblingErasesSmallDotsWithoutTouchingNearbyInk() throws {
+  let dot = Stroke(samples: [Sample(point: Point(50, 50))], width: 2.5)
+  let twoSampleDot = Stroke(
+    samples: [Sample(point: Point(80, 50)), Sample(point: Point(80.4, 50.3))], width: 2.5)
+  let letter = Stroke(
+    samples: [Sample(point: Point(66, 40)), Sample(point: Point(66, 60))], width: 2)
+  let farLetter = Stroke(
+    samples: [Sample(point: Point(100, 40)), Sample(point: Point(100, 60))], width: 2)
+  // A 9 pt scrub around the dot, offset by a couple of points as a hand would.
+  func scrub(around c: Point) -> [Point] {
+    (0..<9).map { Point(c.x + ($0.isMultiple(of: 2) ? -4 : 4) + 1, c.y - 4 + Double($0)) }
+  }
+  #expect(InkGestures.isScratch(scrub(around: dot.samples[0].point)))
+  let first = try #require(
+    InkGestures.scratchErase(
+      scrub(around: dot.samples[0].point), strokes: [dot, twoSampleDot, letter, farLetter]))
+  #expect(first.map(\.id) == [twoSampleDot.id, letter.id, farLetter.id])
+  let second = try #require(
+    InkGestures.scratchErase(
+      scrub(around: twoSampleDot.samples[0].point), strokes: [twoSampleDot, letter, farLetter]))
+  #expect(second.map(\.id) == [letter.id, farLetter.id])
+}
