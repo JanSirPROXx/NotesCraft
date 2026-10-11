@@ -62,6 +62,7 @@ final class VaultUITests: XCTestCase {
     app.buttons["More"].tap()
     app.buttons["Paper background"].tap()
     XCTAssertTrue(app.buttons["Grid · 2.5 mm"].waitForExistence(timeout: 5))
+    capture(app, name: "Paper background selection")
     app.buttons["Grid · 2.5 mm"].tap()
     app.buttons["Apply"].tap()
     XCTAssertEqual(canvas.value as? String, "1 strokes")
@@ -81,7 +82,7 @@ final class VaultUITests: XCTestCase {
     app.buttons["Read only"].tap()
     let zoomSurface = app.scrollViews["notebookZoomSurface"].firstMatch
     XCTAssertTrue(zoomSurface.exists)
-    canvas.pinch(withScale: 1.8, velocity: 1)
+    zoomSurface.pinch(withScale: 3, velocity: 0.5)
     let zoomed = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value != 'Zoom 100 percent'"), object: zoomSurface)
     XCTAssertEqual(XCTWaiter.wait(for: [zoomed], timeout: 5), .completed)
@@ -115,7 +116,14 @@ final class VaultUITests: XCTestCase {
     let bottom = pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.9))
     let top = pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.05))
     bottom.press(forDuration: 0.05, thenDragTo: top)
-    bottom.press(forDuration: 0.05, thenDragTo: top, withVelocity: .slow, thenHoldForDuration: 0.8)
+    for _ in 0..<3 {
+      if app.staticTexts["pageIndicator"].exists, app.staticTexts["pageIndicator"].label == "4 / 4"
+      {
+        break
+      }
+      bottom.press(
+        forDuration: 0.05, thenDragTo: top, withVelocity: .slow, thenHoldForDuration: 0.8)
+    }
     app.buttons["Pages"].tap()
     XCTAssertTrue(app.buttons["pageThumbnail-3"].waitForExistence(timeout: 5), app.debugDescription)
     capture(app, name: "Vertical setting retains pull-to-add-page")
@@ -194,7 +202,43 @@ final class VaultUITests: XCTestCase {
     XCTAssertTrue(pageNumber.waitForExistence(timeout: 5))
     XCTAssertEqual(pageNumber.value as? String, "3", "Resume the notebook after app relaunch")
     capture(app, name: "Last storage and notebook page restored after relaunch")
+    app.buttons["Done"].tap()
+    app.buttons["More"].tap()
+    app.descendants(matching: .any)["Horizontal pages"].firstMatch.tap()
+    let currentZoom = try visibleZoomSurface(app)
+    currentZoom.pinch(withScale: 3, velocity: 0.5)
+    let inheritedZoom = currentZoom.value as? String
+    XCTAssertNotEqual(inheritedZoom, "Zoom 100 percent")
+    app.buttons["newPageButton"].tap()
+    app.buttons["confirmAddPage"].tap()
+    let newZoom = try visibleZoomSurface(app)
+    XCTAssertEqual(newZoom.value as? String, inheritedZoom)
+    capture(app, name: "New page retains zoom at top left")
+    app.buttons["More"].tap()
+    app.descendants(matching: .any)["Keep zoom on new pages"].firstMatch.tap()
+    app.buttons["newPageButton"].tap()
+    app.buttons["confirmAddPage"].tap()
+    let resetZoom = try visibleZoomSurface(app)
+    XCTAssertEqual(resetZoom.value as? String, "Zoom 100 percent")
+    app.buttons["Read only"].tap()
+    pageScroll.swipeRight()
+    app.buttons["More"].tap()
+    app.buttons["documentNavigatorMenu"].tap()
+    XCTAssertTrue(pageNumber.waitForExistence(timeout: 5))
+    XCTAssertEqual(pageNumber.value as? String, "5", "A flick must settle on one adjacent page")
+    app.buttons["Done"].tap()
+    capture(app, name: "Magnetic paging settles on the previous page")
 
+  }
+  @MainActor private func visibleZoomSurface(_ app: XCUIApplication) throws -> XCUIElement {
+    let surfaces = app.scrollViews.matching(identifier: "notebookZoomSurface")
+    XCTAssertTrue(surfaces.firstMatch.waitForExistence(timeout: 5))
+    let viewport = app.scrollViews["notebookScrollView"].frame
+    func area(_ element: XCUIElement) -> CGFloat {
+      let visible = element.frame.intersection(viewport)
+      return visible.isNull ? 0 : visible.width * visible.height
+    }
+    return try XCTUnwrap(surfaces.allElementsBoundByIndex.max { area($0) < area($1) })
   }
   @MainActor private func capture(_ app: XCUIApplication, name: String) {
     let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())

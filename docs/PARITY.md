@@ -68,3 +68,5 @@ navigation, whiteboard drawing/zoom and last-storage/page restoration after app 
 not establish physical Pencil or palm behavior.
 
 - Notebooks and whiteboards offer blank, lined, dotted, large squares and 5 mm / 2.5 mm graph backgrounds; notebooks also offer weekly planner paper. Backgrounds can be changed on existing pages without changing ink, images or page dimensions, and applied across non-PDF pages. Whiteboard patterns continue across negative and distant canvas coordinates and PDF exports. New notebook pages inherit the current paper selection.
+
+- The workspace uses compact tabs and one blue tool row, with contextual pen, shape and eraser controls floating over the canvas. Horizontal gestures settle on one adjacent page; the paper viewport has no fixed top/bottom gutters. New pages retain the previous page zoom and start at the top left by default; “Keep zoom on new pages” disables this. Handwriting renders through quadratic curves with round caps, while geometric strokes retain corners. Actual Pencil latency and feel still require testing on physical iPad hardware.

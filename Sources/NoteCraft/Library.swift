@@ -45,7 +45,7 @@ struct VaultRoot: View {
       restoringStorage = false
     }
     .sheet(item: $vault.lockedPDF) { entry in PDFUnlockSheet(vault: vault, entry: entry) }
-    .preferredColorScheme(vault.root == nil || vault.showLibrary ? .dark : .light)
+    .preferredColorScheme(.dark)
     .fileImporter(isPresented: $folderPicker, allowedContentTypes: [.folder]) { result in
       do {
         let url = try result.get()
@@ -723,7 +723,7 @@ private struct ImageFilePreview: View {
           #if os(iOS)
             ZoomableNotebookPage(
               contentSize: size, viewportSize: geometry.size,
-              pencilOnly: true, zoomEnabled: true, onActivity: {}
+              pencilOnly: true, zoomEnabled: true
             ) {
               Image(decorative: image, scale: 1).resizable().frame(
                 width: size.width, height: size.height)

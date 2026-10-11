@@ -25,6 +25,7 @@ struct NoteDocument: FileDocument {
       if CommandLine.arguments.contains("--ui-test-reset-input") {
         UserDefaults.standard.removeObject(forKey: "pencilOnlyDrawing")
         UserDefaults.standard.removeObject(forKey: "horizontalNotebookPages")
+        UserDefaults.standard.removeObject(forKey: "keepZoomOnNewPage")
         for key in ["savedStorages", "activeStorageID", "vaultBookmark", "readingPositions"] {
           UserDefaults.standard.removeObject(forKey: key)
         }

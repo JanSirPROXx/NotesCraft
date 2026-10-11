@@ -44,6 +44,7 @@ struct Workspace: View {
   @State private var saveElementSheet = false
   @State private var elementName = "Element"
   @State private var fillShapes = false
+  @State private var shapePreset: ShapePreset = .automatic
   @State private var hexColor = "#1F2B3D"
   @State private var penStyle: PenStyle = .ballpoint
   @State private var eraserMode: EraserMode = .stroke
@@ -60,6 +61,8 @@ struct Workspace: View {
   @State private var pdfForms = false
   @State private var templateSheet = false
   @State private var paperSheet = false
+  @State private var renameSheet = false
+  @State private var titleDraft = ""
   @State private var importer = false
   @State private var importing = false
   @State private var photoLibrary = false
@@ -104,6 +107,8 @@ struct Workspace: View {
   @State private var pageHUDTask: Task<Void, Never>?
   @State private var horizontalPageID: UUID?
   @State private var pageChangedByScroll = false
+  @AppStorage("keepZoomOnNewPage") private var keepZoomOnNewPage = true
+  @State private var pageZoom = NotebookZoomMemory()
   @State private var zoom = 1.0
   @State private var zoomBase = 1.0
   @State private var customColor = Color.black
@@ -127,7 +132,6 @@ struct Workspace: View {
   private var page: Page { notebook.pages[min(activePage, notebook.pages.count - 1)] }
   var body: some View {
     VStack(spacing: 0) {
-      topBar
       tabBar
       toolBar
       if searchVisible { searchBar }
@@ -141,26 +145,26 @@ struct Workspace: View {
             )
           } else {
             ScrollViewReader { proxy in
-              ScrollView(horizontal ? .horizontal : .vertical) {
+              ScrollView(horizontal ? .horizontal : .vertical, showsIndicators: false) {
                 if horizontal {
                   HStack(alignment: .top, spacing: 0) {
                     ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
                       notebookPage(p, index: index, size: geometry.size)
                         .frame(width: geometry.size.width).id(p.id)
                     }
-                  }.scrollTargetLayout().padding(.vertical, 28)
+                  }.scrollTargetLayout()
                 } else {
                   VStack(spacing: 28) {
                     ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
                       notebookPage(p, index: index, size: geometry.size, vertical: true)
                     }
-                  }.scrollTargetLayout().frame(maxWidth: .infinity).padding(.vertical, 28)
+                  }.scrollTargetLayout().frame(maxWidth: .infinity)
                 }
               }.frame(width: geometry.size.width, height: geometry.size.height)
                 .scrollTargetBehavior(NotebookPageBehavior(horizontal: horizontal))
-                .scrollPosition(id: $horizontalPageID)
+                .scrollPosition(id: $horizontalPageID, anchor: .topLeading)
                 .accessibilityIdentifier("notebookScrollView")
-                .background(Color(red: 0.90, green: 0.92, blue: 0.94)).onChange(of: activePage) {
+                .background(Color(red: 0.105, green: 0.11, blue: 0.115)).onChange(of: activePage) {
                   if pageChangedByScroll {
                     pageChangedByScroll = false
                     return
@@ -179,15 +183,20 @@ struct Workspace: View {
                       activePage = index
                     }
                   }
-                }.onChange(of: horizontal) {
-                  horizontalPageID = page.id
-                }.onAppear {
-                  horizontalPageID = page.id
-                  if !horizontal { proxy.scrollTo(page.id, anchor: .top) }
+                }.task(id: horizontal) {
+                  let targetID = page.id
+                  // Changing axes rebuilds the page layout. Reapply the position even when
+                  // the selected page ID has not changed.
+                  await Task.yield()
+                  proxy.scrollTo(targetID, anchor: .topLeading)
+                  horizontalPageID = targetID
                 }
             }
           }
         }
+      }
+      .overlay(alignment: .top) {
+        contextualToolBar.padding(.top, 8)
       }
       .overlay(alignment: .bottomTrailing) {
         if pageHUD && notebook.kind != .whiteboard {
@@ -209,15 +218,14 @@ struct Workspace: View {
       if importing { ProgressView("Importing…").padding(8) }
     }
     .background(Color.white).foregroundStyle(Color(red: 0.12, green: 0.16, blue: 0.22)).tint(accent)
-    .environment(\.colorScheme, .light)
+    .environment(\.colorScheme, .light).preferredColorScheme(.dark)
     .frame(minWidth: minimumWidth, minHeight: 500)
     .onChange(of: activePage) { showPageIndicator() }
     .onChange(of: notebook.pages.count) { showPageIndicator() }
     .onDisappear { pageHUDTask?.cancel() }
     .sheet(isPresented: $templateSheet) {
       TemplatePicker(initialPaper: page.paper) { paper in
-        edit { $0.notebook.pages.append(Page(paper: paper)) }
-        activePage = notebook.pages.count - 1
+        appendPage(Page(paper: paper))
       }
     }
     .sheet(isPresented: $paperSheet) {
@@ -299,115 +307,129 @@ struct Workspace: View {
     } message: {
       Text(errorMessage ?? "")
     }
+    .alert("Notebook title", isPresented: $renameSheet) {
+      TextField("Title", text: $titleDraft)
+      Button("Cancel", role: .cancel) {}
+      Button("Rename") { edit { $0.notebook.title = titleDraft } }
+        .disabled(titleDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
     .onChange(of: activePage) {
       let ids = Set(page.strokes.map(\.id) + page.images.map(\.id) + page.texts.map(\.id))
       selection.formIntersection(ids)
       if let imageSelection, !ids.contains(imageSelection) { self.imageSelection = nil }
     }
   }
-  private var topBar: some View {
-    HStack(spacing: 18) {
-      Button {
-        if let onBack { onBack() } else { dismiss() }
-      } label: {
-        Label("Documents", systemImage: "chevron.left")
+  private var documentMenu: some View {
+    Menu {
+      Button("Rename notebook", systemImage: "pencil") {
+        titleDraft = notebook.title
+        renameSheet = true
       }
+      Button("Navigate document", systemImage: "list.bullet") { navigator = true }
+        .accessibilityIdentifier("documentNavigatorMenu")
+      Button("Fill PDF forms", systemImage: "rectangle.and.pencil.and.ellipsis") {
+        pdfForms = true
+      }.disabled(page.backgroundPDF == nil)
+      Button("Export current page", systemImage: "square.and.arrow.up") {
+        do {
+          var single = document.package
+          single.notebook.pages = [page]
+          exportData = try PDFEditor.export(single)
+          exportType = .pdf
+          exporter = true
+        } catch { errorMessage = error.localizedDescription }
+      }
+      Divider()
+      Button("Import PDF", systemImage: "doc") {
+        importType = .pdf
+        importer = true
+      }
+      Button("Photo library", systemImage: "photo.on.rectangle") { photoLibrary = true }
+      #if os(iOS)
+        Button("Scan documents", systemImage: "doc.viewfinder") { scanner = true }.disabled(
+          !VNDocumentCameraViewController.isSupported)
+      #endif
+      Button("Paper background", systemImage: "square.grid.3x3") { paperSheet = true }
+        .disabled(page.backgroundPDF != nil)
+      Button("Add page", systemImage: "plus") { templateSheet = true }
+      Button("Paste ink", systemImage: "doc.on.clipboard") { paste() }.disabled(
+        clipboard.isEmpty && clipboardImages.isEmpty && clipboardTexts.isEmpty)
+      Toggle("Horizontal pages", isOn: $horizontal)
+      Toggle("Keep zoom on new pages", isOn: $keepZoomOnNewPage)
+      Toggle("Apple Pencil only", isOn: $pencilOnly)
+      Toggle("Draw and hold for shapes", isOn: $holdToShape)
+      Toggle("Scribble to erase", isOn: $scratchToErase)
+      Text(
+        pencilOnly
+          ? "Pencil writes · one finger navigates" : "One finger draws · two fingers navigate")
+      Button("Delete current page", role: .destructive) {
+        if notebook.pages.count > 1 {
+          edit { $0.notebook.pages.remove(at: activePage) }
+          activePage = min(activePage, notebook.pages.count - 1)
+        }
+      }.disabled(notebook.pages.count == 1)
+    } label: {
+      Image(systemName: "ellipsis")
+    }
+    .accessibilityLabel("More")
+  }
+  private var documentActions: some View {
+    HStack(spacing: 16) {
       Button {
         thumbnails.toggle()
       } label: {
-        Image(systemName: "square.grid.2x2")
-      }.help("Page thumbnails").accessibilityLabel("Pages")
-      Spacer()
-      TextField(
-        "Notebook title",
-        text: Binding(
-          get: { notebook.title },
-          set: { value in
-            document.package.notebook.title = value
-            document.package.notebook.revision += 1
-          })
-      ).font(.system(size: 17, weight: .semibold)).multilineTextAlignment(.center).frame(
-        maxWidth: 280)
-      Spacer()
+        Image(systemName: "sidebar.left")
+      }
+      .accessibilityLabel("Pages")
       Button {
         searchVisible.toggle()
       } label: {
         Image(systemName: "magnifyingglass")
-      }.help("Search text")
+      }
+      .accessibilityLabel("Search text")
       Button {
         edit { $0.notebook.pages[activePage].bookmarked.toggle() }
       } label: {
         Image(systemName: page.bookmarked ? "bookmark.fill" : "bookmark")
-      }.help("Bookmark page")
-      Button {
-        do {
-          exportData = try PDFEditor.export(document.package)
-          exportType = .pdf
-          exporter = true
-        } catch { errorMessage = error.localizedDescription }
-      } label: {
-        Image(systemName: "square.and.arrow.up")
-      }.help("Export PDF")
-      Menu {
-        Button("Navigate document", systemImage: "list.bullet") { navigator = true }
-          .accessibilityIdentifier("documentNavigatorMenu")
-        Button("Fill PDF forms", systemImage: "rectangle.and.pencil.and.ellipsis") {
-          pdfForms = true
-        }.disabled(page.backgroundPDF == nil)
-        Button("Export current page", systemImage: "square.and.arrow.up") {
-          do {
-            var single = document.package
-            single.notebook.pages = [page]
-            exportData = try PDFEditor.export(single)
-            exportType = .pdf
-            exporter = true
-          } catch { errorMessage = error.localizedDescription }
-        }
-        Divider()
-        Button("Import PDF", systemImage: "doc") {
-          importType = .pdf
-          importer = true
-        }
-        Button("Photo library", systemImage: "photo.on.rectangle") { photoLibrary = true }
-        #if os(iOS)
-          Button("Scan documents", systemImage: "doc.viewfinder") { scanner = true }.disabled(
-            !VNDocumentCameraViewController.isSupported)
-        #endif
-        Button("Paper background", systemImage: "square.grid.3x3") { paperSheet = true }
-          .disabled(page.backgroundPDF != nil)
-        Button("Add page", systemImage: "plus") { templateSheet = true }
-        Button("Paste ink", systemImage: "doc.on.clipboard") { paste() }.disabled(
-          clipboard.isEmpty && clipboardImages.isEmpty && clipboardTexts.isEmpty)
-        Toggle("Horizontal pages", isOn: $horizontal)
-        Toggle("Apple Pencil only", isOn: $pencilOnly)
-        Toggle("Draw and hold for shapes", isOn: $holdToShape)
-        Toggle("Scribble to erase", isOn: $scratchToErase)
-        Text(
-          pencilOnly
-            ? "Pencil writes · one finger navigates" : "One finger draws · two fingers navigate")
-        Button("Delete current page", role: .destructive) {
-          if notebook.pages.count > 1 {
-            edit { $0.notebook.pages.remove(at: activePage) }
-            activePage = min(activePage, notebook.pages.count - 1)
-          }
-        }.disabled(notebook.pages.count == 1)
-      } label: {
-        Image(systemName: "ellipsis")
-      }
-    }.buttonStyle(.plain).padding(.horizontal, 22).frame(height: 55)
+      }.accessibilityLabel("Bookmark page")
+    }
   }
+  private var exportButton: some View {
+    Button {
+      do {
+        exportData = try PDFEditor.export(document.package)
+        exportType = .pdf
+        exporter = true
+      } catch { errorMessage = error.localizedDescription }
+    } label: {
+      Image(systemName: "square.and.arrow.up")
+    }
+    .accessibilityLabel("Export PDF")
+  }
+
   private var tabBar: some View {
     HStack(spacing: 0) {
+      Button {
+        if let onBack { onBack() } else { dismiss() }
+      } label: {
+        Image(systemName: "house").frame(width: 48, height: 34)
+      }
+      .buttonStyle(.plain).accessibilityLabel("Documents")
+
       ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: 0) {
-          if tabs.isEmpty { Text(notebook.title).padding(.horizontal, 20).frame(height: 36) }
+          if tabs.isEmpty { Text(notebook.title).padding(.horizontal, 20).frame(height: 34) }
           ForEach(tabs) { tab in
             Button {
               onSelectTab?(tab.id)
             } label: {
-              Label(tab.title, systemImage: "book.closed").lineLimit(1).padding(.horizontal, 18)
-                .frame(height: 36)
-                .background(tab.selected ? Color.white.opacity(0.2) : .clear)
+              Label(tab.selected ? notebook.title : tab.title, systemImage: "book.closed")
+                .lineLimit(1).padding(.horizontal, 18)
+                .frame(height: 34)
+                .background(
+                  tab.selected ? Color.white.opacity(0.2) : .clear, ignoresSafeAreaEdges: []
+                )
+                .clipShape(UnevenRoundedRectangle(topLeadingRadius: 9, topTrailingRadius: 9))
             }.buttonStyle(.plain)
           }
         }
@@ -416,47 +438,97 @@ struct Workspace: View {
         Button {
           templateSheet = true
         } label: {
-          Image(systemName: "plus").padding(14)
-        }.buttonStyle(.plain).accessibilityLabel("Add page")
+          Image(systemName: "plus").frame(width: 44, height: 34)
+        }.buttonStyle(.plain).accessibilityLabel("Add page").accessibilityIdentifier(
+          "newPageButton")
       }
-    }.font(.system(size: 13, weight: .medium)).foregroundStyle(Color.white).background(accent)
+    }.font(.system(size: 13, weight: .medium)).foregroundStyle(Color.white).background(
+      Color(red: 0.12, green: 0.20, blue: 0.36))
   }
   private var toolBar: some View {
-    ScrollView(.horizontal, showsIndicators: false) {
-      HStack(spacing: 8) {
-        Button {
-          undo()
-        } label: {
-          Image(systemName: "arrow.uturn.backward")
-        }.disabled(undoStack.isEmpty).help("Undo").accessibilityLabel("Undo").keyboardShortcut(
-          "z", modifiers: .command)
-        Button {
-          redo()
-        } label: {
-          Image(systemName: "arrow.uturn.forward")
-        }.disabled(redoStack.isEmpty).help("Redo").accessibilityLabel("Redo").keyboardShortcut(
-          "z", modifiers: [.command, .shift])
-        Divider().frame(height: 24)
-        ForEach(InkTool.allCases, id: \.self) { item in
-          Button {
-            if tool == item {
-              settings.toggle()
-            } else {
-              previousTool = tool
-              tool = item
-              selection = []
-              imageSelection = nil
-              if item == .elements || item == .image { settings = true }
+    GeometryReader { geometry in
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(spacing: 8) {
+          documentActions
+          Spacer(minLength: 16)
+          Divider().frame(height: 24)
+          ForEach(InkTool.allCases, id: \.self) { item in
+            Button {
+              if tool == item {
+                settings.toggle()
+              } else {
+                previousTool = tool
+                tool = item
+                selection = []
+                imageSelection = nil
+                if item == .elements || item == .image { settings = true }
+              }
+            } label: {
+              Image(systemName: icon(item)).font(.system(size: 20)).frame(width: 36, height: 38)
+                .foregroundStyle(tool == item ? Color(red: 0.12, green: 0.20, blue: 0.36) : .white)
+                .background(
+                  tool == item ? Color.white.opacity(0.85) : .clear,
+                  in: RoundedRectangle(cornerRadius: 7))
             }
-          } label: {
-            Image(systemName: icon(item)).font(.system(size: 20)).frame(width: 36, height: 38)
-              .foregroundStyle(tool == item ? accent : Color(red: 0.12, green: 0.16, blue: 0.22))
-              .background(
-                tool == item ? accent.opacity(0.10) : .clear, in: RoundedRectangle(cornerRadius: 7))
+            .help(label(item)).accessibilityLabel(label(item))
+            .popover(
+              isPresented: Binding(get: { settings && tool == item }, set: { settings = $0 })
+            ) { toolSettings.padding(22).frame(width: 320).preferredColorScheme(.dark) }
           }
-          .help(label(item)).accessibilityLabel(label(item))
-          .popover(isPresented: Binding(get: { settings && tool == item }, set: { settings = $0 }))
-          { toolSettings.padding(22).frame(width: 290) }
+          Spacer(minLength: 8)
+          exportButton
+          documentMenu
+        }.buttonStyle(.plain).frame(minWidth: max(0, geometry.size.width - 32)).padding(
+          .horizontal, 16
+        ).frame(height: 44)
+      }
+    }.frame(height: 44).foregroundStyle(.white).background(
+      Color(red: 0.17, green: 0.29, blue: 0.47))
+  }
+  private var contextualToolBar: some View {
+    HStack(spacing: 12) {
+      Button {
+        undo()
+      } label: {
+        Image(systemName: "arrow.uturn.backward")
+      }.disabled(undoStack.isEmpty).help("Undo").accessibilityLabel("Undo").keyboardShortcut(
+        "z", modifiers: .command)
+      Button {
+        redo()
+      } label: {
+        Image(systemName: "arrow.uturn.forward")
+      }.disabled(redoStack.isEmpty).help("Redo").accessibilityLabel("Redo").keyboardShortcut(
+        "z", modifiers: [.command, .shift])
+
+      if [.pen, .highlighter, .shapes].contains(tool) {
+        Divider().frame(height: 24)
+        if tool == .shapes {
+          ForEach(ShapePreset.allCases, id: \.self) { preset in
+            Button {
+              shapePreset = preset
+            } label: {
+              Image(systemName: preset.symbol).frame(width: 30, height: 32)
+                .background(
+                  shapePreset == preset ? Color.white.opacity(0.2) : .clear,
+                  in: RoundedRectangle(cornerRadius: 7))
+            }.accessibilityLabel(preset.rawValue.capitalized + " shape")
+          }
+        }
+        if tool == .pen {
+          ForEach(PenStyle.allCases, id: \.self) { style in
+            Button {
+              penStyle = style
+            } label: {
+              Image(
+                systemName: style == .fountain
+                  ? "pencil.tip" : style == .ballpoint ? "pencil" : "paintbrush.pointed"
+              )
+              .frame(width: 30, height: 32)
+              .background(
+                penStyle == style ? Color.cyan.opacity(0.35) : .clear,
+                in: RoundedRectangle(cornerRadius: 7))
+            }.accessibilityLabel(style.rawValue.capitalized + " pen")
+          }
         }
         Divider().frame(height: 24)
         ForEach([InkColor.ink, .blue, .red, .green, .yellow], id: \.self) { ink in
@@ -467,21 +539,35 @@ struct Workspace: View {
               Circle().stroke(color == ink ? accent : .clear, lineWidth: 1.5))
           }.accessibilityLabel("Ink color")
         }
-        Spacer(minLength: 4)
+
         ForEach([firstWidth, secondWidth, thirdWidth], id: \.self) { value in
           Button {
             width = value
           } label: {
-            Circle().fill(Color(red: 0.12, green: 0.16, blue: 0.22)).frame(
+            Circle().fill(Color.white).frame(
               width: value + 3, height: value + 3
             ).frame(
               width: 26, height: 32
             ).background(
-              width == value ? accent.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 5))
+              width == value ? Color.white.opacity(0.2) : .clear,
+              in: RoundedRectangle(cornerRadius: 5))
           }.help("\(value.formatted()) pt")
         }
-      }.buttonStyle(.plain).padding(.horizontal, 16).frame(height: 58)
-    }.background(.white).overlay(alignment: .bottom) { Divider() }
+      } else if tool == .eraser {
+        ForEach(EraserMode.allCases, id: \.self) { mode in
+          Button(mode.rawValue.capitalized) { eraserMode = mode }
+            .foregroundStyle(eraserMode == mode ? Color.cyan : Color.white)
+        }
+      } else if tool == .lasso {
+        Toggle("Ink", isOn: $selectInk)
+        Toggle("Images", isOn: $selectImages)
+        Toggle("Text", isOn: $selectTexts)
+      }
+    }.buttonStyle(.plain).font(.system(size: 16)).foregroundStyle(.white)
+      .padding(.horizontal, 14).frame(height: 44)
+      .background(Color(red: 0.16, green: 0.17, blue: 0.18), in: Capsule())
+      .overlay(Capsule().stroke(Color.white.opacity(0.18)))
+      .fixedSize(horizontal: true, vertical: false)
   }
   @ViewBuilder private var toolSettings: some View {
     VStack(alignment: .leading, spacing: 16) {
@@ -614,7 +700,7 @@ struct Workspace: View {
       availableHeight.map { max(120, ($0 - 80) * p.dimensions.x / p.dimensions.y) } ?? 780
     let w =
       boardHeight == nil
-      ? max(120, min(availableWidth - 56, 780, fittedWidth)) * zoom : availableWidth
+      ? max(120, min(availableWidth - 56, fittedWidth)) * zoom : availableWidth
     return VStack(spacing: 10) {
       NativeCanvas(
         configuration: CanvasConfiguration(
@@ -625,7 +711,7 @@ struct Workspace: View {
             activePage = index
             var s = stroke
             if tool == .shapes {
-              s = Editing.shape(from: s)
+              s = Editing.shape(from: s, preset: shapePreset)
               s.fillColor = fillShapes ? color : nil
             }
             if tool == .highlighter && straightHighlight, let first = s.samples.first,
@@ -733,8 +819,7 @@ struct Workspace: View {
           onAppendPage: boardHeight == nil && index == notebook.pages.count - 1
             ? {
               let next = InkGestures.blankPage(matching: p)
-              edit { $0.notebook.pages.append(next) }
-              activePage = notebook.pages.count - 1
+              appendPage(next)
             } : nil,
           onPagePull: { pagePullProgress = $0 }, horizontalPages: horizontal,
           onScrollActivity: { showPageIndicator() }, holdToShape: holdToShape,
@@ -772,21 +857,44 @@ struct Workspace: View {
         {
           let scale = boardHeight == nil ? w / p.dimensions.x : boardViewport.scale
           let offset = boardHeight == nil ? Point(0, 0) : boardViewport.offset
-          Button {
-            selectionMenuPresented.toggle()
-          } label: {
-            Image(systemName: "ellipsis").font(.system(size: 18, weight: .semibold)).padding(10)
-          }.buttonStyle(.plain).foregroundStyle(accent).background(.white, in: Capsule())
-            .shadow(color: .black.opacity(0.15), radius: 5, y: 2)
+          HStack(spacing: 18) {
+            Button {
+              copySelection()
+              deleteSelection()
+            } label: {
+              Image(systemName: "scissors")
+            }
+            .accessibilityLabel("Cut selection")
+            Button {
+              copySelection()
+            } label: {
+              Image(systemName: "doc.on.doc")
+            }
+            .accessibilityLabel("Copy selection")
+            Button {
+              deleteSelection()
+            } label: {
+              Image(systemName: "trash")
+            }
+            .foregroundStyle(.red).accessibilityLabel("Delete selection")
+            Button {
+              selectionMenuPresented.toggle()
+            } label: {
+              Image(systemName: "ellipsis.circle")
+            }
+            .accessibilityLabel("Selection actions")
+          }.font(.system(size: 18)).padding(.horizontal, 18).frame(height: 42)
+            .buttonStyle(.plain).foregroundStyle(.white)
+            .background(Color(red: 0.16, green: 0.17, blue: 0.18), in: Capsule())
             .position(
-              x: min(w - 26, max(26, (b.x + b.width) * scale + offset.x + 24)),
+              x: min(w - 95, max(95, (b.x + b.width / 2) * scale + offset.x)),
               y: min(
                 (boardHeight ?? w * p.dimensions.y / p.dimensions.x) - 26,
-                max(26, b.y * scale + offset.y - 25))
+                max(26, (b.y + b.height) * scale + offset.y + 30))
             )
-            .accessibilityLabel("Selection actions")
             .popover(isPresented: $selectionMenuPresented) {
               selectionActions.padding(16).frame(width: 240)
+                .foregroundStyle(.primary).preferredColorScheme(.dark)
             }
         }
       }
@@ -806,6 +914,15 @@ struct Workspace: View {
       ).shadow(
         color: Color.black.opacity(0.10), radius: 6, y: 2)
     }.id(p.id)
+  }
+  private func appendPage(_ next: Page) {
+    pageZoom[next.id] = keepZoomOnNewPage ? (pageZoom[page.id] ?? zoom) : 1
+    if !keepZoomOnNewPage {
+      zoom = 1
+      zoomBase = 1
+    }
+    edit { $0.notebook.pages.append(next) }
+    activePage = notebook.pages.count - 1
   }
   private func displayPage(_ page: Page, index: Int) -> Page {
     var result = page
@@ -913,18 +1030,21 @@ struct Workspace: View {
     let width = max(
       120,
       min(
-        size.width - 56, 780,
-        vertical ? 780 : max(120, (size.height - 56) * p.dimensions.x / p.dimensions.y)))
+        size.width - 40,
+        vertical ? size.width - 40 : max(120, size.height * p.dimensions.x / p.dimensions.y)))
     let height = width * p.dimensions.y / p.dimensions.x
     #if os(iOS)
       ZoomableNotebookPage(
         contentSize: CGSize(width: width, height: height),
-        viewportSize: CGSize(width: size.width, height: vertical ? height + 28 : size.height - 56),
+        viewportSize: CGSize(width: size.width, height: vertical ? height : size.height),
         pencilOnly: pencilOnly || tool == .readOnly, zoomEnabled: imageSelection == nil,
-        onActivity: { showPageIndicator() }
+        initialZoom: pageZoom[p.id] ?? 1,
+        onZoomChange: {
+          pageZoom[p.id] = $0
+        }
       ) {
         pageView(p, index: index, availableWidth: width + 56, availableHeight: height + 80)
-      }.frame(width: size.width, height: vertical ? height + 28 : size.height - 56)
+      }.frame(width: size.width, height: vertical ? height : size.height)
     #else
       pageView(
         p, index: index, availableWidth: size.width, availableHeight: vertical ? nil : size.height
@@ -1265,6 +1385,7 @@ struct TemplatePicker: View {
         onCreate(Paper(size: size, pattern: pattern, landscape: landscape))
         dismiss()
       }.buttonStyle(.borderedProminent).frame(maxWidth: .infinity, alignment: .trailing)
+        .accessibilityIdentifier("confirmAddPage")
     }.padding(28).frame(width: 450)
   }
 }
@@ -1272,7 +1393,13 @@ struct TemplatePicker: View {
 private struct NotebookPageBehavior: ScrollTargetBehavior {
   let horizontal: Bool
   func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
-    if horizontal { PagingScrollTargetBehavior().updateTarget(&target, context: context) }
+    if horizontal {
+      target.rect.origin.x = NotebookPaging.target(
+        origin: context.originalTarget.rect.minX, projected: target.rect.minX,
+        velocity: context.velocity.dx, pageWidth: context.containerSize.width,
+        contentWidth: context.contentSize.width)
+      target.rect.size.width = context.containerSize.width
+    }
   }
 }
 
@@ -1335,5 +1462,14 @@ private struct PaperBackgroundSheet: View {
         }.buttonStyle(.borderedProminent)
       }
     }.padding(28).frame(minWidth: 340, idealWidth: 440).preferredColorScheme(.light)
+  }
+}
+
+@MainActor private final class NotebookZoomMemory {
+  // Zoom gestures update this without rebuilding their SwiftUI hosting view mid-gesture.
+  private var scales: [UUID: Double] = [:]
+  subscript(id: UUID) -> Double? {
+    get { scales[id] }
+    set { scales[id] = newValue }
   }
 }

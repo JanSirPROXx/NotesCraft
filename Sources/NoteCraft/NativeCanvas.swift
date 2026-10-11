@@ -325,6 +325,7 @@ import SwiftUI
       boardPan.isEnabled = board && !pencilActive
       boardPinch.isEnabled = board && !pencilActive
       var ancestor = superview
+      var paperIsZooming = false
       while let view = ancestor {
         if let scroll = view as? UIScrollView {
           // Scroll recognizers must never consume Pencil events or cancel an active Pencil stroke.
@@ -335,7 +336,10 @@ import SwiftUI
           scroll.panGestureRecognizer.minimumNumberOfTouches =
             configuration?.tool == .readOnly || configuration?.pencilOnly == true || pencilSeen
             ? 1 : 2
-          scroll.panGestureRecognizer.isEnabled = !pencilActive
+          if let paper = scroll as? NotebookZoomScrollView { paperIsZooming = paper.isZooming }
+          scroll.panGestureRecognizer.isEnabled =
+            !pencilActive
+            && (scroll is NotebookZoomScrollView || !paperIsZooming)
           if let paper = scroll as? NotebookZoomScrollView {
             paper.pinchGestureRecognizer?.isEnabled = paper.allowsZoom && !pencilActive
           }
@@ -712,10 +716,11 @@ extension DrawingView {
     let viewportSize: CGSize
     let pencilOnly: Bool
     let zoomEnabled: Bool
-    let onActivity: () -> Void
+    var initialZoom: Double = 1
+    var onZoomChange: (Double) -> Void = { _ in }
     @ViewBuilder var content: () -> Content
 
-    func makeCoordinator() -> Coordinator { Coordinator(onActivity: onActivity) }
+    func makeCoordinator() -> Coordinator { Coordinator() }
     func makeUIViewController(context: Context) -> UIViewController {
       let controller = UIViewController()
       let scroll = context.coordinator.scroll
@@ -741,7 +746,9 @@ extension DrawingView {
     }
     func updateUIViewController(_ controller: UIViewController, context: Context) {
       let coordinator = context.coordinator
-      coordinator.onActivity = onActivity
+      coordinator.onZoomChange = onZoomChange
+      coordinator.updating = true
+      defer { coordinator.updating = false }
       coordinator.host?.rootView = content()
       let scroll = coordinator.scroll
       scroll.allowsZoom = zoomEnabled
@@ -751,12 +758,15 @@ extension DrawingView {
       ]
       scroll.panGestureRecognizer.minimumNumberOfTouches = pencilOnly ? 1 : 2
       if coordinator.paperSize != contentSize || coordinator.viewportSize != viewportSize {
+        let scale = coordinator.paperSize == .zero ? initialZoom : Double(scroll.zoomScale)
         scroll.setZoomScale(1, animated: false)
         coordinator.paperSize = contentSize
         coordinator.viewportSize = viewportSize
         coordinator.host?.view.frame = CGRect(origin: .zero, size: contentSize)
         scroll.contentSize = contentSize
         coordinator.centerPaper()
+        scroll.setZoomScale(min(6, max(1, scale)), animated: false)
+        scroll.contentOffset = .zero
       }
     }
     @MainActor final class Coordinator: NSObject, UIScrollViewDelegate {
@@ -764,19 +774,38 @@ extension DrawingView {
       var host: UIHostingController<Content>?
       var paperSize = CGSize.zero
       var viewportSize = CGSize.zero
-      var onActivity: () -> Void
-      init(onActivity: @escaping () -> Void) { self.onActivity = onActivity }
+      var onZoomChange: (Double) -> Void = { _ in }
+      var updating = false
+      weak var pagingScroll: UIScrollView?
+      var pagingPanEnabled = true
       func viewForZooming(in scrollView: UIScrollView) -> UIView? { host?.view }
+      func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
+        guard !updating else { return }
+        var ancestor = scrollView.superview
+        while let view = ancestor {
+          if let outer = view as? UIScrollView {
+            pagingScroll = outer
+            pagingPanEnabled = outer.panGestureRecognizer.isEnabled
+            outer.panGestureRecognizer.isEnabled = false
+            break
+          }
+          ancestor = view.superview
+        }
+      }
       func scrollViewDidZoom(_ scrollView: UIScrollView) {
         centerPaper()
-        onActivity()
+        if !updating { onZoomChange(Double(scrollView.zoomScale)) }
       }
       func scrollViewDidEndZooming(
         _ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat
       ) {
+        if !updating {
+          pagingScroll?.panGestureRecognizer.isEnabled = pagingPanEnabled
+          pagingScroll = nil
+        }
         func refresh(_ view: UIView) {
           if let canvas = view as? DrawingView {
-            canvas.contentScaleFactor = UIScreen.main.scale * min(4, scale)
+            canvas.contentScaleFactor = UIScreen.main.scale * min(4, scrollView.zoomScale)
             canvas.cachedPage = nil
             canvas.setNeedsDisplay()
           }
