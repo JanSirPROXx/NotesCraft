@@ -589,7 +589,9 @@ extension DrawingView {
         background.images.removeAll { configuration.selection.contains($0.id) }
         background.texts.removeAll { configuration.selection.contains($0.id) }
       }
-      PageRenderer.render(background, assets: configuration.assets, in: context)
+      PageRenderer.render(
+        background, assets: configuration.assets, in: context,
+        paperBounds: configuration.viewport == nil ? nil : cacheRect)
       cachedPage = layer
       cachedResolution = resolution
       cachedViewport = configuration.viewport

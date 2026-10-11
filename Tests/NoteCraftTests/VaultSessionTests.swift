@@ -195,7 +195,7 @@ import Testing
   #expect(vault.active?.title == "Class notes")
   #expect(!vault.showLibrary)
   await vault.library()
-  await vault.create(title: "Ideas", paper: Paper(pattern: .blank), whiteboard: true)
+  await vault.create(title: "Ideas", paper: Paper(pattern: .fineGraph), whiteboard: true)
   let board = try #require(vault.active)
   #expect(board.document.package.notebook.kind == .whiteboard)
   board.document.package.notebook.viewport = ViewTransform(scale: 0.8, offset: Point(-2000, 500))
@@ -205,6 +205,7 @@ import Testing
   board.saveTask?.cancel()
   let stored = try await PackageStore().read(from: board.url)
   #expect(stored.notebook.viewport == board.document.package.notebook.viewport)
+  #expect(stored.notebook.pages[0].paper.pattern == .fineGraph)
 }
 
 @MainActor @Test func elementCollectionPersistsAndPreservesUnreadableFiles() throws {

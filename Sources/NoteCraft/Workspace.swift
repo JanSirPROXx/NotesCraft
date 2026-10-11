@@ -59,6 +59,7 @@ struct Workspace: View {
   @State private var navigator = false
   @State private var pdfForms = false
   @State private var templateSheet = false
+  @State private var paperSheet = false
   @State private var importer = false
   @State private var importing = false
   @State private var photoLibrary = false
@@ -214,9 +215,25 @@ struct Workspace: View {
     .onChange(of: notebook.pages.count) { showPageIndicator() }
     .onDisappear { pageHUDTask?.cancel() }
     .sheet(isPresented: $templateSheet) {
-      TemplatePicker { paper in
+      TemplatePicker(initialPaper: page.paper) { paper in
         edit { $0.notebook.pages.append(Page(paper: paper)) }
         activePage = notebook.pages.count - 1
+      }
+    }
+    .sheet(isPresented: $paperSheet) {
+      PaperBackgroundSheet(
+        initialPattern: page.paper.pattern, whiteboard: notebook.kind == .whiteboard
+      ) { pattern, allPages in
+        let currentID = page.id
+        edit { package in
+          for index in package.notebook.pages.indices {
+            if package.notebook.pages[index].backgroundPDF == nil,
+              allPages || package.notebook.pages[index].id == currentID
+            {
+              package.notebook.pages[index].paper.pattern = pattern
+            }
+          }
+        }
       }
     }
     .sheet(isPresented: $navigator) {
@@ -356,6 +373,8 @@ struct Workspace: View {
           Button("Scan documents", systemImage: "doc.viewfinder") { scanner = true }.disabled(
             !VNDocumentCameraViewController.isSupported)
         #endif
+        Button("Paper background", systemImage: "square.grid.3x3") { paperSheet = true }
+          .disabled(page.backgroundPDF != nil)
         Button("Add page", systemImage: "plus") { templateSheet = true }
         Button("Paste ink", systemImage: "doc.on.clipboard") { paste() }.disabled(
           clipboard.isEmpty && clipboardImages.isEmpty && clipboardTexts.isEmpty)
@@ -1224,6 +1243,12 @@ struct TemplatePicker: View {
   @State private var size: PaperSize = .a4
   @State private var landscape = false
   let onCreate: (Paper) -> Void
+  init(initialPaper: Paper = Paper(), onCreate: @escaping (Paper) -> Void) {
+    _pattern = State(initialValue: initialPaper.pattern)
+    _size = State(initialValue: initialPaper.size)
+    _landscape = State(initialValue: initialPaper.landscape)
+    self.onCreate = onCreate
+  }
   var body: some View {
     VStack(alignment: .leading, spacing: 22) {
       HStack {
@@ -1235,25 +1260,7 @@ struct TemplatePicker: View {
         ForEach(PaperSize.allCases, id: \.self) { Text($0.rawValue).tag($0) }
       }.pickerStyle(.segmented)
       Toggle("Landscape", isOn: $landscape)
-      HStack(spacing: 12) {
-        ForEach(PaperPattern.allCases, id: \.self) { p in
-          Button {
-            pattern = p
-          } label: {
-            VStack {
-              Canvas { context, s in
-                context.withCGContext { c in
-                  c.scaleBy(x: s.width / 595, y: s.width / 595)
-                  PageRenderer.paper(Paper(pattern: p), in: c)
-                }
-              }.frame(width: 68, height: 96).background(.white).overlay(
-                Rectangle().stroke(
-                  pattern == p ? Color.blue : .gray.opacity(0.25), lineWidth: pattern == p ? 2 : 1))
-              Text(p.rawValue.capitalized).font(.caption)
-            }
-          }.buttonStyle(.plain)
-        }
-      }
+      PaperPatternPicker(pattern: $pattern)
       Button("Add page") {
         onCreate(Paper(size: size, pattern: pattern, landscape: landscape))
         dismiss()
@@ -1266,5 +1273,67 @@ private struct NotebookPageBehavior: ScrollTargetBehavior {
   let horizontal: Bool
   func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
     if horizontal { PagingScrollTargetBehavior().updateTarget(&target, context: context) }
+  }
+}
+
+struct PaperPatternPicker: View {
+  @Binding var pattern: PaperPattern
+  var whiteboard = false
+  var body: some View {
+    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 14) {
+      ForEach(PaperPattern.allCases.filter { !whiteboard || $0 != .planner }, id: \.self) {
+        option in
+        Button {
+          pattern = option
+        } label: {
+          VStack(spacing: 6) {
+            Canvas { context, size in
+              context.withCGContext { c in
+                c.scaleBy(x: size.width / 200, y: size.width / 200)
+                PageRenderer.paper(
+                  Paper(pattern: option), in: c,
+                  bounds: option == .planner ? nil : CGRect(x: 0, y: 0, width: 200, height: 140))
+              }
+            }.frame(height: 68).background(.white).clipShape(RoundedRectangle(cornerRadius: 6))
+              .overlay(
+                RoundedRectangle(cornerRadius: 6).stroke(
+                  pattern == option ? Color.blue : Color.gray.opacity(0.35),
+                  lineWidth: pattern == option ? 2 : 1))
+            Text(option.title).font(.caption).foregroundStyle(.primary)
+          }
+        }.buttonStyle(.plain).accessibilityLabel(option.title)
+          .accessibilityAddTraits(pattern == option ? .isSelected : [])
+      }
+    }
+  }
+}
+
+private struct PaperBackgroundSheet: View {
+  @Environment(\.dismiss) private var dismiss
+  @State private var pattern: PaperPattern
+  @State private var allPages = false
+  let whiteboard: Bool
+  let onApply: (PaperPattern, Bool) -> Void
+  init(
+    initialPattern: PaperPattern, whiteboard: Bool, onApply: @escaping (PaperPattern, Bool) -> Void
+  ) {
+    _pattern = State(initialValue: initialPattern)
+    self.whiteboard = whiteboard
+    self.onApply = onApply
+  }
+  var body: some View {
+    VStack(alignment: .leading, spacing: 22) {
+      Text("Paper background").font(.title2.bold())
+      PaperPatternPicker(pattern: $pattern, whiteboard: whiteboard)
+      if !whiteboard { Toggle("Apply to all non-PDF pages", isOn: $allPages) }
+      HStack {
+        Button("Cancel") { dismiss() }
+        Spacer()
+        Button("Apply") {
+          onApply(pattern, allPages)
+          dismiss()
+        }.buttonStyle(.borderedProminent)
+      }
+    }.padding(28).frame(minWidth: 340, idealWidth: 440).preferredColorScheme(.light)
   }
 }

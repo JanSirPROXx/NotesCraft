@@ -24,7 +24,7 @@ import SwiftUI
   }
   static func render(
     _ page: Page, assets: [String: Data], in c: CGContext, includePDFAnnotations: Bool = true,
-    includeBackground: Bool = true
+    includeBackground: Bool = true, paperBounds: CGRect? = nil
   ) {
     if includeBackground {
       let size = page.dimensions
@@ -48,7 +48,7 @@ import SwiftUI
         }
         c.restoreGState()
       } else {
-        paper(page.paper, in: c)
+        paper(page.paper, in: c, bounds: paperBounds)
       }
     }
     for image in page.images {
@@ -116,12 +116,47 @@ import SwiftUI
     }
   }
 
-  static func paper(_ paper: Paper, in c: CGContext) {
+  static func paper(_ paper: Paper, in c: CGContext, bounds: CGRect? = nil) {
     let size = paper.dimensions
     c.setStrokeColor(CGColor(red: 0.79, green: 0.83, blue: 0.88, alpha: 0.65))
     c.setLineWidth(0.5)
+    if paper.pattern == .graph || paper.pattern == .fineGraph
+      || (bounds != nil && paper.pattern != .planner)
+    {
+      let area = bounds ?? CGRect(x: 24, y: 28, width: size.x - 48, height: size.y - 48)
+      c.saveGState()
+      c.clip(to: area)
+      defer { c.restoreGState() }
+      let spacing: Double =
+        paper.pattern == .fineGraph
+        ? 72 / 25.4 * 2.5
+        : paper.pattern == .graph ? 72 / 25.4 * 5 : paper.pattern == .dotted ? 20 : 24
+      let startX = floor(area.minX / spacing) * spacing
+      let startY = floor(area.minY / spacing) * spacing
+      if paper.pattern == .dotted {
+        c.setFillColor(CGColor(gray: 0.7, alpha: 0.65))
+        for y in stride(from: startY, through: area.maxY, by: spacing) {
+          for x in stride(from: startX, through: area.maxX, by: spacing) {
+            c.fillEllipse(in: CGRect(x: x, y: y, width: 1.5, height: 1.5))
+          }
+        }
+      } else if paper.pattern != .blank {
+        for y in stride(from: startY, through: area.maxY, by: spacing) {
+          c.move(to: CGPoint(x: area.minX, y: y))
+          c.addLine(to: CGPoint(x: area.maxX, y: y))
+        }
+        if paper.pattern != .ruled {
+          for x in stride(from: startX, through: area.maxX, by: spacing) {
+            c.move(to: CGPoint(x: x, y: area.minY))
+            c.addLine(to: CGPoint(x: x, y: area.maxY))
+          }
+        }
+        c.strokePath()
+      }
+      return
+    }
     switch paper.pattern {
-    case .blank: break
+    case .blank, .graph, .fineGraph: break
     case .ruled, .squared:
       for y in stride(from: 52.0, to: size.y - 20, by: 24) {
         c.move(to: CGPoint(x: 24, y: y))
@@ -214,7 +249,10 @@ import SwiftUI
       c.translateBy(x: 0, y: size.y)
       c.scaleBy(x: 1, y: -1)
       c.translateBy(x: -area.x, y: -area.y)
-      render(page, assets: package.assets, in: c, includePDFAnnotations: includePDFAnnotations)
+      render(
+        page, assets: package.assets, in: c, includePDFAnnotations: includePDFAnnotations,
+        paperBounds: package.notebook.kind == .whiteboard
+          ? CGRect(x: area.x, y: area.y, width: area.width, height: area.height) : nil)
       c.restoreGState()
       c.endPDFPage()
     }
@@ -239,7 +277,7 @@ import SwiftUI
     let scale = 240 / max(area.width, area.height)
     return try bitmap(
       page, assets: package.assets, bounds: area, width: max(1, Int(area.width * scale)),
-      height: max(1, Int(area.height * scale)))
+      height: max(1, Int(area.height * scale)), infinitePaper: package.notebook.kind == .whiteboard)
   }
   static func screenshot(_ page: Page, assets: [String: Data], bounds: Rect) throws -> Data {
     let width = min(4096, max(1, Int(bounds.width * 2)))
@@ -247,7 +285,8 @@ import SwiftUI
     return try bitmap(page, assets: assets, bounds: bounds, width: width, height: height)
   }
   private static func bitmap(
-    _ page: Page, assets: [String: Data], bounds: Rect, width: Int, height: Int
+    _ page: Page, assets: [String: Data], bounds: Rect, width: Int, height: Int,
+    infinitePaper: Bool = false
   ) throws -> Data {
     guard
       let c = CGContext(
@@ -260,7 +299,10 @@ import SwiftUI
     c.translateBy(x: 0, y: Double(height))
     c.scaleBy(x: Double(width) / bounds.width, y: -Double(height) / bounds.height)
     c.translateBy(x: -bounds.x, y: -bounds.y)
-    render(page, assets: assets, in: c)
+    render(
+      page, assets: assets, in: c,
+      paperBounds: infinitePaper
+        ? CGRect(x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height) : nil)
     let data = NSMutableData()
     guard let image = c.makeImage(),
       let destination = CGImageDestinationCreateWithData(data, "public.png" as CFString, 1, nil)

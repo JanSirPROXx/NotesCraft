@@ -39,6 +39,8 @@ final class VaultUITests: XCTestCase {
     XCTAssertTrue(app.buttons["Notebook"].waitForExistence(timeout: 10))
     app.buttons["Notebook"].tap()
     XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.buttons["Grid · 5 mm"].exists)
+    app.buttons["Grid · 5 mm"].tap()
     XCTAssertTrue(app.buttons["Create"].isEnabled)
     app.buttons["Create"].tap()
     XCUIDevice.shared.orientation = .landscapeLeft
@@ -56,6 +58,12 @@ final class VaultUITests: XCTestCase {
     canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.25)).press(
       forDuration: 0.05,
       thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.35)))
+    XCTAssertEqual(canvas.value as? String, "1 strokes")
+    app.buttons["More"].tap()
+    app.buttons["Paper background"].tap()
+    XCTAssertTrue(app.buttons["Grid · 2.5 mm"].waitForExistence(timeout: 5))
+    app.buttons["Grid · 2.5 mm"].tap()
+    app.buttons["Apply"].tap()
     XCTAssertEqual(canvas.value as? String, "1 strokes")
     capture(app, name: "Notebook after finger drawing")
     app.buttons["Documents"].tap()

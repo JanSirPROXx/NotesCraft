@@ -57,7 +57,18 @@ public enum EraserMode: String, Codable, CaseIterable, Sendable {
   case precision, stroke, entireStroke
 }
 public enum PaperPattern: String, Codable, CaseIterable, Sendable {
-  case blank, ruled, dotted, squared, planner
+  case blank, ruled, dotted, squared, planner, graph, fineGraph
+  public var title: String {
+    switch self {
+    case .blank: "Blank"
+    case .ruled: "Lined"
+    case .dotted: "Dotted"
+    case .squared: "Large squares"
+    case .planner: "Weekly planner"
+    case .graph: "Grid · 5 mm"
+    case .fineGraph: "Grid · 2.5 mm"
+    }
+  }
 }
 public enum PaperSize: String, Codable, CaseIterable, Sendable {
   case a4 = "A4"

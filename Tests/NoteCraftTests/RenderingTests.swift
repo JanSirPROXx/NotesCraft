@@ -381,3 +381,22 @@ import UniformTypeIdentifiers
   #expect(highlight.x >= 80 && highlight.y >= 90 && highlight.y < 160)
   #expect(DocumentSearch.find(package, query: "not present").isEmpty)
 }
+
+@MainActor @Test func whiteboardGridContinuesBeyondThePageAndAtNegativeCoordinates() throws {
+  for pattern in [PaperPattern.graph, .fineGraph, .squared, .dotted, .ruled] {
+    let c = try #require(
+      CGContext(
+        data: nil, width: 200, height: 200,
+        bitsPerComponent: 8, bytesPerRow: 800, space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    c.setFillColor(CGColor(gray: 1, alpha: 1))
+    c.fill(CGRect(x: 0, y: 0, width: 200, height: 200))
+    c.translateBy(x: 3000, y: -4000)
+    PageRenderer.render(
+      Page(paper: Paper(pattern: pattern)), assets: [:], in: c,
+      paperBounds: CGRect(x: -3000, y: 4000, width: 200, height: 200))
+    let pixels = try #require(c.data).assumingMemoryBound(to: UInt8.self)
+    let markedPixels = (0..<40000).filter { pixels[$0 * 4] < 250 }.count
+    #expect(markedPixels > 20, "Background must cover distant whiteboard regions: \(pattern)")
+  }
+}

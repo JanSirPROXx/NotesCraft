@@ -563,7 +563,7 @@ struct Library: View {
         case .markdown: await vault.createText(title: name)
         case .notebook: await vault.create(title: name, paper: paper)
         case .whiteboard:
-          await vault.create(title: name, paper: Paper(pattern: .blank), whiteboard: true)
+          await vault.create(title: name, paper: paper, whiteboard: true)
         }
       }
     }
@@ -646,6 +646,7 @@ private struct VaultCreationSheet: View {
   init(kind: Library.CreationKind, onCreate: @escaping (String, Paper) -> Void) {
     self.kind = kind
     self.onCreate = onCreate
+    _paper = State(initialValue: Paper(pattern: kind == .whiteboard ? .blank : .ruled))
     _title = State(
       initialValue: kind == .folder
         ? "New folder"
@@ -660,10 +661,10 @@ private struct VaultCreationSheet: View {
         Picker("Size", selection: $paper.size) {
           ForEach(PaperSize.allCases, id: \.self) { Text($0.rawValue).tag($0) }
         }.pickerStyle(.segmented)
-        Picker("Paper", selection: $paper.pattern) {
-          ForEach(PaperPattern.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
-        }
         Toggle("Landscape", isOn: $paper.landscape)
+      }
+      if kind == .notebook || kind == .whiteboard {
+        PaperPatternPicker(pattern: $paper.pattern, whiteboard: kind == .whiteboard)
       }
       if kind == .whiteboard {
         Text("An open canvas with two-finger pan and pinch zoom.").foregroundStyle(.secondary)

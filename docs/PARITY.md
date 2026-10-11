@@ -66,3 +66,5 @@ duplication, both paging directions, transient page indicators, notebook pinch z
 immediate image source selection, library rename/duplicate/trash/restore, page-number
 navigation, whiteboard drawing/zoom and last-storage/page restoration after app relaunch. Simulator input does
 not establish physical Pencil or palm behavior.
+
+- Notebooks and whiteboards offer blank, lined, dotted, large squares and 5 mm / 2.5 mm graph backgrounds; notebooks also offer weekly planner paper. Backgrounds can be changed on existing pages without changing ink, images or page dimensions, and applied across non-PDF pages. Whiteboard patterns continue across negative and distant canvas coordinates and PDF exports. New notebook pages inherit the current paper selection.
