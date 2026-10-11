@@ -203,7 +203,7 @@ import SwiftUI
     c.setLineCap(.round)
     c.setLineJoin(.round)
     if let fill = s.fillColor, s.samples.count > 2 {
-      c.setFillColor(color(fill, alpha: 0.2))
+      c.setFillColor(color(fill, alpha: s.fillOpacity ?? 0.2))
       c.addLines(between: s.samples.map { CGPoint(x: $0.point.x, y: $0.point.y) })
       c.closePath()
       c.fillPath()
@@ -223,6 +223,14 @@ import SwiftUI
     } else {
       c.setStrokeColor(color(s.color))
       c.setFillColor(color(s.color))
+      if s.tool == .shapes, s.samples.count > 1 {
+        // Geometric outlines are one path so joins and caps stay clean and the cost is one stroke.
+        c.setLineWidth(s.width)
+        c.addLines(between: s.samples.map { CGPoint(x: $0.point.x, y: $0.point.y) })
+        c.strokePath()
+        c.restoreGState()
+        return
+      }
       if s.tool == .pen, s.style == .fountain, s.samples.count > 1,
         !s.samples.allSatisfy({ $0.point == first.point })
       {

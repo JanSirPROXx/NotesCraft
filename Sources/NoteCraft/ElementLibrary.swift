@@ -57,60 +57,79 @@ import SwiftUI
 
 struct ElementPicker: View {
   @Bindable var library: ElementLibrary
-  let onSelect: (ElementClip?) -> Void
+  let onSelect: (StickerChoice) -> Void
   let onError: (String) -> Void
   @State private var renamed: ElementClip?
   @State private var title = ""
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      Text("Elements").font(.headline)
-      Text("Choose an element, then tap the page to insert it.").font(.caption).foregroundStyle(
-        .secondary)
+      Text("Stickers").font(.headline)
+      Text("Choose a sticker, then tap the page. You can move, resize, rotate and recolor it.")
+        .font(.caption).foregroundStyle(.secondary)
       if let error = library.loadError { Text(error).font(.caption).foregroundStyle(.red) }
       ScrollView {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 16) {
-          Button {
-            onSelect(nil)
-          } label: {
-            VStack(spacing: 8) {
-              Image(systemName: "star").font(.system(size: 40)).frame(height: 74)
-              Text("Star").font(.caption)
-            }.frame(maxWidth: .infinity)
-          }
-          ForEach(library.clips) { clip in
-            Button {
-              onSelect(clip)
-            } label: {
-              VStack(spacing: 8) {
-                Canvas { context, size in
-                  context.withCGContext { c in
-                    let dimensions = clip.content.dimensions
-                    let scale = min(
-                      (size.width - 12) / dimensions.x, (size.height - 12) / dimensions.y)
-                    c.translateBy(
-                      x: (size.width - dimensions.x * scale) / 2,
-                      y: (size.height - dimensions.y * scale) / 2)
-                    c.scaleBy(x: scale, y: scale)
-                    PageRenderer.render(clip.content, assets: clip.assets, in: c)
-                  }
-                }.frame(height: 74).background(.white, in: RoundedRectangle(cornerRadius: 6))
-                Text(clip.title).font(.caption).lineLimit(1)
-              }
-            }.contextMenu {
-              Button("Rename") {
-                renamed = clip
-                title = clip.title
-              }
-              Button("Delete", role: .destructive) {
-                do { try library.remove(clip.id) } catch { onError(error.localizedDescription) }
-              }
+        VStack(alignment: .leading, spacing: 14) {
+          LazyVGrid(columns: [GridItem(.adaptive(minimum: 64))], spacing: 10) {
+            ForEach(ShapeKind.stickers, id: \.self) { kind in
+              Button {
+                onSelect(.vector(kind))
+              } label: {
+                ShapeIcon(kind: kind).frame(height: 60)
+                  .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+                  .contentShape(Rectangle())
+              }.accessibilityLabel(kind.title)
             }
           }
+          Text("Emoji").font(.subheadline.bold())
+          LazyVGrid(columns: [GridItem(.adaptive(minimum: 48))], spacing: 6) {
+            ForEach(StickerCatalog.emoji, id: \.self) { symbol in
+              Button {
+                onSelect(.emoji(symbol))
+              } label: {
+                Text(symbol).font(.system(size: 30)).frame(width: 48, height: 48)
+                  .contentShape(Rectangle())
+              }.accessibilityLabel("Emoji \(symbol)")
+            }
+          }
+          if !library.clips.isEmpty {
+            Text("My elements").font(.subheadline.bold())
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 16) {
+              ForEach(library.clips) { clip in
+                Button {
+                  onSelect(.clip(clip.id))
+                } label: {
+                  VStack(spacing: 8) {
+                    Canvas { context, size in
+                      context.withCGContext { c in
+                        let dimensions = clip.content.dimensions
+                        let scale = min(
+                          (size.width - 12) / dimensions.x, (size.height - 12) / dimensions.y)
+                        c.translateBy(
+                          x: (size.width - dimensions.x * scale) / 2,
+                          y: (size.height - dimensions.y * scale) / 2)
+                        c.scaleBy(x: scale, y: scale)
+                        PageRenderer.render(clip.content, assets: clip.assets, in: c)
+                      }
+                    }.frame(height: 74).background(.white, in: RoundedRectangle(cornerRadius: 6))
+                    Text(clip.title).font(.caption).lineLimit(1)
+                  }
+                }.contextMenu {
+                  Button("Rename") {
+                    renamed = clip
+                    title = clip.title
+                  }
+                  Button("Delete", role: .destructive) {
+                    do { try library.remove(clip.id) } catch { onError(error.localizedDescription) }
+                  }
+                }
+              }
+            }
+          } else {
+            Text("Save a lasso selection (… menu) to build your own collection.").font(.caption)
+              .foregroundStyle(.secondary)
+          }
         }.padding(2)
-      }.frame(maxHeight: 280)
-      if library.clips.isEmpty {
-        Text("Save a lasso selection to build your collection.").font(.caption)
-      }
+      }.frame(maxHeight: 420)
     }.buttonStyle(.plain)
       .alert(
         "Rename element",

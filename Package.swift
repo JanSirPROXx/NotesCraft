@@ -11,7 +11,7 @@ let package = Package(
     .target(name: "NoteCraftCore"),
     .executableTarget(
       name: "NoteCraft", dependencies: ["NoteCraftCore"],
-      exclude: ["Assets.xcassets"]),
+      exclude: ["Assets.xcassets", "PrivacyInfo.xcprivacy"]),
     .testTarget(name: "NoteCraftCoreTests", dependencies: ["NoteCraftCore"]),
     .testTarget(name: "NoteCraftTests", dependencies: ["NoteCraft", "NoteCraftCore"]),
   ])

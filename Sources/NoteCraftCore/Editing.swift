@@ -182,37 +182,7 @@ public enum Editing {
       result.samples = points.map { Sample(point: $0) }
       return result
     }
-    guard let first = stroke.samples.first, let last = stroke.samples.last, stroke.samples.count > 2
-    else { return stroke }
-    var result = stroke
-    if first.point.distance(to: last.point) > 25 {
-      result.samples = [first, last]
-      return result
-    }
-    let b = stroke.bounds
-    let center = Point(b.x + b.width / 2, b.y + b.height / 2)
-    let corners = [
-      Point(b.x, b.y), Point(b.x + b.width, b.y), Point(b.x + b.width, b.y + b.height),
-      Point(b.x, b.y + b.height), Point(b.x, b.y),
-    ]
-    let cornerHits = corners.prefix(4).filter { c in
-      stroke.samples.contains { $0.point.distance(to: c) < max(b.width, b.height) * 0.15 }
-    }.count
-    let closed = stroke.samples.map(\.point) + [first.point]
-    let vertices = simplify(closed, tolerance: max(2, min(b.width, b.height) * 0.035))
-    if cornerHits < 3, (4...9).contains(vertices.count) {
-      result.samples = vertices.map { Sample(point: $0) }
-      return result
-    }
-    result.samples =
-      cornerHits >= 3
-      ? corners.map { Sample(point: $0) }
-      : (0...64).map { i in
-        let t = Double(i) / 64 * 2 * .pi
-        return Sample(
-          point: Point(center.x + b.width / 2 * cos(t), center.y + b.height / 2 * sin(t)))
-      }
-    return result
+    return InkGestures.recognizedShape(stroke) ?? stroke
   }
   private static func simplify(_ points: [Point], tolerance: Double) -> [Point] {
     guard points.count > 2, let first = points.first, let last = points.last else { return points }
@@ -233,47 +203,24 @@ public enum Editing {
 }
 
 public enum InkGestures {
+  // The exact shape for a stroke, or nil when it is not clearly one. Shapes with a ShapeKind keep
+  // their spec so they stay editable; other straight-sided figures become plain polylines.
+  public static func recognizedShape(_ stroke: Stroke) -> Stroke? {
+    guard let result = ShapeRecognizer.recognize(stroke.samples.map(\.point)) else { return nil }
+    var shaped = stroke
+    if stroke.tool != .highlighter { shaped.tool = .shapes }
+    switch result {
+    case .shape(let spec): shaped.reshape(spec)
+    case .polygon(let points, let closed):
+      shaped.shape = nil
+      shaped.samples = (closed ? points + [points[0]] : points).map { Sample(point: $0) }
+    }
+    return shaped
+  }
+
   public static func heldShape(_ stroke: Stroke) -> Stroke? {
-    guard stroke.samples.count >= 8, let first = stroke.samples.first,
-      let last = stroke.samples.last
-    else { return nil }
-    let b = stroke.bounds
-    let diagonal = hypot(b.width, b.height)
-    guard diagonal > 24 else { return nil }
-    let closed = first.point.distance(to: last.point) < diagonal * 0.25
-    if !closed {
-      let length = first.point.distance(to: last.point)
-      guard length > 24,
-        stroke.samples.allSatisfy({
-          Editing.distance($0.point, toSegmentFrom: first.point, to: last.point) < length * 0.12
-        })
-      else { return nil }
-      var result = stroke
-      result.samples = [first, last]
-      return result
-    }
-    let center = Point(b.x + b.width / 2, b.y + b.height / 2)
-    let rx = max(1, (b.width - stroke.width) / 2)
-    let ry = max(1, (b.height - stroke.width) / 2)
-    let error =
-      stroke.samples.reduce(0.0) {
-        $0 + abs(hypot(($1.point.x - center.x) / rx, ($1.point.y - center.y) / ry) - 1)
-      } / Double(stroke.samples.count)
-    if error < 0.16 {
-      var result = stroke
-      let circular = rx / ry > 0.8 && rx / ry < 1.25
-      let xRadius = circular ? (rx + ry) / 2 : rx
-      let yRadius = circular ? xRadius : ry
-      result.samples = (0...64).map { i in
-        let angle = Double(i % 64) / 64 * 2 * Double.pi
-        return Sample(
-          point: Point(center.x + xRadius * cos(angle), center.y + yRadius * sin(angle)))
-      }
-      return result
-    }
-    let result = Editing.shape(from: stroke)
-    guard (4...9).contains(result.samples.count) else { return nil }
-    return result
+    guard stroke.samples.count >= 8 else { return nil }
+    return recognizedShape(stroke)
   }
 
   public static func resizeHeldShape(_ stroke: Stroke, from start: Point, to end: Point) -> Stroke {
@@ -281,10 +228,23 @@ public enum InkGestures {
     guard let first = stroke.samples.first else { return result }
     if stroke.samples.count == 2 {
       result.samples[1].point = end
+      if var spec = stroke.shape, spec.kind == .line {
+        let a = first.point
+        spec.center = Point((a.x + end.x) / 2, (a.y + end.y) / 2)
+        spec.width = a.distance(to: end)
+        spec.rotation = atan2(end.y - a.y, end.x - a.x)
+        result.shape = spec
+      }
     } else {
       let b = stroke.bounds
       let center = Point(b.x + b.width / 2, b.y + b.height / 2)
       let factor = min(20, max(0.05, end.distance(to: center) / max(1, start.distance(to: center))))
+      if var spec = stroke.shape {
+        spec.width *= factor
+        spec.height *= factor
+        result.reshape(spec)
+        return result
+      }
       result.samples = stroke.samples.map {
         var sample = $0
         sample.point = Point(
@@ -485,6 +445,8 @@ public enum InkGestures {
         sample.point.y += delta.y
         return sample
       }
+      result.strokes[i].shape?.center.x += delta.x
+      result.strokes[i].shape?.center.y += delta.y
     }
     for i in result.images.indices where ids.contains(result.images[i].id) {
       result.images[i].frame.x += delta.x
@@ -519,16 +481,32 @@ public struct SelectionTransform: Equatable, Sendable {
   public var scale: Double
   public var angle: Double
   public var translation: Point
-  public init(center: Point, scale: Double = 1, angle: Double = 0, translation: Point = Point(0, 0))
-  {
+  // Extra scaling along the selected object's own axes (rotated by `axis`), used by the edge
+  // handles that stretch a shape, image or text box in one direction.
+  public var stretch: Point
+  public var axis: Double
+  public init(
+    center: Point, scale: Double = 1, angle: Double = 0, translation: Point = Point(0, 0),
+    stretch: Point = Point(1, 1), axis: Double = 0
+  ) {
     self.center = center
     self.scale = scale
     self.angle = angle
     self.translation = translation
+    self.stretch = stretch
+    self.axis = axis
   }
+  public var isStretched: Bool { stretch != Point(1, 1) }
   public func apply(_ point: Point) -> Point {
-    let x = (point.x - center.x) * scale
-    let y = (point.y - center.y) * scale
+    let dx = point.x - center.x
+    let dy = point.y - center.y
+    let ca = cos(axis)
+    let sa = sin(axis)
+    // Into the object's axes, stretch, and back out.
+    let lx = (dx * ca + dy * sa) * scale * stretch.x
+    let ly = (-dx * sa + dy * ca) * scale * stretch.y
+    let x = lx * ca - ly * sa
+    let y = lx * sa + ly * ca
     return Point(
       center.x + x * cos(angle) - y * sin(angle) + translation.x,
       center.y + x * sin(angle) + y * cos(angle) + translation.y)
@@ -552,10 +530,23 @@ extension InkGestures {
     -> Page
   {
     guard transform.scale.isFinite, transform.scale > 0, transform.angle.isFinite,
-      transform.translation.x.isFinite, transform.translation.y.isFinite
+      transform.translation.x.isFinite, transform.translation.y.isFinite,
+      transform.stretch.x.isFinite, transform.stretch.x > 0, transform.stretch.y.isFinite,
+      transform.stretch.y > 0
     else { return page }
     var result = page
+    let sx = transform.scale * transform.stretch.x
+    let sy = transform.scale * transform.stretch.y
     for i in result.strokes.indices where ids.contains(result.strokes[i].id) {
+      if var spec = result.strokes[i].shape {
+        // Shape objects are rebuilt from their spec so edges stay exact; line weight is kept.
+        spec.center = transform.apply(spec.center)
+        spec.width *= sx
+        spec.height *= sy
+        spec.rotation += transform.angle
+        result.strokes[i].reshape(spec)
+        continue
+      }
       result.strokes[i].samples = result.strokes[i].samples.map {
         var sample = $0
         sample.point = transform.apply(sample.point)
@@ -569,8 +560,8 @@ extension InkGestures {
         Point(
           original.frame.x + original.frame.width / 2,
           original.frame.y + original.frame.height / 2))
-      let width = original.frame.width * transform.scale
-      let height = original.frame.height * transform.scale
+      let width = original.frame.width * sx
+      let height = original.frame.height * sy
       result.images[i].frame = Rect(
         x: center.x - width / 2, y: center.y - height / 2,
         width: width, height: height)
@@ -581,12 +572,73 @@ extension InkGestures {
       let r = original.layoutBounds
       let center = transform.apply(Point(r.x + r.width / 2, r.y + r.height / 2))
       result.texts[i].size = min(1000, original.size * transform.scale)
-      result.texts[i].boxWidth = (original.boxWidth ?? 280) * transform.scale
+      result.texts[i].boxWidth = max(20, (original.boxWidth ?? 280) * sx)
       let size = result.texts[i].layoutBounds
       result.texts[i].origin = Point(center.x - size.width / 2, center.y - size.height / 2)
       result.texts[i].rotation = (original.rotation ?? 0) + transform.angle
     }
     return result
+  }
+
+  // The oriented frame of a single selected object, which gets edge handles that stretch it.
+  public struct ObjectFrame: Equatable, Sendable {
+    public var center: Point
+    public var width: Double
+    public var height: Double
+    public var rotation: Double
+    // Lines and text boxes only stretch along their own length.
+    public var stretchesVertically: Bool
+  }
+  public static func objectFrame(page: Page, ids: Set<UUID>) -> ObjectFrame? {
+    guard ids.count == 1, let id = ids.first else { return nil }
+    if let stroke = page.strokes.first(where: { $0.id == id }), let spec = stroke.shape {
+      return ObjectFrame(
+        center: spec.center, width: spec.width, height: spec.height, rotation: spec.rotation,
+        stretchesVertically: !spec.kind.isLinear)
+    }
+    if let image = page.images.first(where: { $0.id == id }) {
+      return ObjectFrame(
+        center: Point(image.frame.x + image.frame.width / 2, image.frame.y + image.frame.height / 2),
+        width: image.frame.width, height: image.frame.height, rotation: image.rotation,
+        stretchesVertically: true)
+    }
+    if let text = page.texts.first(where: { $0.id == id }) {
+      let r = text.layoutBounds
+      return ObjectFrame(
+        center: Point(r.x + r.width / 2, r.y + r.height / 2), width: r.width, height: r.height,
+        rotation: text.rotation ?? 0, stretchesVertically: false)
+    }
+    return nil
+  }
+
+  // Top-most object under a tap: text, then ink (outline or filled interior), then images.
+  public static func objectID(at point: Point, page: Page, tolerance: Double) -> UUID? {
+    if let text = page.texts.last(where: { $0.contains(point) }) { return text.id }
+    for stroke in page.strokes.reversed() {
+      let reach = stroke.width / 2 + tolerance
+      let box = stroke.bounds
+      guard
+        box.intersects(
+          Rect(x: point.x - reach, y: point.y - reach, width: reach * 2, height: reach * 2))
+      else { continue }
+      if stroke.samples.count == 1, let only = stroke.samples.first {
+        if only.point.distance(to: point) <= reach { return stroke.id }
+        continue
+      }
+      for i in 1..<stroke.samples.count
+      where Editing.distance(point, toSegmentFrom: stroke.samples[i - 1].point, to: stroke.samples[i].point)
+        <= reach
+      {
+        return stroke.id
+      }
+      if stroke.fillColor != nil, stroke.samples.count > 2,
+        Editing.contains(point, polygon: stroke.samples.map(\.point))
+      {
+        return stroke.id
+      }
+    }
+    if let image = page.images.last(where: { $0.contains(point) }) { return image.id }
+    return nil
   }
 }
 

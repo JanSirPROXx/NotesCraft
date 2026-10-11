@@ -44,11 +44,13 @@ struct Workspace: View {
   @AppStorage("highlighterWidth2") private var highlighterSecond = 16.0
   @AppStorage("highlighterWidth3") private var highlighterThird = 26.0
   @State private var elements = ElementLibrary.shared
-  @State private var selectedElementID: UUID?
+  @State private var sticker: StickerChoice?
   @State private var saveElementSheet = false
   @State private var elementName = "Element"
   @State private var fillShapes = false
-  @State private var shapePreset: ShapePreset = .automatic
+  // The shape the shapes tool inserts; nil keeps freehand drawing that snaps to exact shapes.
+  @State private var shapeKind: ShapeKind?
+  @State private var shapesPalette = false
   @State private var hexColor = "#1F2B3D"
   @AppStorage("penStyle") private var penStyle: PenStyle = .ballpoint
   @AppStorage("fountainSharpness") private var tipSharpness = 0.5
@@ -94,6 +96,7 @@ struct Workspace: View {
   @State private var errorMessage: String?
   @State private var selection: Set<UUID> = []
   @State private var selectionMenuPresented = false
+  @State private var selectionPalette = false
   private var undoStack: [NotebookPackage] {
     get { history.undo }
     nonmutating set { history.undo = newValue }
@@ -136,7 +139,8 @@ struct Workspace: View {
   @State private var zoom = 1.0
   @State private var zoomBase = 1.0
   @State private var customColor = Color.black
-  @State private var imageSelection: UUID?
+  @State private var inlineText: InlineText?
+  @State private var coalesce: (key: String, date: Date)?
   private var boardViewport: ViewTransform {
     get { notebook.viewport ?? ViewTransform(scale: 1, offset: Point(30, 30)) }
     nonmutating set {
@@ -262,7 +266,6 @@ struct Workspace: View {
       tabBar
       toolBar
       if searchVisible { searchBar }
-      if let imageSelection { imageControls(imageSelection) }
       HStack(spacing: 0) {
         if thumbnails { pageSidebar }
         GeometryReader { geometry in
@@ -319,7 +322,7 @@ struct Workspace: View {
     .onChange(of: notebook.pages.first?.id) {
       // The tab switched to another notebook; this view's state is reused across tabs.
       selection = []
-      imageSelection = nil
+      inlineText = nil
       refreshTrailingPage()
     }
     .onDisappear { pageHUDTask?.cancel() }
@@ -371,7 +374,7 @@ struct Workspace: View {
                 title: elementName, page: page, ids: selection,
                 assets: document.package.assets)
               try elements.add(clip)
-              selectedElementID = clip.id
+              sticker = .clip(clip.id)
               saveElementSheet = false
             } catch { errorMessage = error.localizedDescription }
           }.disabled(elementName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -419,7 +422,6 @@ struct Workspace: View {
     .onChange(of: activePage) {
       let ids = Set(page.strokes.map(\.id) + page.images.map(\.id) + page.texts.map(\.id))
       selection.formIntersection(ids)
-      if let imageSelection, !ids.contains(imageSelection) { self.imageSelection = nil }
     }
   }
   private var documentMenu: some View {
@@ -567,7 +569,7 @@ struct Workspace: View {
                 previousTool = tool
                 tool = item
                 selection = []
-                imageSelection = nil
+                commitInlineText()
                 if item == .elements || item == .image { settings = true }
               }
             } label: {
@@ -613,16 +615,29 @@ struct Workspace: View {
       if [.pen, .highlighter, .shapes].contains(tool) {
         Divider().frame(height: 24)
         if tool == .shapes {
-          ForEach(ShapePreset.allCases, id: \.self) { preset in
-            Button {
-              shapePreset = preset
-            } label: {
-              Image(systemName: preset.symbol).font(.system(size: 18)).hitTarget(width: 38)
-                .background(
-                  shapePreset == preset ? Color.white.opacity(0.2) : .clear,
-                  in: RoundedRectangle(cornerRadius: 7))
-            }.accessibilityLabel(preset.rawValue.capitalized + " shape")
+          Button {
+            shapesPalette.toggle()
+          } label: {
+            Group {
+              if let shapeKind {
+                ShapeIcon(kind: shapeKind)
+              } else {
+                Image(systemName: "scribble").font(.system(size: 18))
+              }
+            }.frame(width: 26, height: 26).hitTarget(width: 46)
+              .background(Color.white.opacity(0.2), in: RoundedRectangle(cornerRadius: 7))
           }
+          .accessibilityLabel("Shape: \(shapeKind?.title ?? "Freehand")")
+          .popover(isPresented: $shapesPalette) {
+            ShapePalette(selection: $shapeKind) { shapesPalette = false }
+              .presentationCompactAdaptation(.popover)
+          }
+          Button {
+            fillShapes.toggle()
+          } label: {
+            Image(systemName: fillShapes ? "square.fill" : "square").font(.system(size: 18))
+              .hitTarget(width: 38)
+          }.accessibilityLabel(fillShapes ? "Fill on" : "Fill off")
         }
         if tool == .pen {
           ForEach(PenStyle.allCases, id: \.self) { style in
@@ -726,12 +741,12 @@ struct Workspace: View {
         }
         Divider()
         Button("Cancel") { settings = false }
-      case .text: Text("Tap the page to add a text box.")
+      case .text: Text("Tap the page to type a text box.")
       case .elements:
         ElementPicker(
           library: elements,
-          onSelect: { clip in
-            selectedElementID = clip?.id
+          onSelect: { choice in
+            sticker = choice
             settings = false
           }, onError: { errorMessage = $0 })
       case .readOnly: Text("Drawing is locked. Use the scroll view to read your pages.")
@@ -802,6 +817,7 @@ struct Workspace: View {
     let w =
       boardHeight == nil
       ? max(120, min(availableWidth - 56, fittedWidth)) * zoom : availableWidth
+    let viewScale = boardHeight == nil ? w / p.dimensions.x : boardViewport.scale
     return VStack(spacing: 10) {
       NativeCanvas(
         configuration: CanvasConfiguration(
@@ -812,8 +828,17 @@ struct Workspace: View {
             activePage = index
             var s = stroke
             if tool == .shapes {
-              s = Editing.shape(from: s, preset: shapePreset)
-              s.fillColor = fillShapes ? color : nil
+              if let kind = shapeKind, let first = s.samples.first, let last = s.samples.last {
+                insertShape(kind, from: first.point, to: last.point)
+                return
+              }
+              // Freehand: exact shape when the stroke clearly is one, otherwise ordinary ink.
+              if let exact = InkGestures.recognizedShape(s) {
+                s = exact
+                s.fillColor = fillShapes && s.samples.count > 3 ? color : nil
+              } else {
+                s.tool = .pen
+              }
             }
             if tool == .highlighter && straightHighlight, let first = s.samples.first,
               let last = s.samples.last
@@ -842,6 +867,8 @@ struct Workspace: View {
                 }
               }
               if autoDeselect { tool = previousTool == .eraser ? .pen : previousTool }
+            } else if let tapped = points.first, tapExtent(points) < 10 / viewScale {
+              selectObject(at: tapped, on: p, viewScale: viewScale)
             } else {
               selection =
                 selectInk
@@ -864,32 +891,18 @@ struct Workspace: View {
             activePage = index
             insertPoint = point
             if tool == .readOnly { followLink(at: point, on: p) }
-            if tool == .text {
-              if let box = p.texts.last(where: { $0.contains(point) }) {
-                editingTextID = box.id
-                insertPoint = box.origin
-                text = box.text
-                textSize = box.size
-                textFont = box.fontName ?? "System"
-                textAlignment = box.alignment ?? "left"
-                textBorder = box.border ?? false
-                textBackground = box.background != nil
-                textWidth = box.boxWidth ?? 280
-              } else {
-                editingTextID = nil
-                text = ""
-              }
-              textSheet = true
-            }
+            if tool == .lasso { selectObject(at: point, on: p, viewScale: viewScale) }
+            if tool == .text { beginInlineText(at: point, on: p) }
             if tool == .image {
               if let image = p.images.last(where: { $0.contains(point) }) {
-                imageSelection = image.id
+                selection = [image.id]
               } else {
+                selection = []
                 importType = .image
                 importer = true
               }
             }
-            if tool == .elements { insertStar(point) }
+            if tool == .elements { insertSticker(point) }
           }, viewport: boardHeight == nil ? nil : boardViewport,
           onViewportChange: { boardViewport = $0 },
           onTranslateSelection: { delta in
@@ -929,77 +942,24 @@ struct Workspace: View {
           searchHighlights: searchVisible
             ? documentSearch.results.first(where: { $0.pageID == p.id })?.highlights ?? [] : [],
           tip: PenTip(sharpness: tipSharpness, pressure: tipPressure, flatness: tipFlatness),
-          stabilization: stabilization)
+          stabilization: stabilization, shapeKind: tool == .shapes ? shapeKind : nil)
       )
       .accessibilityElement()
       .accessibilityLabel("Drawing canvas")
       .accessibilityIdentifier("drawingCanvas")
       .accessibilityValue("\(p.strokes.count) strokes")
       .overlay(alignment: .topLeading) {
-        if index == activePage, let id = imageSelection,
-          let image = p.images.first(where: { $0.id == id }),
-          let data = document.package.assets[image.filename]
-        {
-          ImageHandles(
-            asset: image, data: data,
-            viewScale: boardHeight == nil ? w / p.dimensions.x : boardViewport.scale,
-            viewOffset: boardHeight == nil ? Point(0, 0) : boardViewport.offset
-          ) { changed in
-            edit { package in
-              if let i = package.notebook.pages[index].images.firstIndex(where: {
-                $0.id == changed.id
-              }) {
-                package.notebook.pages[index].images[i] = changed
-              }
-            }
-          }
-        }
+        selectionBar(p, index: index, pageWidth: w, boardHeight: boardHeight, scale: viewScale)
       }
       .overlay(alignment: .topLeading) {
-        if index == activePage, !selection.isEmpty,
-          let b = InkGestures.selectionBounds(page: p, ids: selection)
-        {
-          let scale = boardHeight == nil ? w / p.dimensions.x : boardViewport.scale
-          let offset = boardHeight == nil ? Point(0, 0) : boardViewport.offset
-          HStack(spacing: 18) {
-            Button {
-              copySelection()
-              deleteSelection()
-            } label: {
-              Image(systemName: "scissors")
-            }
-            .accessibilityLabel("Cut selection")
-            Button {
-              copySelection()
-            } label: {
-              Image(systemName: "doc.on.doc")
-            }
-            .accessibilityLabel("Copy selection")
-            Button {
-              deleteSelection()
-            } label: {
-              Image(systemName: "trash")
-            }
-            .foregroundStyle(.red).accessibilityLabel("Delete selection")
-            Button {
-              selectionMenuPresented.toggle()
-            } label: {
-              Image(systemName: "ellipsis.circle")
-            }
-            .accessibilityLabel("Selection actions")
-          }.font(.system(size: 18)).padding(.horizontal, 18).frame(height: 42)
-            .buttonStyle(.plain).foregroundStyle(.white)
-            .background(Color(red: 0.16, green: 0.17, blue: 0.18), in: Capsule())
-            .position(
-              x: min(w - 95, max(95, (b.x + b.width / 2) * scale + offset.x)),
-              y: min(
-                (boardHeight ?? w * p.dimensions.y / p.dimensions.x) - 26,
-                max(26, (b.y + b.height) * scale + offset.y + 30))
-            )
-            .popover(isPresented: $selectionMenuPresented) {
-              selectionActions.padding(16).frame(width: 240)
-                .foregroundStyle(.primary).preferredColorScheme(.dark)
-            }
+        if index == activePage, inlineText != nil {
+          InlineTextEditor(
+            draft: Binding(
+              get: { inlineText ?? InlineText(origin: Point(0, 0), size: 20, width: 220, color: .ink) },
+              set: { inlineText = $0 }),
+            scale: viewScale, offset: boardHeight == nil ? Point(0, 0) : boardViewport.offset,
+            pageHeight: p.dimensions.y, onDone: { commitInlineText() },
+            onDelete: { discardInlineText() }, onMore: { moreTextOptions() })
         }
       }
       .dropDestination(for: URL.self) { urls, location in
@@ -1049,53 +1009,173 @@ struct Workspace: View {
   }
   private func displayPage(_ page: Page, index: Int) -> Page {
     var result = page
-    if index == activePage, let id = imageSelection { result.images.removeAll { $0.id == id } }
+    if index == activePage, let id = inlineText?.id { result.texts.removeAll { $0.id == id } }
     return result
   }
-  private var selectionActions: some View {
-    VStack(alignment: .leading, spacing: 14) {
-      Text("\(selection.count) selected").font(.caption)
-      Button("Cut") {
-        copySelection()
-        deleteSelection()
-      }
-      Button("Copy") { copySelection() }
-      Button("Paste") { paste() }.disabled(
-        clipboard.isEmpty && clipboardImages.isEmpty && clipboardTexts.isEmpty)
-      Button("Delete", role: .destructive) { deleteSelection() }
-      Button("Change color") {
-        edit { p in
+  private func menuRow(
+    _ title: String, _ symbol: String, role: ButtonRole? = nil, disabled: Bool = false,
+    action: @escaping () -> Void
+  ) -> some View {
+    Button(role: role) {
+      action()
+    } label: {
+      Label(title, systemImage: symbol).frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+        .contentShape(Rectangle())
+    }.buttonStyle(.plain).disabled(disabled).opacity(disabled ? 0.4 : 1)
+  }
+  private var selectedStrokes: [Stroke] { page.strokes.filter { selection.contains($0.id) } }
+  private var selectionColor: InkColor {
+    if let stroke = selectedStrokes.first {
+      return stroke.fillOpacity == 1 ? (stroke.fillColor ?? stroke.color) : stroke.color
+    }
+    return page.texts.first { selection.contains($0.id) }?.color ?? color
+  }
+  private var selectionColorBinding: Binding<InkColor> {
+    Binding(get: { selectionColor }, set: { recolorSelection($0) })
+  }
+  private var selectionWidthBinding: Binding<Double> {
+    Binding(
+      get: { selectedStrokes.first?.width ?? penWidth },
+      set: { value in
+        edit(coalescing: "selectionWidth") { p in
           for i in p.notebook.pages[activePage].strokes.indices
           where selection.contains(p.notebook.pages[activePage].strokes[i].id) {
-            p.notebook.pages[activePage].strokes[i].color = color
-          }
-          for i in p.notebook.pages[activePage].texts.indices
-          where selection.contains(p.notebook.pages[activePage].texts[i].id) {
-            p.notebook.pages[activePage].texts[i].color = color
+            p.notebook.pages[activePage].strokes[i].width = value
           }
         }
+      })
+  }
+  private var selectionFill: Int {
+    guard let stroke = selectedStrokes.first(where: { $0.shape?.kind.isClosed == true }) else {
+      return 0
+    }
+    return stroke.fillColor == nil ? 0 : stroke.fillOpacity == 1 ? 2 : 1
+  }
+  private var selectionActions: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 2) {
+        Text("\(selection.count) selected").font(.caption).foregroundStyle(.secondary)
+          .padding(.bottom, 4)
+        if selectedStrokes.contains(where: { $0.shape != nil }) {
+          PointSlider(title: "Line width", value: selectionWidthBinding, range: 0.5...20)
+            .padding(.vertical, 4)
+          if selectedStrokes.contains(where: { $0.shape?.kind.isClosed == true }) {
+            Picker(
+              "Fill",
+              selection: Binding(get: { selectionFill }, set: { setSelectionFill($0) })
+            ) {
+              Text("No fill").tag(0)
+              Text("Light").tag(1)
+              Text("Solid").tag(2)
+            }.pickerStyle(.segmented).padding(.vertical, 4)
+          }
+          Divider().padding(.vertical, 4)
+        }
+        menuRow("Cut", "scissors") {
+          copySelection()
+          deleteSelection()
+          selectionMenuPresented = false
+        }
+        menuRow("Copy", "doc.on.doc") { copySelection() }
+        menuRow(
+          "Paste", "doc.on.clipboard",
+          disabled: clipboard.isEmpty && clipboardImages.isEmpty && clipboardTexts.isEmpty
+        ) {
+          paste()
+          selectionMenuPresented = false
+        }
+        menuRow("Duplicate", "plus.square.on.square") {
+          copySelection()
+          paste()
+          selectionMenuPresented = false
+        }
+        Divider().padding(.vertical, 4)
+        menuRow("Bring to front", "square.3.layers.3d.top.filled") { reorderSelection(toFront: true) }
+        menuRow("Send to back", "square.3.layers.3d.bottom.filled") {
+          reorderSelection(toFront: false)
+        }
+        Divider().padding(.vertical, 4)
+        menuRow("Save as element", "star.square") {
+          elementName = "Element \(elements.clips.count + 1)"
+          selectionMenuPresented = false
+          saveElementSheet = true
+        }
+        menuRow("Screenshot", "camera.viewfinder") {
+          do {
+            exportData = try PageRenderer.screenshot(
+              page, assets: document.package.assets, bounds: selectionBounds())
+            exportType = .png
+            exporter = true
+          } catch { errorMessage = error.localizedDescription }
+        }
+        menuRow("Deselect", "xmark.circle") {
+          selection = []
+          selectionMenuPresented = false
+        }
+        menuRow("Delete", "trash", role: .destructive) {
+          deleteSelection()
+          selectionMenuPresented = false
+        }
       }
-      Text("Drag a corner to resize, or the top handle to rotate.").font(.caption).foregroundStyle(
-        .secondary)
-      Button("Save element") {
-        elementName = "Element \(elements.clips.count + 1)"
-        selectionMenuPresented = false
-        saveElementSheet = true
+    }
+    .padding(14).frame(width: 270).frame(maxHeight: 520)
+    .foregroundStyle(.primary).preferredColorScheme(.dark)
+    .onChange(of: selection) { if selection.isEmpty { selectionMenuPresented = false } }
+  }
+  @ViewBuilder private func selectionBar(
+    _ p: Page, index: Int, pageWidth w: Double, boardHeight: Double?, scale: Double
+  ) -> some View {
+    if index == activePage, !selection.isEmpty,
+      let b = InkGestures.selectionBounds(page: p, ids: selection)
+    {
+      let offset = boardHeight == nil ? Point(0, 0) : boardViewport.offset
+      let height = boardHeight ?? w * p.dimensions.y / p.dimensions.x
+      HStack(spacing: 0) {
+        Button {
+          copySelection()
+          deleteSelection()
+        } label: {
+          Image(systemName: "scissors").hitTarget(width: 44, height: 44)
+        }.accessibilityLabel("Cut selection")
+        Button {
+          copySelection()
+        } label: {
+          Image(systemName: "doc.on.doc").hitTarget(width: 44, height: 44)
+        }.accessibilityLabel("Copy selection")
+        Button {
+          selectionPalette.toggle()
+        } label: {
+          Circle().fill(selectionColor.swiftUI).frame(width: 22, height: 22)
+            .overlay(Circle().stroke(Color.white.opacity(0.7), lineWidth: 1.5))
+            .hitTarget(width: 44, height: 44)
+        }
+        .accessibilityLabel("Change color")
+        .popover(isPresented: $selectionPalette) {
+          ColorPalette(color: selectionColorBinding).presentationCompactAdaptation(.popover)
+        }
+        Button {
+          deleteSelection()
+        } label: {
+          Image(systemName: "trash").hitTarget(width: 44, height: 44)
+        }.foregroundStyle(.red).accessibilityLabel("Delete selection")
+        Button {
+          selectionMenuPresented.toggle()
+        } label: {
+          Image(systemName: "ellipsis.circle").hitTarget(width: 44, height: 44)
+        }
+        .accessibilityLabel("Selection actions")
+        .popover(isPresented: $selectionMenuPresented) {
+          selectionActions.presentationCompactAdaptation(.popover)
+        }
       }
-      Button("Screenshot") {
-        do {
-          exportData = try PageRenderer.screenshot(
-            page, assets: document.package.assets, bounds: selectionBounds())
-          exportType = .png
-          exporter = true
-        } catch { errorMessage = error.localizedDescription }
-      }
-      Button("Deselect") {
-        selection = []
-        selectionMenuPresented = false
-      }
-    }.buttonStyle(.plain)
-      .onChange(of: selection) { if selection.isEmpty { selectionMenuPresented = false } }
+      .font(.system(size: 18)).padding(.horizontal, 6)
+      .buttonStyle(.plain).foregroundStyle(.white)
+      .background(Color(red: 0.16, green: 0.17, blue: 0.18), in: Capsule())
+      .fixedSize()
+      .position(
+        x: min(w - 150, max(150, (b.x + b.width / 2) * scale + offset.x)),
+        y: min(height - 30, max(30, (b.y + b.height) * scale + offset.y + 56)))
+    }
   }
   private var searchBar: some View {
     VStack(alignment: .leading, spacing: 10) {
@@ -1163,7 +1243,7 @@ struct Workspace: View {
       ZoomableNotebookPage(
         contentSize: CGSize(width: width, height: height),
         viewportSize: CGSize(width: size.width, height: vertical ? height : size.height),
-        pencilOnly: pencilOnly || tool == .readOnly, zoomEnabled: imageSelection == nil && !infinite,
+        pencilOnly: pencilOnly || tool == .readOnly, zoomEnabled: !infinite,
         initialZoom: pageZoom[p.id] ?? 1,
         onZoomChange: {
           pageZoom[p.id] = $0
@@ -1244,28 +1324,24 @@ struct Workspace: View {
       }
     }.padding(28).frame(width: 440)
   }
-  private func imageControls(_ id: UUID) -> some View {
-    HStack {
-      Text("Drag to move · Drag the corner to resize · Pinch or rotate with two fingers")
-        .font(.caption).foregroundStyle(.secondary)
-      Spacer()
-      Button("Delete", role: .destructive) {
-        edit { $0.notebook.pages[activePage].images.removeAll { $0.id == id } }
-        imageSelection = nil
-      }
-      Spacer()
-      Button("Done") { imageSelection = nil }
-    }.padding(12).buttonStyle(.borderless)
-  }
-  private func edit(_ mutation: (inout NotebookPackage) -> Void) {
-    undoStack.append(document.package)
-    if undoStack.count > 60 { undoStack.removeFirst() }
+  // Edits that share a `coalescing` key within two seconds (dragging through colors, say) form a
+  // single undo step instead of filling the history.
+  private func edit(coalescing key: String? = nil, _ mutation: (inout NotebookPackage) -> Void) {
+    let now = Date()
+    if let key, let last = coalesce, last.key == key, now.timeIntervalSince(last.date) < 2 {
+      coalesce = (key, now)
+    } else {
+      undoStack.append(document.package)
+      if undoStack.count > 60 { undoStack.removeFirst() }
+      coalesce = key.map { ($0, now) }
+    }
     redoStack = []
     mutation(&document.package)
     document.package.notebook.revision += 1
   }
   private func undo() {
     guard let old = undoStack.popLast() else { return }
+    coalesce = nil
     redoStack.append(document.package)
     var restored = old
     restored.notebook.revision = document.package.notebook.revision + 1
@@ -1275,6 +1351,7 @@ struct Workspace: View {
   }
   private func redo() {
     guard let next = redoStack.popLast() else { return }
+    coalesce = nil
     undoStack.append(document.package)
     var restored = next
     restored.notebook.revision = document.package.notebook.revision + 1
@@ -1323,6 +1400,7 @@ struct Workspace: View {
       height: (bounds.map { $0.y + $0.height }.max() ?? y) - y + 16)
   }
   private func paste() {
+    var pasted: Set<UUID> = []
     edit { p in
       p.assets.merge(InkClipboard.shared.assets) { existing, _ in existing }
       p.notebook.pages[activePage].strokes += clipboard.map {
@@ -1334,6 +1412,9 @@ struct Workspace: View {
           sample.point.y += 20
           return sample
         }
+        s.shape?.center.x += 20
+        s.shape?.center.y += 20
+        pasted.insert(s.id)
         return s
       }
       p.notebook.pages[activePage].images += clipboardImages.map {
@@ -1341,6 +1422,7 @@ struct Workspace: View {
         image.id = UUID()
         image.frame.x += 20
         image.frame.y += 20
+        pasted.insert(image.id)
         return image
       }
       p.notebook.pages[activePage].texts += clipboardTexts.map {
@@ -1348,28 +1430,170 @@ struct Workspace: View {
         text.id = UUID()
         text.origin.x += 20
         text.origin.y += 20
+        pasted.insert(text.id)
         return text
       }
     }
+    // The pasted copy is what the next drag should move.
+    selection = pasted
   }
-  private func insertStar(_ point: Point) {
-    if let id = selectedElementID, let clip = elements.clips.first(where: { $0.id == id }) {
+  private func tapExtent(_ points: [Point]) -> Double {
+    guard let first = points.first else { return 0 }
+    return points.reduce(0) { max($0, $1.distance(to: first)) }
+  }
+  // Tapping with the lasso (or a finger) selects the object under the tap, like GoodNotes.
+  private func selectObject(at point: Point, on p: Page, viewScale: Double) {
+    if let id = InkGestures.objectID(at: point, page: p, tolerance: 12 / viewScale) {
+      selection = [id]
+    } else {
+      selection = []
+    }
+  }
+  private func insertShape(_ kind: ShapeKind, from a: Point, to b: Point) {
+    let spec = ShapeSpec.dragged(kind, from: a, to: b)
+    let stroke: Stroke =
+      kind.isSticker
+      ? .sticker(spec)
+      : .shape(spec, color: color, width: width, fill: fillShapes && kind.isClosed ? color : nil)
+    edit { $0.notebook.pages[activePage].strokes.append(stroke) }
+    selection = [stroke.id]
+  }
+  private func insertSticker(_ point: Point) {
+    guard let choice = sticker else {
+      settings = true
+      return
+    }
+    switch choice {
+    case .vector(let kind):
+      let object = Stroke.sticker(kind, at: point)
+      edit { $0.notebook.pages[activePage].strokes.append(object) }
+      selection = [object.id]
+    case .emoji(let symbol):
+      var box = TextBox(origin: point, text: symbol)
+      box.size = 56
+      box.boxWidth = 80
+      box.alignment = "center"
+      let frame = box.layoutBounds
+      box.origin = Point(point.x - frame.width / 2, point.y - frame.height / 2)
+      edit { $0.notebook.pages[activePage].texts.append(box) }
+      selection = [box.id]
+    case .clip(let id):
+      guard let clip = elements.clips.first(where: { $0.id == id }) else { return }
       do {
+        let before = Set(page.strokes.map(\.id) + page.images.map(\.id) + page.texts.map(\.id))
         var updated = document.package
         try clip.insert(into: &updated, pageIndex: activePage, at: point)
         edit { $0 = updated }
+        let inserted = page
+        selection = Set(
+          (inserted.strokes.map(\.id) + inserted.images.map(\.id) + inserted.texts.map(\.id))
+            .filter { !before.contains($0) })
       } catch { errorMessage = error.localizedDescription }
-      return
     }
-    let points = (0...10).map { i in
-      let angle = Double(i) * .pi / 5 - .pi / 2
-      let r = i % 2 == 0 ? 30.0 : 13.0
-      return Sample(point: Point(point.x + r * cos(angle), point.y + r * sin(angle)))
+  }
+  private func recolorSelection(_ ink: InkColor) {
+    edit(coalescing: "selectionColor") { p in
+      for i in p.notebook.pages[activePage].strokes.indices
+      where selection.contains(p.notebook.pages[activePage].strokes[i].id) {
+        p.notebook.pages[activePage].strokes[i].recolor(ink)
+      }
+      for i in p.notebook.pages[activePage].texts.indices
+      where selection.contains(p.notebook.pages[activePage].texts[i].id) {
+        p.notebook.pages[activePage].texts[i].color = ink
+      }
     }
-    edit {
-      $0.notebook.pages[activePage].strokes.append(
-        Stroke(samples: points, color: color, width: width))
+  }
+  private func setSelectionFill(_ mode: Int) {
+    edit { p in
+      for i in p.notebook.pages[activePage].strokes.indices
+      where selection.contains(p.notebook.pages[activePage].strokes[i].id)
+        && p.notebook.pages[activePage].strokes[i].shape?.kind.isClosed == true
+      {
+        let stroke = p.notebook.pages[activePage].strokes[i]
+        // A solid sticker keeps its fill as the main color; plain shapes fill with their line color.
+        let base = stroke.fillOpacity == 1 ? (stroke.fillColor ?? stroke.color) : (stroke.fillColor ?? stroke.color)
+        switch mode {
+        case 0: p.notebook.pages[activePage].strokes[i].fillColor = nil
+        case 1:
+          p.notebook.pages[activePage].strokes[i].fillColor = base
+          p.notebook.pages[activePage].strokes[i].fillOpacity = nil
+        default:
+          p.notebook.pages[activePage].strokes[i].fillColor = base
+          p.notebook.pages[activePage].strokes[i].fillOpacity = 1
+        }
+      }
     }
+  }
+  private func reorderSelection(toFront: Bool) {
+    edit { p in
+      let strokes = p.notebook.pages[activePage].strokes
+      let chosen = strokes.filter { selection.contains($0.id) }
+      let others = strokes.filter { !selection.contains($0.id) }
+      p.notebook.pages[activePage].strokes = toFront ? others + chosen : chosen + others
+    }
+  }
+  private func beginInlineText(at point: Point, on p: Page) {
+    commitInlineText()
+    if let box = p.texts.last(where: { $0.contains(point) }) {
+      inlineText = InlineText(
+        id: box.id, origin: box.layoutBounds.originPoint, text: box.text, size: box.size,
+        width: box.boxWidth ?? 280, color: box.color)
+    } else {
+      inlineText = InlineText(
+        origin: point, size: textSize, width: 220, color: color)
+    }
+    selection = []
+  }
+  private func commitInlineText() {
+    guard let draft = inlineText else { return }
+    inlineText = nil
+    textSize = draft.size
+    let empty = draft.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    if let id = draft.id {
+      edit { package in
+        guard let i = package.notebook.pages[activePage].texts.firstIndex(where: { $0.id == id })
+        else { return }
+        if empty {
+          package.notebook.pages[activePage].texts.remove(at: i)
+        } else {
+          package.notebook.pages[activePage].texts[i].text = draft.text
+          package.notebook.pages[activePage].texts[i].size = draft.size
+          package.notebook.pages[activePage].texts[i].color = draft.color
+          package.notebook.pages[activePage].texts[i].boxWidth = draft.width
+        }
+      }
+    } else if !empty {
+      var box = TextBox(origin: draft.origin, text: draft.text)
+      box.size = draft.size
+      box.color = draft.color
+      box.boxWidth = draft.width
+      edit { $0.notebook.pages[activePage].texts.append(box) }
+    }
+  }
+  private func discardInlineText() {
+    guard let draft = inlineText else { return }
+    inlineText = nil
+    if let id = draft.id {
+      edit { $0.notebook.pages[activePage].texts.removeAll { $0.id == id } }
+    }
+  }
+  // Font, alignment, border and background live in the full editor; the box is committed first
+  // so the editor always works on a real text box.
+  private func moreTextOptions() {
+    guard let draft = inlineText else { return }
+    commitInlineText()
+    let target = draft.id ?? page.texts.last?.id
+    guard let id = target, let box = page.texts.first(where: { $0.id == id }) else { return }
+    editingTextID = id
+    insertPoint = box.origin
+    text = box.text
+    textSize = box.size
+    textFont = box.fontName ?? "System"
+    textAlignment = box.alignment ?? "left"
+    textBorder = box.border ?? false
+    textBackground = box.background != nil
+    textWidth = box.boxWidth ?? 280
+    textSheet = true
   }
   private func followLink(at point: Point, on page: Page) {
     guard let name = page.backgroundPDF, let data = document.package.assets[name],
@@ -1437,8 +1661,7 @@ struct Workspace: View {
       $0.notebook.pages[activePage].images.append(asset)
     }
     tool = .image
-    selection = []
-    imageSelection = asset.id
+    selection = [asset.id]
   }
   private func insertScans(_ scans: [Data]) {
     edit { package in

@@ -30,6 +30,8 @@ import SwiftUI
   var searchHighlights: [Rect] = []
   var tip: PenTip = .standard
   var stabilization = 0.0
+  // With the shapes tool: the shape inserted by tapping or dragging; nil keeps freehand recognition.
+  var shapeKind: ShapeKind? = nil
 }
 #if os(macOS)
   struct NativeCanvas: NSViewRepresentable {
@@ -219,7 +221,8 @@ import SwiftUI
         else { return }
         let operatesObjects =
           [.readOnly, .image, .text, .elements].contains(configuration.tool)
-          || (configuration.tool == .lasso
+          || (Self.manipulatingTools.contains(configuration.tool)
+            && !configuration.selection.isEmpty
             && selectionHit(at: sample(touch).point, configuration) != nil)
         guard operatesObjects || (!pencilSeen && !configuration.pencilOnly) else { return }
         resetInput()
@@ -301,6 +304,19 @@ import SwiftUI
       }
       checkPagePull()
     }
+    // A finger tap on the page selects the object under it while the lasso tool is active; a
+    // finger cannot draw a lasso without also fighting the page scroll.
+    private lazy var fingerTap = UITapGestureRecognizer(
+      target: self, action: #selector(fingerTapped(_:)))
+    @objc private func fingerTapped(_ gesture: UITapGestureRecognizer) {
+      guard gesture.state == .ended, let configuration, configuration.tool == .lasso,
+        activeTouch == nil
+      else { return }
+      let p = gesture.location(in: self)
+      let scale = bounds.width / configuration.page.dimensions.x
+      configuration.onTap(
+        configuration.viewport?.documentPoint(Point(p.x, p.y)) ?? Point(p.x / scale, p.y / scale))
+    }
     private lazy var boardPan = UIPanGestureRecognizer(
       target: self, action: #selector(panBoard(_:)))
     private lazy var boardPinch = UIPinchGestureRecognizer(
@@ -329,6 +345,10 @@ import SwiftUI
         boardPinch.delegate = self
         addGestureRecognizer(boardPan)
         addGestureRecognizer(boardPinch)
+        fingerTap.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+        fingerTap.cancelsTouchesInView = false
+        fingerTap.delegate = self
+        addGestureRecognizer(fingerTap)
       }
       boardPan.minimumNumberOfTouches = configuration?.pencilOnly == true || pencilSeen ? 1 : 2
       let pencilActive = activeTouch?.type == .pencil || input.moveStart != nil
@@ -468,13 +488,20 @@ import SwiftUI
   var moveDelta = Point(0, 0)
   var selectionHandle: SelectionHandle = .move
   var selectionTransform: SelectionTransform?
+  var frame: InkGestures.ObjectFrame?
   var invalidatedSamples = 0
   var lastInkRect = CGRect.null
   var fountain = FountainInk.State()
   var fountainWidths: [Double] = []
   var lastRaw: Point?
 }
-enum SelectionHandle { case move, resize, rotate }
+enum SelectionHandle: Equatable {
+  case move, resize, rotate
+  // Frame handles of a single object, as signs in the object's own axes: a corner scales
+  // proportionally about the opposite corner, an edge stretches along one axis.
+  case corner(Double, Double)
+  case edge(Double, Double)
+}
 
 extension DrawingView {
   // SwiftUI re-applies the configuration on every state change, including a color tap.
@@ -583,22 +610,74 @@ extension DrawingView {
     input.moveDelta = Point(0, 0)
     input.selectionHandle = .move
     input.selectionTransform = nil
+    input.frame = nil
     input.invalidatedSamples = 0
     input.lastInkRect = .null
     samples = []
     predictedSamples = []
   }
+  // Tools whose selection can be moved, stretched and rotated in place.
+  static let manipulatingTools: [InkTool] = [.lasso, .shapes, .image, .elements]
+
+  func handlePoints(_ frame: InkGestures.ObjectFrame, scale: Double) -> [(SelectionHandle, Point)] {
+    func world(_ sx: Double, _ sy: Double) -> Point {
+      let x = sx * frame.width / 2
+      let y = sy * frame.height / 2
+      return Point(
+        frame.center.x + x * cos(frame.rotation) - y * sin(frame.rotation),
+        frame.center.y + x * sin(frame.rotation) + y * cos(frame.rotation))
+    }
+    var handles: [(SelectionHandle, Point)] = []
+    // A line has no height, so its rotate handle sits off to the side.
+    let lift = frame.stretchesVertically ? frame.height / 2 + 30 / scale : 30 / scale
+    handles.append(
+      (
+        .rotate,
+        Point(
+          frame.center.x + lift * sin(frame.rotation),
+          frame.center.y - lift * cos(frame.rotation))
+      ))
+    if frame.stretchesVertically || frame.height > 0 {
+      for (sx, sy) in [(-1.0, -1.0), (1, -1), (1, 1), (-1, 1)] {
+        handles.append((.corner(sx, sy), world(sx, sy)))
+      }
+    }
+    handles.append((.edge(1, 0), world(1, 0)))
+    handles.append((.edge(-1, 0), world(-1, 0)))
+    if frame.stretchesVertically {
+      handles.append((.edge(0, -1), world(0, -1)))
+      handles.append((.edge(0, 1), world(0, 1)))
+    }
+    return handles
+  }
   func selectionHit(at point: Point, _ configuration: CanvasConfiguration) -> (
     handle: SelectionHandle, center: Point
   )? {
+    let scale = configuration.viewport?.scale ?? self.bounds.width / configuration.page.dimensions.x
+    // Finger-sized targets: 16 pt keeps Pencil precision, 24 pt lets a fingertip grab a handle.
+    let hitRadius = 24 / scale
+    if let frame = InkGestures.objectFrame(page: configuration.page, ids: configuration.selection) {
+      let handles = handlePoints(frame, scale: scale)
+      if let hit = handles.min(by: { point.distance(to: $0.1) < point.distance(to: $1.1) }),
+        point.distance(to: hit.1) < hitRadius
+      {
+        return (hit.0, frame.center)
+      }
+      let dx = point.x - frame.center.x
+      let dy = point.y - frame.center.y
+      let lx = dx * cos(frame.rotation) + dy * sin(frame.rotation)
+      let ly = -dx * sin(frame.rotation) + dy * cos(frame.rotation)
+      let slack = frame.height > 0 ? 8 / scale : 16 / scale
+      if abs(lx) <= frame.width / 2 + slack, abs(ly) <= frame.height / 2 + slack {
+        return (.move, frame.center)
+      }
+      return nil
+    }
     guard
       let bounds = InkGestures.selectionBounds(
         page: configuration.page, ids: configuration.selection)
     else { return nil }
-    let scale = configuration.viewport?.scale ?? self.bounds.width / configuration.page.dimensions.x
     let center = Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
-    // Finger-sized targets: 16 pt keeps Pencil precision, 24 pt lets a fingertip grab a handle.
-    let hitRadius = 24 / scale
     let rotate = Point(center.x, bounds.y - 30 / scale)
     let corners = [
       Point(bounds.x, bounds.y), Point(bounds.x + bounds.width, bounds.y),
@@ -615,15 +694,33 @@ extension DrawingView {
   }
   func accept(_ sample: Sample) {
     guard let configuration else { return }
-    if samples.isEmpty, configuration.tool == .lasso,
+    if samples.isEmpty, Self.manipulatingTools.contains(configuration.tool),
+      !configuration.selection.isEmpty,
       let hit = selectionHit(at: sample.point, configuration)
     {
       input.selectionHandle = hit.handle
       input.moveStart = sample.point
-      input.selectionTransform = SelectionTransform(center: hit.center)
+      input.frame = InkGestures.objectFrame(page: configuration.page, ids: configuration.selection)
+      input.selectionTransform = SelectionTransform(
+        center: hit.center, axis: input.frame?.rotation ?? 0)
       cachedPage = nil
     }
     if let start = input.moveStart, var transform = input.selectionTransform {
+      let frame = input.frame
+      let center = transform.center
+      let rotation = frame?.rotation ?? 0
+      // Pointer in the object's own axes (origin at its center).
+      func local(_ p: Point) -> Point {
+        let dx = p.x - center.x
+        let dy = p.y - center.y
+        return Point(
+          dx * cos(rotation) + dy * sin(rotation), -dx * sin(rotation) + dy * cos(rotation))
+      }
+      func world(_ p: Point) -> Point {
+        Point(
+          center.x + p.x * cos(rotation) - p.y * sin(rotation),
+          center.y + p.x * sin(rotation) + p.y * cos(rotation))
+      }
       switch input.selectionHandle {
       case .move:
         input.moveDelta = Point(sample.point.x - start.x, sample.point.y - start.y)
@@ -636,9 +733,47 @@ extension DrawingView {
             sample.point.distance(to: transform.center)
               / max(1, start.distance(to: transform.center))))
       case .rotate:
-        transform.angle =
+        var angle =
           atan2(sample.point.y - transform.center.y, sample.point.x - transform.center.x)
           - atan2(start.y - transform.center.y, start.x - transform.center.x)
+        // Snap the object's final angle to 15° steps when it is within about 3° of one.
+        let step = Double.pi / 12
+        let target = rotation + angle
+        let nearest = (target / step).rounded() * step
+        if abs(target - nearest) < 0.05 { angle = nearest - rotation }
+        transform.angle = angle
+      case .corner(let sx, let sy):
+        if let frame, frame.width > 0, frame.height > 0 {
+          let anchor = Point(-sx * frame.width / 2, -sy * frame.height / 2)
+          let corner = Point(sx * frame.width / 2, sy * frame.height / 2)
+          let v = Point(corner.x - anchor.x, corner.y - anchor.y)
+          let p = local(sample.point)
+          let factor =
+            ((p.x - anchor.x) * v.x + (p.y - anchor.y) * v.y) / (v.x * v.x + v.y * v.y)
+          transform.scale = max(0.05, min(20, factor))
+          // Keep the opposite corner where it was.
+          let anchored = world(anchor)
+          transform.translation = Point(
+            (anchored.x - center.x) * (1 - transform.scale),
+            (anchored.y - center.y) * (1 - transform.scale))
+        }
+      case .edge(let sx, let sy):
+        if let frame {
+          let p = local(sample.point)
+          var shift = Point(0, 0)
+          if sx != 0, frame.width > 0 {
+            let width = max(12, sx * p.x + frame.width / 2)
+            transform.stretch.x = width / frame.width
+            shift.x = sx * (width - frame.width) / 2
+          }
+          if sy != 0, frame.height > 0 {
+            let height = max(12, sy * p.y + frame.height / 2)
+            transform.stretch.y = height / frame.height
+            shift.y = sy * (height - frame.height) / 2
+          }
+          let moved = world(shift)
+          transform.translation = Point(moved.x - center.x, moved.y - center.y)
+        }
       }
       input.selectionTransform = transform
       samples = [sample]
@@ -780,6 +915,16 @@ extension DrawingView {
         c.setLineDash(phase: 0, lengths: [5, 4])
         c.addLines(between: samples.map { CGPoint(x: $0.point.x, y: $0.point.y) })
         c.strokePath()
+      } else if configuration.tool == .shapes, let kind = configuration.shapeKind,
+        let first = samples.first, let last = samples.last
+      {
+        // The shape follows the drag, so what lifts off the screen is what was previewed.
+        let spec = ShapeSpec.dragged(kind, from: first.point, to: last.point)
+        PageRenderer.stroke(
+          .shape(
+            spec, color: kind.stickerColor?.darkened() ?? configuration.color,
+            width: kind.isSticker ? 2.5 : configuration.width, fill: kind.stickerColor,
+            fillOpacity: kind.isSticker ? 1 : nil), in: c)
       } else if [.pen, .highlighter, .shapes].contains(configuration.tool) {
         if configuration.tool == .pen, input.held == nil, samples.count > 5 {
           paintLiveInk(configuration, in: c, rect: cacheRect, resolution: resolution)
@@ -797,27 +942,57 @@ extension DrawingView {
     c.setLineDash(phase: 0, lengths: [4, 3])
     c.setStrokeColor(PageRenderer.color(.blue))
     c.setLineWidth(1)
-    if !configuration.selection.isEmpty,
-      let b = InkGestures.selectionBounds(page: configuration.page, ids: configuration.selection)
-    {
+    if !configuration.selection.isEmpty {
       let scale = configuration.viewport?.scale ?? bounds.width / configuration.page.dimensions.x
       c.setLineWidth(1.5 / scale)
-      c.stroke(CGRect(x: b.x, y: b.y, width: b.width, height: b.height))
-      c.setLineDash(phase: 0, lengths: [])
-      let center = Point(b.x + b.width / 2, b.y + b.height / 2)
-      let rotate = Point(center.x, b.y - 30 / scale)
-      c.move(to: CGPoint(x: center.x, y: b.y))
-      c.addLine(to: CGPoint(x: rotate.x, y: rotate.y))
-      c.strokePath()
       c.setFillColor(CGColor(gray: 1, alpha: 1))
-      for point in [
-        Point(b.x, b.y), Point(b.x + b.width, b.y), Point(b.x, b.y + b.height),
-        Point(b.x + b.width, b.y + b.height), rotate,
-      ] {
+      func dot(_ point: Point, _ diameter: Double) {
         let circle = CGRect(
-          x: point.x - 5 / scale, y: point.y - 5 / scale, width: 10 / scale, height: 10 / scale)
+          x: point.x - diameter / 2 / scale, y: point.y - diameter / 2 / scale,
+          width: diameter / scale, height: diameter / scale)
         c.fillEllipse(in: circle)
         c.strokeEllipse(in: circle)
+      }
+      if let frame = InkGestures.objectFrame(page: configuration.page, ids: configuration.selection)
+      {
+        c.saveGState()
+        c.translateBy(x: frame.center.x, y: frame.center.y)
+        c.rotate(by: frame.rotation)
+        if frame.height > 0 {
+          c.stroke(CGRect(x: -frame.width / 2, y: -frame.height / 2, width: frame.width, height: frame.height))
+        }
+        c.restoreGState()
+        c.setLineDash(phase: 0, lengths: [])
+        let handles = handlePoints(frame, scale: scale)
+        if let rotate = handles.first(where: { $0.0 == .rotate })?.1 {
+          let top = Point(
+            frame.center.x + (frame.stretchesVertically ? frame.height / 2 : 0) * sin(frame.rotation),
+            frame.center.y - (frame.stretchesVertically ? frame.height / 2 : 0) * cos(frame.rotation))
+          c.move(to: CGPoint(x: top.x, y: top.y))
+          c.addLine(to: CGPoint(x: rotate.x, y: rotate.y))
+          c.strokePath()
+        }
+        for (handle, point) in handles {
+          switch handle {
+          case .rotate: dot(point, 13)
+          case .edge: dot(point, 9)
+          default: dot(point, 11)
+          }
+        }
+      } else if let b = InkGestures.selectionBounds(
+        page: configuration.page, ids: configuration.selection)
+      {
+        c.stroke(CGRect(x: b.x, y: b.y, width: b.width, height: b.height))
+        c.setLineDash(phase: 0, lengths: [])
+        let center = Point(b.x + b.width / 2, b.y + b.height / 2)
+        let rotate = Point(center.x, b.y - 30 / scale)
+        c.move(to: CGPoint(x: center.x, y: b.y))
+        c.addLine(to: CGPoint(x: rotate.x, y: rotate.y))
+        c.strokePath()
+        for point in [
+          Point(b.x, b.y), Point(b.x + b.width, b.y), Point(b.x, b.y + b.height),
+          Point(b.x + b.width, b.y + b.height), rotate,
+        ] { dot(point, 10) }
       }
     }
     c.restoreGState()
@@ -829,7 +1004,7 @@ extension DrawingView {
     }
     input.holdTask?.cancel()
     if let transform = input.selectionTransform {
-      if abs(transform.scale - 1) > 0.001 || abs(transform.angle) > 0.001
+      if abs(transform.scale - 1) > 0.001 || abs(transform.angle) > 0.001 || transform.isStretched
         || hypot(transform.translation.x, transform.translation.y) > 0.5
       {
         if let onTransform = configuration.onTransformSelection {
@@ -855,7 +1030,10 @@ extension DrawingView {
         tool: configuration.tool, style: configuration.style,
         tip: configuration.style == .fountain && configuration.tool == .pen
           ? configuration.tip : nil)
-      input.pendingStroke = stroke
+      // An inserted shape is rebuilt by the owner from the drag, so the raw drag is never shown.
+      if !(configuration.tool == .shapes && configuration.shapeKind != nil) {
+        input.pendingStroke = stroke
+      }
       configuration.onStroke(stroke)
     case .eraser, .lasso: configuration.onGesture(samples.map(\.point))
     case .text, .image, .elements: configuration.onTap(first.point)

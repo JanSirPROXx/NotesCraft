@@ -20,6 +20,7 @@ public struct Rect: Codable, Equatable, Sendable {
     self.width = width
     self.height = height
   }
+  public var originPoint: Point { Point(x, y) }
   public func contains(_ p: Point) -> Bool {
     p.x >= x && p.x <= x + width && p.y >= y && p.y <= y + height
   }
@@ -120,6 +121,10 @@ public struct Stroke: Codable, Equatable, Identifiable, Sendable {
   public var style: PenStyle
   public var fillColor: InkColor?
   public var tip: PenTip?
+  // Present on shape and sticker objects, which can be reshaped after they are placed.
+  public var shape: ShapeSpec?
+  // Opacity of `fillColor`; nil keeps the translucent 0.2 used for filled drawn shapes.
+  public var fillOpacity: Double?
   public init(
     id: UUID = UUID(), samples: [Sample], color: InkColor = .ink, width: Double = 2,
     tool: InkTool = .pen, style: PenStyle = .ballpoint, tip: PenTip? = nil
