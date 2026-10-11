@@ -41,7 +41,7 @@ renderer, rather than Obsidian-specific plugins. Opening an image creates a sepa
 editable notebook, preserving the image file.
 
 By default only Apple Pencil draws; one finger scrolls notebooks or pans whiteboards.
-Finger drawing can be enabled explicitly in the overflow menu. The first Pencil contact
+Fingers still operate everything else: tap tools and objects, and drag an existing lasso selection (or its resize/rotate handles). Finger drawing can be enabled explicitly in the overflow menu. The first Pencil contact
 restores Pencil-only ink; fingers then navigate. Pencil owns its active stroke, other contacts cannot replace it,
 and scrolling/pinch gestures are suspended while the Pencil is down. Broad direct
 contacts are filtered. Disable Apple Pencil only in the overflow menu to draw with fingers. Without Pencil-only mode, two fingers scroll while drawing; one finger scrolls in

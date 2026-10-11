@@ -502,3 +502,113 @@ import UniformTypeIdentifiers
   #expect(view.input.renderedSegments - rendered == 120)
   print("Long brush stroke, 120 frames: incremental \(incremental), full redraw \(baseline)")
 }
+
+@MainActor @Test func backgroundCoverCacheDownsamplesAndInvalidatesChangedFiles() async throws {
+  let worker = DocumentRenderWorker()
+  let url = FileManager.default.temporaryDirectory.appendingPathComponent(
+    UUID().uuidString + ".png")
+  defer { try? FileManager.default.removeItem(at: url) }
+  var page = Page(paper: Paper(pattern: .blank))
+  page.strokes = [Stroke(samples: [Sample(point: Point(100, 100))], color: .red, width: 80)]
+  let first = try PageRenderer.screenshot(
+    page, assets: [:], bounds: Rect(x: 0, y: 0, width: 800, height: 800))
+  try first.write(to: url)
+  var entry = VaultEntry(url: url, kind: .image, title: "Cover", modified: Date())
+  let preview = try #require(try await worker.cover(entry))
+  let source = try #require(CGImageSourceCreateWithData(preview as CFData, nil))
+  let image = try #require(CGImageSourceCreateImageAtIndex(source, 0, nil))
+  #expect(max(image.width, image.height) <= 600)
+  try FileManager.default.removeItem(at: url)
+  #expect(
+    try await worker.cover(entry) == preview, "Unchanged covers should not reopen their source")
+  page.strokes[0].color = .blue
+  try PageRenderer.screenshot(page, assets: [:], bounds: Rect(x: 0, y: 0, width: 800, height: 800))
+    .write(to: url)
+  entry = VaultEntry(
+    url: url, kind: .image, title: "Cover", modified: entry.modified.addingTimeInterval(1))
+  #expect(try await worker.cover(entry) != preview)
+}
+
+@MainActor @Test func backgroundPDFExportPreservesSourceLinksAndInk() async throws {
+  let original = PDFDocument()
+  let base = try #require(
+    PDFDocument(data: try PageRenderer.export(NotebookPackage()))?.page(at: 0))
+  let page = try #require(base.copy() as? PDFPage)
+  let link = PDFAnnotation(
+    bounds: CGRect(x: 20, y: 20, width: 100, height: 30), forType: .link, withProperties: nil)
+  link.action = PDFActionURL(url: URL(string: "https://example.com")!)
+  page.addAnnotation(link)
+  original.insert(page, at: 0)
+  let bytes = try #require(original.dataRepresentation())
+  var edited = Page(paper: Paper(pattern: .blank))
+  edited.backgroundPDF = "source.pdf"
+  edited.backgroundPage = 0
+  edited.strokes = [
+    Stroke(samples: [Sample(point: Point(20, 80)), Sample(point: Point(150, 120))])
+  ]
+  let package = NotebookPackage(notebook: Notebook(pages: [edited]), assets: ["source.pdf": bytes])
+  let data = try await DocumentRenderWorker().exportPDF(package)
+  let result = try #require(PDFDocument(data: data)?.page(at: 0))
+  #expect(result.annotations.contains { $0.action is PDFActionURL })
+  #expect(result.annotations.contains { $0.type == "Ink" })
+}
+
+@MainActor @Test func colorAndWidthChangesDoNotRepaintButContentChangesDo() {
+  let base = CanvasConfiguration(
+    page: Page(paper: Paper(pattern: .blank)), assets: [:], tool: .pen, color: .ink, width: 2,
+    style: .ballpoint, pencilOnly: true, selection: [], onStroke: { _ in },
+    onGesture: { _ in }, onTap: { _ in })
+  var recolored = base
+  recolored.color = .red
+  recolored.width = 9
+  recolored.style = .brush
+  #expect(!DrawingView.affectsPixels(base, recolored))
+  var edited = base
+  edited.page.strokes = [Stroke(samples: [Sample(point: Point(1, 1))])]
+  #expect(DrawingView.affectsPixels(base, edited))
+  var eraser = base
+  eraser.tool = .eraser
+  var wider = eraser
+  wider.width = 20
+  #expect(DrawingView.affectsPixels(eraser, wider))
+}
+
+@MainActor @Test func clippedLiveInkMatchesFullRepaintInsideTheDirtyRect() throws {
+  let view = DrawingView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
+  let configuration = CanvasConfiguration(
+    page: Page(paper: Paper(pattern: .blank)), assets: [:], tool: .pen, color: .ink, width: 3,
+    style: .fountain, pencilOnly: true, selection: [], onStroke: { _ in },
+    onGesture: { _ in }, onTap: { _ in }, holdToShape: false)
+  view.configuration = configuration
+  func context() throws -> CGContext {
+    try #require(
+      CGContext(
+        data: nil, width: 595, height: 842, bitsPerComponent: 8, bytesPerRow: 595 * 4,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+  }
+  for i in 0..<60 {
+    view.accept(Sample(point: Point(40 + Double(i) * 4, 200 + sin(Double(i) * 0.2) * 30)))
+  }
+  let full = try context()
+  view.paint(configuration, full)
+  let clipped = try context()
+  let dirty = CGRect(x: 100, y: 150, width: 120, height: 100)
+  view.paint(configuration, clipped, dirty: dirty)
+  // Bitmap memory is top-down while the clip was set in bottom-up user space.
+  func pixels(_ c: CGContext, in rect: CGRect) throws -> [UInt8] {
+    let base = try #require(c.data).assumingMemoryBound(to: UInt8.self)
+    var result: [UInt8] = []
+    for row in Int(rect.minY)..<Int(rect.maxY) {
+      for byte in (Int(rect.minX) * 4)..<(Int(rect.maxX) * 4) {
+        result.append(base[row * c.bytesPerRow + byte])
+      }
+    }
+    return result
+  }
+  let flipped = CGRect(x: dirty.minX, y: 842 - dirty.maxY, width: dirty.width, height: dirty.height)
+  #expect(try pixels(full, in: flipped) == pixels(clipped, in: flipped))
+  let outside = CGRect(x: 400, y: 842 - 260, width: 100, height: 100)
+  let untouched = try pixels(clipped, in: outside)
+  #expect(untouched.allSatisfy { $0 == 0 }, "Pixels outside the dirty rect must not be redrawn")
+}

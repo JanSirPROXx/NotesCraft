@@ -12,6 +12,7 @@
 		13C2D67D2687F7882F5C0D44 /* ImageHandles.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEDE7BBF20C38FFBD70C07C6 /* ImageHandles.swift */; };
 		1847B6051A23D921B4FC3E07 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAC464B97F48428A387BD481 /* Models.swift */; };
 		1B974C057F8DABA631C1EE8E /* CoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06224446505127FB574CE719 /* CoreTests.swift */; };
+		23B83FD9F52EB60AAB14A324 /* QuickBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0E29D5CFE38AB19018FD578 /* QuickBar.swift */; };
 		244957FB1659F088F082F35F /* NoteCraftCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		280821F0F24531E9EBB718C4 /* NoteCraftCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		2E56118CAF0505CF95D4D1F0 /* VaultActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 082B492A0CAE47C877AA7C1E /* VaultActions.swift */; };
@@ -97,7 +98,7 @@
 		082B492A0CAE47C877AA7C1E /* VaultActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultActions.swift; sourceTree = "<group>"; };
 		0ED3506C82DEE6478F5D3866 /* PDFNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFNavigation.swift; sourceTree = "<group>"; };
 		13F4D36FF592085842FF6302 /* NoteCraftUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NoteCraftUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		157E94B041AAC1E2E6506F3D /* NoteCraft.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NoteCraft.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		157E94B041AAC1E2E6506F3D /* NoteCraft.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NoteCraft.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1B18528EAB55247EA57BDEAF /* VaultFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFiles.swift; sourceTree = "<group>"; };
 		224B6213A14759EFA003EB49 /* Renderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Renderer.swift; sourceTree = "<group>"; };
 		2CE25C9D08742478F1554ABA /* LibrarySheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySheets.swift; sourceTree = "<group>"; };
@@ -115,6 +116,7 @@
 		AA5A556A9C43AF11C3D163C6 /* PDFEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFEditor.swift; sourceTree = "<group>"; };
 		AAC464B97F48428A387BD481 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		ABB273F19C18B6124D82D232 /* VaultManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultManagement.swift; sourceTree = "<group>"; };
+		B0E29D5CFE38AB19018FD578 /* QuickBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickBar.swift; sourceTree = "<group>"; };
 		BAEDCF2464F505B39B0EDDB7 /* Storage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Storage.swift; sourceTree = "<group>"; };
 		BB364BB9C08BDF203F68B72A /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		BC3F98C57C57515BE23CF610 /* ElementLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElementLibrary.swift; sourceTree = "<group>"; };
@@ -195,6 +197,7 @@
 				AA5A556A9C43AF11C3D163C6 /* PDFEditor.swift */,
 				EBB02F7D207B76F150CD3E09 /* PDFForms.swift */,
 				0ED3506C82DEE6478F5D3866 /* PDFNavigation.swift */,
+				B0E29D5CFE38AB19018FD578 /* QuickBar.swift */,
 				224B6213A14759EFA003EB49 /* Renderer.swift */,
 				082B492A0CAE47C877AA7C1E /* VaultActions.swift */,
 				327B668A8960E2B8A8C80F45 /* VaultCover.swift */,
@@ -403,6 +406,7 @@
 				31A626A7849A371780D9C3F8 /* PDFEditor.swift in Sources */,
 				3E952648E767FEC70D33824C /* PDFForms.swift in Sources */,
 				EEB884CB261E1FA776A7B68A /* PDFNavigation.swift in Sources */,
+				23B83FD9F52EB60AAB14A324 /* QuickBar.swift in Sources */,
 				2F8CD8EA4BCD64BD87624623 /* Renderer.swift in Sources */,
 				2E56118CAF0505CF95D4D1F0 /* VaultActions.swift in Sources */,
 				C410B0FA00E91CC6E9D93300 /* VaultCover.swift in Sources */,
@@ -524,6 +528,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = YSP9U4DM69;
 				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CADisableMinimumFrameDurationOnPhone = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = NoteCraft;
@@ -598,6 +603,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = YSP9U4DM69;
 				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CADisableMinimumFrameDurationOnPhone = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = NoteCraft;

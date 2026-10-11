@@ -27,18 +27,22 @@ struct Workspace: View {
   var onBack: (() -> Void)? = nil
   var tabs: [WorkspaceTab] = []
   var onSelectTab: ((UUID) -> Void)? = nil
-  var saveStatus: String = "Saved"
   var history: EditHistory = EditHistory()
   @Environment(\.dismiss) private var dismiss
   @Environment(\.openURL) private var openURL
   @Environment(\.openWindow) private var openWindow
   @State private var tool: InkTool = .pen
   @State private var previousTool: InkTool = .pen
-  @State private var color: InkColor = .ink
-  @State private var width = 2.5
+  @AppStorage("inkColorHex") private var colorHex = "#1F2B3D"
+  @AppStorage("penWidth") private var penWidth = 2.5
+  @AppStorage("highlighterWidth") private var highlighterWidth = 16.0
+  @AppStorage("eraserWidth") private var eraserWidth = 12.0
   @AppStorage("penWidth1") private var firstWidth = 1.0
   @AppStorage("penWidth2") private var secondWidth = 2.5
   @AppStorage("penWidth3") private var thirdWidth = 5.0
+  @AppStorage("highlighterWidth1") private var highlighterFirst = 10.0
+  @AppStorage("highlighterWidth2") private var highlighterSecond = 16.0
+  @AppStorage("highlighterWidth3") private var highlighterThird = 26.0
   @State private var elements = ElementLibrary.shared
   @State private var selectedElementID: UUID?
   @State private var saveElementSheet = false
@@ -46,7 +50,7 @@ struct Workspace: View {
   @State private var fillShapes = false
   @State private var shapePreset: ShapePreset = .automatic
   @State private var hexColor = "#1F2B3D"
-  @State private var penStyle: PenStyle = .ballpoint
+  @AppStorage("penStyle") private var penStyle: PenStyle = .ballpoint
   @State private var eraserMode: EraserMode = .stroke
   @State private var highlighterOnly = false
   @State private var autoDeselect = false
@@ -104,6 +108,7 @@ struct Workspace: View {
   @State private var documentSearch = DocumentSearch()
   @AppStorage("horizontalNotebookPages") private var horizontal = true
   @State private var pageHUD = false
+  @State private var lastHUDActivation = Date.distantPast
   @State private var pageHUDTask: Task<Void, Never>?
   @State private var horizontalPageID: UUID?
   @State private var pageChangedByScroll = false
@@ -128,6 +133,43 @@ struct Workspace: View {
       0
     #endif
   }
+  private var color: InkColor {
+    get { InkColor(hex: colorHex) ?? .ink }
+    nonmutating set { colorHex = newValue.hex }
+  }
+  private var colorBinding: Binding<InkColor> {
+    Binding(get: { color }, set: { color = $0 })
+  }
+  // Each tool remembers its own size; a shared value made the eraser and highlighter
+  // inherit the pen's thickness.
+  private var width: Double {
+    get {
+      switch tool {
+      case .highlighter: highlighterWidth
+      case .eraser: eraserWidth
+      default: penWidth
+      }
+    }
+    nonmutating set {
+      switch tool {
+      case .highlighter: highlighterWidth = newValue
+      case .eraser: eraserWidth = newValue
+      default: penWidth = newValue
+      }
+    }
+  }
+  private var widthBinding: Binding<Double> { Binding(get: { width }, set: { width = $0 }) }
+  private var widthSlots: Binding<[Double]> {
+    if tool == .highlighter {
+      Binding(
+        get: { [highlighterFirst, highlighterSecond, highlighterThird] },
+        set: { (highlighterFirst, highlighterSecond, highlighterThird) = ($0[0], $0[1], $0[2]) })
+    } else {
+      Binding(
+        get: { [firstWidth, secondWidth, thirdWidth] },
+        set: { (firstWidth, secondWidth, thirdWidth) = ($0[0], $0[1], $0[2]) })
+    }
+  }
   private var notebook: Notebook { document.package.notebook }
   private var page: Page { notebook.pages[min(activePage, notebook.pages.count - 1)] }
   var body: some View {
@@ -147,14 +189,14 @@ struct Workspace: View {
             ScrollViewReader { proxy in
               ScrollView(horizontal ? .horizontal : .vertical, showsIndicators: false) {
                 if horizontal {
-                  HStack(alignment: .top, spacing: 0) {
+                  LazyHStack(alignment: .top, spacing: 0) {
                     ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
                       notebookPage(p, index: index, size: geometry.size)
                         .frame(width: geometry.size.width).id(p.id)
                     }
                   }.scrollTargetLayout()
                 } else {
-                  VStack(spacing: 28) {
+                  LazyVStack(spacing: 28) {
                     ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
                       notebookPage(p, index: index, size: geometry.size, vertical: true)
                     }
@@ -165,15 +207,20 @@ struct Workspace: View {
                 .scrollPosition(id: $horizontalPageID, anchor: .topLeading)
                 .accessibilityIdentifier("notebookScrollView")
                 .background(Color(red: 0.105, green: 0.11, blue: 0.115)).onChange(of: activePage) {
+                  previous, current in
                   if pageChangedByScroll {
                     pageChangedByScroll = false
                     return
                   }
-                  if horizontal {
-                    withAnimation { horizontalPageID = page.id }
-                  } else {
-                    withAnimation { proxy.scrollTo(page.id, anchor: .top) }
+                  let move = {
+                    if horizontal {
+                      horizontalPageID = page.id
+                    } else {
+                      proxy.scrollTo(page.id, anchor: .top)
+                    }
                   }
+                  // A distant jump should not build/render every page along an animation.
+                  if abs(current - previous) > 1 { move() } else { withAnimation { move() } }
                 }.onChange(of: horizontalPageID) {
                   if let id = horizontalPageID,
                     let index = notebook.pages.firstIndex(where: { $0.id == id })
@@ -369,28 +416,29 @@ struct Workspace: View {
         }
       }.disabled(notebook.pages.count == 1)
     } label: {
-      Image(systemName: "ellipsis")
+      Image(systemName: "ellipsis").font(.system(size: 20)).hitTarget()
     }
     .accessibilityLabel("More")
   }
   private var documentActions: some View {
-    HStack(spacing: 16) {
+    HStack(spacing: 0) {
       Button {
         thumbnails.toggle()
       } label: {
-        Image(systemName: "sidebar.left")
+        Image(systemName: "sidebar.left").font(.system(size: 20)).hitTarget()
       }
       .accessibilityLabel("Pages")
       Button {
         searchVisible.toggle()
       } label: {
-        Image(systemName: "magnifyingglass")
+        Image(systemName: "magnifyingglass").font(.system(size: 20)).hitTarget()
       }
       .accessibilityLabel("Search text")
       Button {
         edit { $0.notebook.pages[activePage].bookmarked.toggle() }
       } label: {
-        Image(systemName: page.bookmarked ? "bookmark.fill" : "bookmark")
+        Image(systemName: page.bookmarked ? "bookmark.fill" : "bookmark").font(.system(size: 20))
+          .hitTarget()
       }.accessibilityLabel("Bookmark page")
     }
   }
@@ -402,7 +450,7 @@ struct Workspace: View {
         exporter = true
       } catch { errorMessage = error.localizedDescription }
     } label: {
-      Image(systemName: "square.and.arrow.up")
+      Image(systemName: "square.and.arrow.up").font(.system(size: 20)).hitTarget()
     }
     .accessibilityLabel("Export PDF")
   }
@@ -412,7 +460,8 @@ struct Workspace: View {
       Button {
         if let onBack { onBack() } else { dismiss() }
       } label: {
-        Image(systemName: "house").frame(width: 48, height: 34)
+        Image(systemName: "house").font(.system(size: 17)).frame(width: 56, height: 40)
+          .contentShape(Rectangle())
       }
       .buttonStyle(.plain).accessibilityLabel("Documents")
 
@@ -425,7 +474,7 @@ struct Workspace: View {
             } label: {
               Label(tab.selected ? notebook.title : tab.title, systemImage: "book.closed")
                 .lineLimit(1).padding(.horizontal, 18)
-                .frame(height: 34)
+                .frame(height: 40).contentShape(Rectangle())
                 .background(
                   tab.selected ? Color.white.opacity(0.2) : .clear, ignoresSafeAreaEdges: []
                 )
@@ -438,7 +487,8 @@ struct Workspace: View {
         Button {
           templateSheet = true
         } label: {
-          Image(systemName: "plus").frame(width: 44, height: 34)
+          Image(systemName: "plus").font(.system(size: 17)).frame(width: 52, height: 40)
+            .contentShape(Rectangle())
         }.buttonStyle(.plain).accessibilityLabel("Add page").accessibilityIdentifier(
           "newPageButton")
       }
@@ -464,7 +514,7 @@ struct Workspace: View {
                 if item == .elements || item == .image { settings = true }
               }
             } label: {
-              Image(systemName: icon(item)).font(.system(size: 20)).frame(width: 36, height: 38)
+              Image(systemName: icon(item)).font(.system(size: 21)).hitTarget(width: 44)
                 .foregroundStyle(tool == item ? Color(red: 0.12, green: 0.20, blue: 0.36) : .white)
                 .background(
                   tool == item ? Color.white.opacity(0.85) : .clear,
@@ -490,13 +540,13 @@ struct Workspace: View {
       Button {
         undo()
       } label: {
-        Image(systemName: "arrow.uturn.backward")
+        Image(systemName: "arrow.uturn.backward").font(.system(size: 19)).hitTarget(width: 42)
       }.disabled(undoStack.isEmpty).help("Undo").accessibilityLabel("Undo").keyboardShortcut(
         "z", modifiers: .command)
       Button {
         redo()
       } label: {
-        Image(systemName: "arrow.uturn.forward")
+        Image(systemName: "arrow.uturn.forward").font(.system(size: 19)).hitTarget(width: 42)
       }.disabled(redoStack.isEmpty).help("Redo").accessibilityLabel("Redo").keyboardShortcut(
         "z", modifiers: [.command, .shift])
 
@@ -507,7 +557,7 @@ struct Workspace: View {
             Button {
               shapePreset = preset
             } label: {
-              Image(systemName: preset.symbol).frame(width: 30, height: 32)
+              Image(systemName: preset.symbol).font(.system(size: 18)).hitTarget(width: 38)
                 .background(
                   shapePreset == preset ? Color.white.opacity(0.2) : .clear,
                   in: RoundedRectangle(cornerRadius: 7))
@@ -523,7 +573,7 @@ struct Workspace: View {
                 systemName: style == .fountain
                   ? "pencil.tip" : style == .ballpoint ? "pencil" : "paintbrush.pointed"
               )
-              .frame(width: 30, height: 32)
+              .font(.system(size: 18)).hitTarget(width: 38)
               .background(
                 penStyle == style ? Color.cyan.opacity(0.35) : .clear,
                 in: RoundedRectangle(cornerRadius: 7))
@@ -531,32 +581,20 @@ struct Workspace: View {
           }
         }
         Divider().frame(height: 24)
-        ForEach([InkColor.ink, .blue, .red, .green, .yellow], id: \.self) { ink in
-          Button {
-            color = ink
-          } label: {
-            Circle().fill(swiftColor(ink)).frame(width: 20, height: 20).padding(4).overlay(
-              Circle().stroke(color == ink ? accent : .clear, lineWidth: 1.5))
-          }.accessibilityLabel("Ink color")
-        }
-
-        ForEach([firstWidth, secondWidth, thirdWidth], id: \.self) { value in
-          Button {
-            width = value
-          } label: {
-            Circle().fill(Color.white).frame(
-              width: value + 3, height: value + 3
-            ).frame(
-              width: 26, height: 32
-            ).background(
-              width == value ? Color.white.opacity(0.2) : .clear,
-              in: RoundedRectangle(cornerRadius: 5))
-          }.help("\(value.formatted()) pt")
-        }
+        QuickColorRow(color: colorBinding, accent: accent)
+        Divider().frame(height: 24)
+        QuickWidthRow(
+          slots: widthSlots, width: widthBinding,
+          range: tool == .highlighter ? 6...40 : 0.5...12, color: color,
+          highlighter: tool == .highlighter)
       } else if tool == .eraser {
         ForEach(EraserMode.allCases, id: \.self) { mode in
-          Button(mode.rawValue.capitalized) { eraserMode = mode }
-            .foregroundStyle(eraserMode == mode ? Color.cyan : Color.white)
+          Button {
+            eraserMode = mode
+          } label: {
+            Text(mode.rawValue.capitalized).padding(.horizontal, 10).frame(height: 44)
+              .contentShape(Rectangle())
+          }.foregroundStyle(eraserMode == mode ? Color.cyan : Color.white)
         }
       } else if tool == .lasso {
         Toggle("Ink", isOn: $selectInk)
@@ -578,7 +616,7 @@ struct Workspace: View {
           ForEach(PenStyle.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
         }.pickerStyle(.segmented)
         Text("Thickness \(width.formatted()) pt")
-        Slider(value: $width, in: 0.5...12)
+        Slider(value: widthBinding, in: 0.5...12)
         ColorPicker("Custom color", selection: $customColor).onChange(of: customColor) {
           color = convertColor(customColor)
         }
@@ -598,11 +636,11 @@ struct Workspace: View {
         Toggle("Erase highlighter only", isOn: $highlighterOnly)
         Toggle("Auto-deselect", isOn: $autoDeselect)
         Text("Radius \(width.formatted()) pt")
-        Slider(value: $width, in: 3...40)
+        Slider(value: widthBinding, in: 3...40)
       case .highlighter:
         Toggle("Draw straight lines", isOn: $straightHighlight)
         Text("Width \(width.formatted()) pt")
-        Slider(value: $width, in: 8...30)
+        Slider(value: widthBinding, in: 6...40)
       case .shapes:
         Toggle("Fill closed shapes", isOn: $fillShapes)
         Text("Draw a line, rectangle or circle. Closed strokes snap to geometric shapes.").font(
@@ -639,7 +677,7 @@ struct Workspace: View {
   }
   private var pageSidebar: some View {
     ScrollView {
-      VStack(spacing: 18) {
+      LazyVStack(spacing: 18) {
         ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
           Button {
             activePage = index
@@ -705,7 +743,7 @@ struct Workspace: View {
       NativeCanvas(
         configuration: CanvasConfiguration(
           page: displayPage(p, index: index), assets: document.package.assets, tool: tool,
-          color: color, width: tool == .highlighter ? max(12, width) : width, style: penStyle,
+          color: color, width: width, style: penStyle,
           pencilOnly: pencilOnly, selection: index == activePage ? selection : [],
           onStroke: { stroke in
             activePage = index
@@ -719,14 +757,14 @@ struct Workspace: View {
             {
               s.samples = [first, last]
             }
-            let targets =
+            let scribbled =
               tool == .pen && scratchToErase
-              ? InkGestures.scratchTargets(s.samples.map(\.point), strokes: p.strokes) : []
+              ? InkGestures.scratchErase(s.samples.map(\.point), strokes: p.strokes) : nil
             edit { package in
-              if targets.isEmpty {
-                package.notebook.pages[index].strokes.append(s)
+              if let scribbled, scribbled != p.strokes {
+                package.notebook.pages[index].strokes = scribbled
               } else {
-                package.notebook.pages[index].strokes.removeAll { targets.contains($0.id) }
+                package.notebook.pages[index].strokes.append(s)
               }
             }
           },
@@ -1017,6 +1055,9 @@ struct Workspace: View {
       }
   }
   private func showPageIndicator() {
+    let now = Date()
+    guard !pageHUD || now.timeIntervalSince(lastHUDActivation) >= 0.5 else { return }
+    lastHUDActivation = now
     pageHUDTask?.cancel()
     pageHUD = true
     pageHUDTask = Task { @MainActor in

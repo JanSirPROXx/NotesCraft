@@ -39,13 +39,13 @@ import SwiftUI
       view.setAccessibilityLabel("Drawing canvas")
       view.setAccessibilityIdentifier("drawingCanvas")
       view.setAccessibilityValue("\(configuration.page.strokes.count) strokes")
-      view.needsDisplay = true
     }
   }
   @MainActor final class DrawingView: NSView {
     var configuration: CanvasConfiguration? {
       didSet {
         updatePageCache(from: oldValue, to: configuration)
+        if Self.affectsPixels(oldValue, configuration) { needsDisplay = true }
       }
     }
     var cachedPage: CGLayer?
@@ -58,7 +58,7 @@ import SwiftUI
     override var acceptsFirstResponder: Bool { true }
     override func draw(_ dirtyRect: NSRect) {
       guard let c = NSGraphicsContext.current?.cgContext, let configuration else { return }
-      paint(configuration, c)
+      paint(configuration, c, dirty: dirtyRect)
     }
     override func mouseDown(with event: NSEvent) {
       window?.makeFirstResponder(self)
@@ -68,7 +68,7 @@ import SwiftUI
     }
     override func mouseDragged(with event: NSEvent) {
       append(event)
-      needsDisplay = true
+      invalidateInk()
     }
     override func mouseUp(with event: NSEvent) {
       append(event)
@@ -149,6 +149,8 @@ import SwiftUI
       let view = DrawingView()
       view.isMultipleTouchEnabled = true
       view.backgroundColor = .white
+      view.isOpaque = true
+      view.clearsContextBeforeDrawing = false
       view.contentScaleFactor = UIScreen.main.scale
       let pencil = UIPencilInteraction()
       pencil.delegate = view
@@ -163,7 +165,6 @@ import SwiftUI
       view.accessibilityValue = "\(configuration.page.strokes.count) strokes"
       view.accessibilityTraits = .allowsDirectInteraction
       view.configureScrolling()
-      view.setNeedsDisplay()
     }
   }
   @MainActor
@@ -171,6 +172,7 @@ import SwiftUI
     var configuration: CanvasConfiguration? {
       didSet {
         updatePageCache(from: oldValue, to: configuration)
+        if Self.affectsPixels(oldValue, configuration) { setNeedsDisplay() }
         #if os(iOS)
           if oldValue?.pencilOnly == true && configuration?.pencilOnly == false {
             pencilSeen = false
@@ -186,7 +188,7 @@ import SwiftUI
     var predictedSamples: [Sample] = []
     override func draw(_ rect: CGRect) {
       guard let c = UIGraphicsGetCurrentContext(), let configuration else { return }
-      paint(configuration, c)
+      paint(configuration, c, dirty: rect)
     }
     private var activeTouch: UITouch?
     private var pencilSeen = false
@@ -208,16 +210,23 @@ import SwiftUI
         activeTouch = pencil
         configureScrolling()
       } else {
+        // A finger never inks while Pencil-only is on, but it must still operate objects:
+        // tapping images/text/elements and dragging an existing lasso selection.
         guard activeTouch == nil,
-          configuration.tool == .readOnly || configuration.tool == .image
-            || configuration.tool == .text
-            || (!pencilSeen && !configuration.pencilOnly),
           let touch = touches.first(where: { $0.type == .direct && $0.majorRadius < 60 })
         else { return }
+        let operatesObjects =
+          [.readOnly, .image, .text, .elements].contains(configuration.tool)
+          || (configuration.tool == .lasso
+            && selectionHit(at: sample(touch).point, configuration) != nil)
+        guard operatesObjects || (!pencilSeen && !configuration.pencilOnly) else { return }
         resetInput()
         activeTouch = touch
       }
       if let activeTouch { append(activeTouch) }
+      // A finger that grabbed a selection handle must move it instead of scrolling the page.
+      if input.moveStart != nil { configureScrolling() }
+      updateDisplayLink()
       setNeedsDisplay()
     }
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -226,7 +235,7 @@ import SwiftUI
       predictedSamples =
         input.held == nil && input.moveStart == nil
         ? (event?.predictedTouches(for: touch) ?? []).map { sample($0) } : []
-      setNeedsDisplay()
+      invalidateInk()
     }
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
       guard let touch = activeTouch, touches.contains(touch) else { return }
@@ -274,6 +283,7 @@ import SwiftUI
       }
     }
     @objc private func scrollGesture(_ gesture: UIPanGestureRecognizer) {
+      updateDisplayLink()
       if gesture.state == .began {
         pullStarted = nil
         pullTriggered = false
@@ -319,7 +329,7 @@ import SwiftUI
         addGestureRecognizer(boardPinch)
       }
       boardPan.minimumNumberOfTouches = configuration?.pencilOnly == true || pencilSeen ? 1 : 2
-      let pencilActive = activeTouch?.type == .pencil
+      let pencilActive = activeTouch?.type == .pencil || input.moveStart != nil
       boardPan.isEnabled = board && !pencilActive
       boardPinch.isEnabled = board && !pencilActive
       var ancestor = superview
@@ -354,6 +364,7 @@ import SwiftUI
         }
         ancestor = view.superview
       }
+      updateDisplayLink()
     }
     @objc private func panBoard(_ gesture: UIPanGestureRecognizer) {
       if gesture.state == .began { panBase = configuration?.viewport }
@@ -384,13 +395,23 @@ import SwiftUI
     }
     private var displayLink: CADisplayLink?
     private var displayTarget: CanvasDisplayTarget?
+    private func updateDisplayLink() {
+      displayLink?.isPaused =
+        activeTouch == nil
+        && !(configuration?.onAppendPage != nil && observedScroll?.isDragging == true)
+    }
     override func didMoveToWindow() {
       super.didMoveToWindow()
       displayLink?.invalidate()
       displayLink = nil
       displayTarget = nil
       guard window != nil else {
+        activeTouch = nil
         resetInput()
+        cachedPage = nil
+        observedScroll?.panGestureRecognizer.removeTarget(
+          self, action: #selector(scrollGesture(_:)))
+        observedScroll = nil
         return
       }
       configureScrolling()
@@ -401,9 +422,10 @@ import SwiftUI
       link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
       link.add(to: .main, forMode: .common)
       displayLink = link
+      updateDisplayLink()
     }
     func sample(_ touch: UITouch) -> Sample {
-      let p = touch.location(in: self)
+      let p = touch.type == .pencil ? touch.preciseLocation(in: self) : touch.location(in: self)
       let scale = bounds.width / (configuration?.page.dimensions.x ?? 595)
       return Sample(
         point: configuration?.viewport?.documentPoint(Point(p.x, p.y))
@@ -442,15 +464,46 @@ import SwiftUI
   var moveDelta = Point(0, 0)
   var selectionHandle: SelectionHandle = .move
   var selectionTransform: SelectionTransform?
+  var invalidatedSamples = 0
+  var lastInkRect = CGRect.null
 }
 enum SelectionHandle { case move, resize, rotate }
 
 extension DrawingView {
+  // SwiftUI re-applies the configuration on every state change, including a color tap.
+  // Data equality is a full memcmp, so identical backing storage is checked first to keep
+  // those updates from rescanning megabytes of PDF background per visible page.
+  static func sameAssets(_ a: [String: Data], _ b: [String: Data]) -> Bool {
+    guard a.count == b.count else { return false }
+    for (key, left) in a {
+      guard let right = b[key], left.count == right.count else { return false }
+      let shared = left.withUnsafeBytes { l in
+        right.withUnsafeBytes { r in l.baseAddress == r.baseAddress }
+      }
+      if !shared && left != right { return false }
+    }
+    return true
+  }
+  // Color, pen style and width only matter to the next stroke, so they must not repaint.
+  static func affectsPixels(_ old: CanvasConfiguration?, _ new: CanvasConfiguration?) -> Bool {
+    guard let old, let new else { return true }
+    if old.tool != new.tool || old.selection != new.selection || old.viewport != new.viewport
+      || old.searchHighlights != new.searchHighlights || old.page != new.page
+      || !sameAssets(old.assets, new.assets)
+    {
+      return true
+    }
+    return new.tool == .eraser
+      && (old.width != new.width || old.eraserMode != new.eraserMode
+        || old.highlighterOnly != new.highlighterOnly)
+  }
   func updatePageCache(from old: CanvasConfiguration?, to new: CanvasConfiguration?) {
-    guard old?.page != new?.page || old?.assets != new?.assets else { return }
+    guard old?.page != new?.page
+      || !Self.sameAssets(old?.assets ?? [:], new?.assets ?? [:])
+    else { return }
     defer { input.pendingStroke = nil }
     if let old, let new, let pending = input.pendingStroke,
-      pending.tool == .pen, old.assets == new.assets,
+      pending.tool == .pen, Self.sameAssets(old.assets, new.assets),
       old.viewport == new.viewport, input.moveStart == nil,
       new.page.strokes.last == pending, let context = cachedPage?.context
     {
@@ -470,6 +523,42 @@ extension DrawingView {
       setNeedsDisplay()
     #endif
   }
+  func viewPoint(_ point: Point) -> CGPoint {
+    guard let configuration else { return .zero }
+    if let viewport = configuration.viewport {
+      return CGPoint(
+        x: point.x * viewport.scale + viewport.offset.x,
+        y: point.y * viewport.scale + viewport.offset.y)
+    }
+    let scale = bounds.width / configuration.page.dimensions.x
+    return CGPoint(x: point.x * scale, y: point.y * scale)
+  }
+  // Pen and highlighter strokes only change near the newest samples, so repaint just that
+  // neighbourhood plus the previous provisional/predicted tail. Other tools (eraser,
+  // lasso, held shapes) change pixels anywhere and keep the full invalidation.
+  func invalidateInk() {
+    guard let configuration, [.pen, .highlighter].contains(configuration.tool),
+      input.held == nil, input.moveStart == nil, input.resizeStart == nil
+    else {
+      input.invalidatedSamples = samples.count
+      input.lastInkRect = .null
+      invalidateCanvas()
+      return
+    }
+    let scale = configuration.viewport?.scale ?? bounds.width / configuration.page.dimensions.x
+    // Brush tilt and pressure can widen a segment to roughly 3.4x the nominal width.
+    let pad = max(8, configuration.width * scale * 4 + 4)
+    var rect = CGRect.null
+    for sample in samples.suffix(from: max(0, input.invalidatedSamples - 4)) + predictedSamples {
+      let p = viewPoint(sample.point)
+      rect = rect.union(CGRect(x: p.x, y: p.y, width: 0, height: 0))
+    }
+    let fresh = rect.insetBy(dx: -pad, dy: -pad)
+    let dirty = fresh.union(input.lastInkRect)
+    input.lastInkRect = fresh
+    input.invalidatedSamples = samples.count
+    setNeedsDisplay(dirty.isNull ? bounds : dirty.intersection(bounds))
+  }
   func resetInput() {
     if input.moveStart != nil || (configuration?.tool == .eraser && !samples.isEmpty) {
       cachedPage = nil
@@ -487,41 +576,45 @@ extension DrawingView {
     input.moveDelta = Point(0, 0)
     input.selectionHandle = .move
     input.selectionTransform = nil
+    input.invalidatedSamples = 0
+    input.lastInkRect = .null
     samples = []
     predictedSamples = []
+  }
+  func selectionHit(at point: Point, _ configuration: CanvasConfiguration) -> (
+    handle: SelectionHandle, center: Point
+  )? {
+    guard
+      let bounds = InkGestures.selectionBounds(
+        page: configuration.page, ids: configuration.selection)
+    else { return nil }
+    let scale = configuration.viewport?.scale ?? self.bounds.width / configuration.page.dimensions.x
+    let center = Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+    // Finger-sized targets: 16 pt keeps Pencil precision, 24 pt lets a fingertip grab a handle.
+    let hitRadius = 24 / scale
+    let rotate = Point(center.x, bounds.y - 30 / scale)
+    let corners = [
+      Point(bounds.x, bounds.y), Point(bounds.x + bounds.width, bounds.y),
+      Point(bounds.x, bounds.y + bounds.height),
+      Point(bounds.x + bounds.width, bounds.y + bounds.height),
+    ]
+    if point.distance(to: rotate) < hitRadius { return (.rotate, center) }
+    if corners.contains(where: { point.distance(to: $0) < hitRadius }) { return (.resize, center) }
+    if InkGestures.selectionContains(point, page: configuration.page, ids: configuration.selection)
+    {
+      return (.move, center)
+    }
+    return nil
   }
   func accept(_ sample: Sample) {
     guard let configuration else { return }
     if samples.isEmpty, configuration.tool == .lasso,
-      let bounds = InkGestures.selectionBounds(
-        page: configuration.page, ids: configuration.selection)
+      let hit = selectionHit(at: sample.point, configuration)
     {
-      let scale =
-        configuration.viewport?.scale ?? self.bounds.width / configuration.page.dimensions.x
-      let center = Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
-      let hitRadius = 16 / scale
-      let rotate = Point(center.x, bounds.y - 30 / scale)
-      let corners = [
-        Point(bounds.x, bounds.y), Point(bounds.x + bounds.width, bounds.y),
-        Point(bounds.x, bounds.y + bounds.height),
-        Point(bounds.x + bounds.width, bounds.y + bounds.height),
-      ]
-      if sample.point.distance(to: rotate) < hitRadius {
-        input.selectionHandle = .rotate
-        input.moveStart = sample.point
-      } else if corners.contains(where: { sample.point.distance(to: $0) < hitRadius }) {
-        input.selectionHandle = .resize
-        input.moveStart = sample.point
-      } else if InkGestures.selectionContains(
-        sample.point, page: configuration.page, ids: configuration.selection)
-      {
-        input.selectionHandle = .move
-        input.moveStart = sample.point
-      }
-      if input.moveStart != nil {
-        input.selectionTransform = SelectionTransform(center: center)
-        cachedPage = nil
-      }
+      input.selectionHandle = hit.handle
+      input.moveStart = sample.point
+      input.selectionTransform = SelectionTransform(center: hit.center)
+      cachedPage = nil
     }
     if let start = input.moveStart, var transform = input.selectionTransform {
       switch input.selectionHandle {
@@ -578,7 +671,7 @@ extension DrawingView {
       }
     }
   }
-  func paint(_ configuration: CanvasConfiguration, _ c: CGContext) {
+  func paint(_ configuration: CanvasConfiguration, _ c: CGContext, dirty: CGRect? = nil) {
     guard bounds.width > 0, bounds.height > 0 else { return }
     var configuration = configuration
     if let transform = input.selectionTransform {
@@ -594,6 +687,9 @@ extension DrawingView {
       }
     }
     c.saveGState()
+    // While inking only a few points change per frame; clipping keeps the page blit and
+    // the white fill proportional to the stroke tail instead of the whole screen.
+    if let dirty, dirty != bounds { c.clip(to: dirty) }
     c.setFillColor(CGColor(gray: 1, alpha: 1))
     c.fill(bounds)
     let cacheRect: CGRect
