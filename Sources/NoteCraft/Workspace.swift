@@ -863,11 +863,9 @@ struct Workspace: View {
             activePage = index
             if tool == .eraser {
               edit { package in
-                for point in points {
-                  package.notebook.pages[index].strokes = Editing.erase(
-                    strokes: package.notebook.pages[index].strokes, at: point,
-                    radius: max(8, width), mode: eraserMode, highlighterOnly: highlighterOnly)
-                }
+                package.notebook.pages[index].strokes = Editing.erase(
+                  strokes: package.notebook.pages[index].strokes, along: points,
+                  radius: max(8, width), mode: eraserMode, highlighterOnly: highlighterOnly)
               }
               if autoDeselect { tool = previousTool == .eraser ? .pen : previousTool }
             } else if let tapped = points.first, tapExtent(points) < 10 / viewScale {

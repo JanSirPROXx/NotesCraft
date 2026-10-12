@@ -494,6 +494,8 @@ import SwiftUI
   var fountain = FountainInk.State()
   var fountainWidths: [Double] = []
   var lastRaw: Point?
+  // Strokes with the eraser path applied so far; each new sample only erases incrementally.
+  var erased: [Stroke]?
 }
 enum SelectionHandle: Equatable {
   case move, resize, rotate
@@ -613,6 +615,7 @@ extension DrawingView {
     input.frame = nil
     input.invalidatedSamples = 0
     input.lastInkRect = .null
+    input.erased = nil
     samples = []
     predictedSamples = []
   }
@@ -800,7 +803,15 @@ extension DrawingView {
         FountainInk.advance(
           &input.fountain, sample: sample, base: configuration.width, tip: configuration.tip))
     }
-    if configuration.tool == .eraser { cachedPage = nil }
+    if configuration.tool == .eraser {
+      let before = input.erased ?? configuration.page.strokes
+      let after = Editing.erase(
+        strokes: before, at: sample.point, radius: max(8, configuration.width),
+        mode: configuration.eraserMode, highlighterOnly: configuration.highlighterOnly)
+      input.erased = after
+      // Only rebuild the page cache when the eraser actually changed something.
+      if after.count != before.count || after != before { cachedPage = nil }
+    }
     guard configuration.holdToShape, [.pen, .shapes].contains(configuration.tool) else { return }
     if let anchor = input.holdPoint, anchor.distance(to: sample.point) < 3 { return }
     input.holdPoint = sample.point
@@ -836,13 +847,8 @@ extension DrawingView {
       configuration.page = InkGestures.transform(
         configuration.page, ids: configuration.selection, by: transform)
     }
-    if configuration.tool == .eraser, !samples.isEmpty {
-      for sample in samples {
-        configuration.page.strokes = Editing.erase(
-          strokes: configuration.page.strokes,
-          at: sample.point, radius: max(8, configuration.width), mode: configuration.eraserMode,
-          highlighterOnly: configuration.highlighterOnly)
-      }
+    if configuration.tool == .eraser, !samples.isEmpty, let erased = input.erased {
+      configuration.page.strokes = erased
     }
     c.saveGState()
     // While inking only a few points change per frame; clipping keeps the page blit and

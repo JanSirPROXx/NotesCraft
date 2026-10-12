@@ -105,18 +105,45 @@ public enum Editing {
         Rect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
       ).filter { strokeIntersects($0, polygon: polygon) }.map(\.id))
   }
+  // One pass with a bounding-box reject: most strokes on a page are nowhere near the eraser.
+  private static func strokeIsNear(_ stroke: Stroke, _ point: Point, _ threshold: Double) -> Bool {
+    guard var previous = stroke.samples.first?.point else { return false }
+    var minX = previous.x
+    var maxX = minX
+    var minY = previous.y
+    var maxY = minY
+    for sample in stroke.samples.dropFirst() {
+      let p = sample.point
+      minX = min(minX, p.x)
+      maxX = max(maxX, p.x)
+      minY = min(minY, p.y)
+      maxY = max(maxY, p.y)
+    }
+    guard point.x >= minX - threshold, point.x <= maxX + threshold,
+      point.y >= minY - threshold, point.y <= maxY + threshold
+    else { return false }
+    if previous.distance(to: point) <= threshold { return true }
+    for sample in stroke.samples.dropFirst() {
+      if distance(point, toSegmentFrom: previous, to: sample.point) <= threshold { return true }
+      previous = sample.point
+    }
+    return false
+  }
+  public static func erase(
+    strokes: [Stroke], along points: [Point], radius: Double, mode: EraserMode,
+    highlighterOnly: Bool
+  ) -> [Stroke] {
+    points.reduce(strokes) {
+      erase(strokes: $0, at: $1, radius: radius, mode: mode, highlighterOnly: highlighterOnly)
+    }
+  }
   public static func erase(
     strokes: [Stroke], at point: Point, radius: Double, mode: EraserMode, highlighterOnly: Bool
   ) -> [Stroke] {
     strokes.flatMap { stroke -> [Stroke] in
       if highlighterOnly && stroke.tool != .highlighter { return [stroke] }
       let threshold = radius + stroke.width / 2
-      let hit =
-        stroke.samples.contains { $0.point.distance(to: point) <= threshold }
-        || zip(stroke.samples, stroke.samples.dropFirst()).contains {
-          distance(point, toSegmentFrom: $0.0.point, to: $0.1.point) <= threshold
-        }
-      guard hit else { return [stroke] }
+      guard strokeIsNear(stroke, point, threshold) else { return [stroke] }
       guard mode == .precision else { return [] }
       var segments: [[Sample]] = [[]]
       var dense: [Sample] = []
