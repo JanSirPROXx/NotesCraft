@@ -487,3 +487,16 @@ import Testing
   #expect(result.count < strokes.count)
   #expect(elapsed < .milliseconds(400), "took \(elapsed)")
 }
+
+@Test func scribbleOverAPageWithUntouchedStrokesDoesNotTrap() throws {
+  // A stroke whose bounds overlap the scribble but whose segments never touch it used to
+  // overflow an Int subtraction and crash the app.
+  let nearMiss = Stroke(samples: [Sample(point: Point(0, 0)), Sample(point: Point(200, 0))])
+  let target = Stroke(samples: [Sample(point: Point(40, 0)), Sample(point: Point(40, 80))])
+  let scribble = (0..<400).map { i -> Point in
+    let phase = (Double(i) / 50).truncatingRemainder(dividingBy: 2)
+    return Point(10 + (phase < 1 ? phase : 2 - phase) * 60, 20 + Double(i) * 0.1)
+  }
+  let result = try #require(InkGestures.scratchErase(scribble, strokes: [nearMiss, target]))
+  #expect(result.map(\.id) == [nearMiss.id])
+}

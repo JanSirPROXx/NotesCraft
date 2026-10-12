@@ -444,7 +444,7 @@ public enum InkGestures {
             && Editing.distance(only, toSegmentFrom: segments[k].a, to: segments[k].b) <= tolerance
           {
             note(k)
-          }ºº
+          }
         } else {
           for (a, b) in zip(stroke.samples, stroke.samples.dropFirst()) {
             for k in segments.indices
@@ -453,7 +453,7 @@ public enum InkGestures {
             {
               note(k)
             }
-            if highest - lowest >= 2 { return true }
+            if highest != Int.min, highest - lowest >= 2 { return true }
           }
         }
         return highest != Int.min && highest - lowest >= 2
