@@ -149,3 +149,189 @@ func rightAngleIsRecognizedAndKeepsItsCorner(corners: [Point], turn: Double) thr
   let old = try JSONDecoder().decode(Stroke.self, from: JSONSerialization.data(withJSONObject: object))
   #expect(old.shape == nil && old.fillOpacity == nil)
 }
+
+// MARK: Free-form drawing, the GoodNotes bar
+
+private func polygon(_ result: ShapeRecognizer.Result?) -> [Point]? {
+  if case .polygon(let points, _) = result { return points }
+  return nil
+}
+
+@Test(arguments: [
+  [Point(300, 100), Point(400, 200), Point(300, 300), Point(200, 200)],
+  [Point(300, 120), Point(430, 200), Point(300, 280), Point(170, 200)],
+])
+func diamondIsNotMistakenForACircle(corners: [Point]) throws {
+  let diamond = try #require(spec(ShapeRecognizer.recognize(polyline(corners, closed: true))))
+  #expect(diamond.kind == .diamond)
+  #expect(abs(diamond.width - (corners[1].x - corners[3].x)) < 16)
+  #expect(abs(diamond.height - (corners[2].y - corners[0].y)) < 16)
+}
+
+@Test func diamondDrawnWithRoundedCornersAndOvershoot() throws {
+  var corners: [Point] = []
+  let top = Point(300, 100), right = Point(420, 200), bottom = Point(300, 300), left = Point(180, 200)
+  let loop = [top, right, bottom, left, top, Point(360, 150)]
+  for (a, b) in zip(loop, loop.dropFirst()) {
+    for i in 0..<20 {
+      let t = Double(i) / 20
+      corners.append(Point(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t))
+    }
+  }
+  // Round every corner by averaging, as a quick pen stroke does.
+  var rounded = corners
+  for _ in 0..<3 {
+    rounded = rounded.indices.map { i in
+      guard i > 0, i < rounded.count - 1 else { return rounded[i] }
+      return Point(
+        (rounded[i - 1].x + rounded[i].x * 2 + rounded[i + 1].x) / 4,
+        (rounded[i - 1].y + rounded[i].y * 2 + rounded[i + 1].y) / 4)
+    }
+  }
+  let shape = try #require(spec(ShapeRecognizer.recognize(rounded)))
+  #expect(shape.kind == .diamond)
+}
+
+@Test func archSweepIsAnArcAndHalfCircleBecomesExactlyHalf() throws {
+  let half = (0...40).map { i -> Point in
+    let a = Double.pi + Double(i) / 40 * Double.pi * 0.97
+    return Point(300 + 100 * cos(a), 300 + 100 * sin(a))
+  }
+  let points = try #require(polygon(ShapeRecognizer.recognize(half)))
+  // Ends form a diameter and the bulge reaches a full radius.
+  let ends = points[0].distance(to: points[points.count - 1])
+  #expect(abs(ends - 200) < 6)
+  #expect(abs((points.map(\.y).min() ?? 0) - 200) < 6)
+}
+
+@Test func gentleCurveIsKeptAsDrawnOrBecomesAnArcButNeverALine() {
+  let wave = (0...60).map { i in Point(100 + Double(i) * 5, 200 + 40 * sin(Double(i) / 60 * 2 * .pi)) }
+  #expect(ShapeRecognizer.recognize(wave) == nil)
+}
+
+@Test func openCornerKeepsItsShapeAsPolyline() throws {
+  // Half a rectangle: three straight sides.
+  let points = polyline(
+    [Point(100, 100), Point(300, 104), Point(298, 240), Point(103, 238)], closed: false)
+  let result = try #require(polygon(ShapeRecognizer.recognize(points)))
+  #expect(result.count == 4)
+  #expect(abs(result[0].y - result[1].y) < 0.001, "top edge snaps level")
+  #expect(abs(result[1].x - result[2].x) < 0.001, "right edge snaps plumb")
+}
+
+@Test func singleStrokeArrowBecomesAnArrow() throws {
+  // Shaft, then barb out and back, then the other barb.
+  let tip = Point(400, 200)
+  let points = polyline(
+    [Point(100, 200), tip, Point(360, 170), tip, Point(360, 232)], closed: false, wobble: 1)
+  let arrow = try #require(spec(ShapeRecognizer.recognize(points)))
+  #expect(arrow.kind == .arrow)
+  #expect(abs(arrow.width - 300) < 12)
+}
+
+@Test func halfRoundedRectangleKeepsStraightSidesAndArc() throws {
+  // A "D": straight spine closed by a half circle.
+  var points = [Point(200, 100), Point(200, 300)]
+  points = polyline(points, closed: false, wobble: 0.5)
+  for i in 1...30 {
+    let a = Double.pi / 2 - Double(i) / 30 * Double.pi
+    points.append(Point(200 + 100 * cos(a), 200 + 100 * sin(a)))
+  }
+  let shape = try #require(ShapeRecognizer.recognize(points))
+  #expect(polygon(shape) != nil)
+}
+
+@Test func circleDrawnWithOverlapIsStillACircle() throws {
+  let points = (0...100).map { i -> Point in
+    let a = Double(i) / 100 * 2 * Double.pi * 1.12 - 1
+    return Point(300 + 70 * cos(a), 300 + 70 * sin(a))
+  }
+  let circle = try #require(spec(ShapeRecognizer.recognize(points)))
+  #expect(circle.kind == .ellipse)
+}
+
+@Test func squareAndUprightRectangleAreNotDiamonds() throws {
+  let square = try #require(
+    spec(
+      ShapeRecognizer.recognize(
+        polyline([Point(100, 100), Point(220, 100), Point(220, 220), Point(100, 220)], closed: true))))
+  #expect(square.kind == .rectangle)
+  let flat = try #require(
+    spec(
+      ShapeRecognizer.recognize(
+        polyline([Point(100, 100), Point(400, 100), Point(400, 130), Point(100, 130)], closed: true))))
+  #expect(flat.kind == .rectangle)
+}
+
+@Test func erDiagramPartsAreAllRecognized() throws {
+  let entity = polyline(
+    [Point(50, 50), Point(210, 52), Point(208, 120), Point(52, 118)], closed: true)
+  #expect(spec(ShapeRecognizer.recognize(entity))?.kind == .rectangle)
+  let attribute = (0...60).map { i -> Point in
+    let a = Double(i) / 60 * 2 * Double.pi
+    return Point(400 + 70 * cos(a), 80 + 32 * sin(a))
+  }
+  #expect(spec(ShapeRecognizer.recognize(attribute))?.kind == .ellipse)
+  let relation = polyline(
+    [Point(300, 250), Point(380, 290), Point(300, 330), Point(220, 290)], closed: true)
+  #expect(spec(ShapeRecognizer.recognize(relation))?.kind == .diamond)
+  let link = polyline([Point(210, 90), Point(300, 250)], closed: false, wobble: 1)
+  #expect(spec(ShapeRecognizer.recognize(link))?.kind == .line)
+}
+
+// Every shape, drawn from any starting point, in either direction, at several sizes and
+// with realistic hand wobble, must come back as itself.
+private func rotated(_ points: [Point], by turn: Double) -> [Point] {
+  points.map {
+    Point($0.x * cos(turn) - $0.y * sin(turn) + 400, $0.x * sin(turn) + $0.y * cos(turn) + 400)
+  }
+}
+
+@Test func shapesSurviveStartPointDirectionSizeAndWobble() {
+  let figures: [(name: String, corners: [Point], kind: ShapeKind)] = [
+    ("rectangle", [Point(-1, -0.6), Point(1, -0.6), Point(1, 0.6), Point(-1, 0.6)], .rectangle),
+    ("square", [Point(-1, -1), Point(1, -1), Point(1, 1), Point(-1, 1)], .rectangle),
+    ("diamond", [Point(0, -1), Point(1.3, 0), Point(0, 1), Point(-1.3, 0)], .diamond),
+    ("square diamond", [Point(0, -1), Point(1, 0), Point(0, 1), Point(-1, 0)], .diamond),
+    ("triangle", [Point(0, -1), Point(1, 0.8), Point(-1, 0.8)], .triangle),
+  ]
+  var failures: [String] = []
+  for figure in figures {
+    for scale in [60.0, 110.0, 200.0] {
+      for wobble in [0.8, 2.0] {
+        for start in 0..<figure.corners.count {
+          for reversed in [false, true] {
+            var corners = figure.corners.map { Point($0.x * scale, $0.y * scale) }
+            corners = Array(corners[start...] + corners[..<start])
+            if reversed { corners.reverse() }
+            let points = rotated(polyline(corners, closed: true, wobble: wobble), by: 0)
+            let result = ShapeRecognizer.recognize(points)
+            if spec(result)?.kind != figure.kind {
+              failures.append("\(figure.name) scale \(scale) wobble \(wobble) start \(start) rev \(reversed) → \(String(describing: spec(result)?.kind))")
+            }
+          }
+        }
+      }
+    }
+  }
+  #expect(failures.isEmpty, "\(failures.count) failures: \(failures.prefix(12))")
+}
+
+@Test func circlesAndEllipsesSurviveStartPointDirectionAndSize() {
+  var failures: [String] = []
+  var w = Wobble(state: 31)
+  for (rx, ry) in [(40.0, 40.0), (90.0, 90.0), (150.0, 60.0), (120.0, 40.0), (60.0, 130.0)] {
+    for start in stride(from: 0.0, to: 6.2, by: 1.3) {
+      for direction in [1.0, -1.0] {
+        let points = (0...90).map { i -> Point in
+          let a = start + direction * Double(i) / 90 * 2 * Double.pi * 1.05
+          return Point(400 + rx * cos(a) + w.next(2), 400 + ry * sin(a) + w.next(2))
+        }
+        if spec(ShapeRecognizer.recognize(points))?.kind != .ellipse {
+          failures.append("ellipse \(rx)x\(ry) start \(start) dir \(direction)")
+        }
+      }
+    }
+  }
+  #expect(failures.isEmpty, "\(failures.count) failures: \(failures.prefix(12))")
+}

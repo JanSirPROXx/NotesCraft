@@ -159,6 +159,8 @@ import SwiftUI
       let pencil = UIPencilInteraction()
       pencil.delegate = view
       view.addInteraction(pencil)
+      view.addGestureRecognizer(
+        UIHoverGestureRecognizer(target: view, action: #selector(DrawingView.hover(_:))))
       return view
     }
     func updateUIView(_ view: DrawingView, context: Context) {
@@ -199,6 +201,21 @@ import SwiftUI
     private var pullStarted: TimeInterval?
     private var pullTriggered = false
     private weak var observedScroll: UIScrollView?
+    // Pencil hover and pointers show the eraser's reach before anything is touched.
+    @objc func hover(_ recognizer: UIHoverGestureRecognizer) {
+      guard configuration?.tool == .eraser, activeTouch == nil else { return }
+      switch recognizer.state {
+      case .began, .changed:
+        let p = recognizer.location(in: self)
+        let scale = configuration?.viewport?.scale
+          ?? bounds.width / (configuration?.page.dimensions.x ?? 1)
+        input.cursor = configuration?.viewport?.documentPoint(Point(p.x, p.y))
+          ?? Point(p.x / scale, p.y / scale)
+      default:
+        input.cursor = nil
+      }
+      invalidateEraser()
+    }
     func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {
       configuration?.onToggleEraser?()
     }
@@ -374,7 +391,9 @@ import SwiftUI
             paper.pinchGestureRecognizer?.isEnabled = paper.allowsZoom && !pencilActive
           }
           if !(scroll is NotebookZoomScrollView) {
-            // A page swipe should settle quickly onto the target page rather than glide.
+            // A page swipe should settle quickly onto the target page rather than glide, and a
+            // mostly vertical drag must not slide the notebook sideways.
+            scroll.isDirectionalLockEnabled = true
             scroll.decelerationRate = .fast
             scroll.alwaysBounceVertical = configuration?.horizontalPages != true
             scroll.alwaysBounceHorizontal = configuration?.horizontalPages == true
@@ -496,6 +515,10 @@ import SwiftUI
   var lastRaw: Point?
   // Strokes with the eraser path applied so far; each new sample only erases incrementally.
   var erased: [Stroke]?
+  var eraseDirty = CGRect.null
+  var cursor: Point?
+  var cursorRect = CGRect.null
+  var cacheRect = CGRect.zero
 }
 enum SelectionHandle: Equatable {
   case move, resize, rotate
@@ -572,7 +595,46 @@ extension DrawingView {
   // Pen and highlighter strokes only change near the newest samples, so repaint just that
   // neighbourhood plus the previous provisional/predicted tail. Other tools (eraser,
   // lasso, held shapes) change pixels anywhere and keep the full invalidation.
+  // The eraser changes a small area at a time: redraw just that area of the cached page instead
+  // of rebuilding the whole page for every sample.
+  func patchCache(page area: Rect) {
+    guard let configuration, let erased = input.erased, let context = cachedPage?.context,
+      cachedViewport == configuration.viewport
+    else {
+      cachedPage = nil
+      return
+    }
+    var page = configuration.page
+    page.strokes = erased
+    let rect = CGRect(x: area.x, y: area.y, width: area.width, height: area.height)
+    context.saveGState()
+    context.clip(to: rect)
+    PageRenderer.render(
+      page, assets: configuration.assets, in: context,
+      paperBounds: configuration.viewport == nil ? nil : input.cacheRect, cull: rect)
+    context.restoreGState()
+  }
+  func cursorViewRect() -> CGRect {
+    guard let configuration, let cursor = input.cursor, configuration.tool == .eraser else {
+      return .null
+    }
+    let scale = configuration.viewport?.scale ?? bounds.width / configuration.page.dimensions.x
+    let center = viewPoint(cursor)
+    let radius = max(8, configuration.width) * scale + 3
+    return CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+  }
+  func invalidateEraser() {
+    let cursor = cursorViewRect()
+    let dirty = input.eraseDirty.union(cursor).union(input.cursorRect)
+    input.cursorRect = cursor
+    input.eraseDirty = .null
+    setNeedsDisplay(dirty.isNull ? bounds : dirty.insetBy(dx: -2, dy: -2).intersection(bounds))
+  }
   func invalidateInk() {
+    if configuration?.tool == .eraser, input.moveStart == nil {
+      invalidateEraser()
+      return
+    }
     guard let configuration, [.pen, .highlighter].contains(configuration.tool),
       input.held == nil, input.moveStart == nil, input.resizeStart == nil
     else {
@@ -616,6 +678,9 @@ extension DrawingView {
     input.invalidatedSamples = 0
     input.lastInkRect = .null
     input.erased = nil
+    input.cursor = nil
+    input.eraseDirty = .null
+    input.cursorRect = .null
     samples = []
     predictedSamples = []
   }
@@ -804,13 +869,26 @@ extension DrawingView {
           &input.fountain, sample: sample, base: configuration.width, tip: configuration.tip))
     }
     if configuration.tool == .eraser {
-      let before = input.erased ?? configuration.page.strokes
-      let after = Editing.erase(
-        strokes: before, at: sample.point, radius: max(8, configuration.width),
-        mode: configuration.eraserMode, highlighterOnly: configuration.highlighterOnly)
-      input.erased = after
-      // Only rebuild the page cache when the eraser actually changed something.
-      if after.count != before.count || after != before { cachedPage = nil }
+      var strokes = input.erased ?? configuration.page.strokes
+      let radius = max(8, configuration.width)
+      // Fill the gap to the previous sample so a quick swipe leaves no ink behind.
+      let path = samples.count > 1
+        ? Editing.sweep([samples[samples.count - 2].point, sample.point], spacing: max(2, radius / 2))
+        : [sample.point]
+      input.cursor = sample.point
+      for point in path.dropFirst(path.count > 1 ? 1 : 0) {
+        guard let area = Editing.eraseTracking(
+          &strokes, at: point, radius: radius, mode: configuration.eraserMode,
+          highlighterOnly: configuration.highlighterOnly)
+        else { continue }
+        input.erased = strokes
+        patchCache(page: area)
+        let a = viewPoint(Point(area.x, area.y))
+        let b = viewPoint(Point(area.x + area.width, area.y + area.height))
+        input.eraseDirty = input.eraseDirty.union(
+          CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(b.x - a.x), height: abs(b.y - a.y)))
+      }
+      if input.erased == nil { input.erased = strokes }
     }
     guard configuration.holdToShape, [.pen, .shapes].contains(configuration.tool) else { return }
     if let anchor = input.holdPoint, anchor.distance(to: sample.point) < 3 { return }
@@ -892,6 +970,7 @@ extension DrawingView {
         background, assets: configuration.assets, in: context,
         paperBounds: configuration.viewport == nil ? nil : cacheRect)
       cachedPage = layer
+      input.cacheRect = cacheRect
       cachedResolution = resolution
       cachedViewport = configuration.viewport
     }
@@ -944,6 +1023,16 @@ extension DrawingView {
           )
         }
       }
+    }
+    if configuration.tool == .eraser, let cursor = input.cursor {
+      let scale = configuration.viewport?.scale ?? bounds.width / configuration.page.dimensions.x
+      let radius = max(8, configuration.width)
+      let ring = CGRect(x: cursor.x - radius, y: cursor.y - radius, width: radius * 2, height: radius * 2)
+      c.setFillColor(CGColor(gray: 0.5, alpha: 0.14))
+      c.fillEllipse(in: ring)
+      c.setStrokeColor(CGColor(gray: 0.25, alpha: 0.75))
+      c.setLineWidth(1.2 / scale)
+      c.strokeEllipse(in: ring)
     }
     c.setLineDash(phase: 0, lengths: [4, 3])
     c.setStrokeColor(PageRenderer.color(.blue))
@@ -1116,12 +1205,17 @@ extension DrawingView {
         guard zoomScale > minimumZoomScale + 0.01 else { return false }
         let velocity = panGestureRecognizer.velocity(in: self)
         let horizontal = abs(velocity.x) > abs(velocity.y)
+        let lowEdge = horizontal ? -contentInset.left : -contentInset.top
+        let highEdge =
+          horizontal
+          ? contentSize.width - bounds.width + contentInset.right
+          : contentSize.height - bounds.height + contentInset.bottom
         let position = horizontal ? contentOffset.x : contentOffset.y
-        let maximum =
-          horizontal ? contentSize.width - bounds.width : contentSize.height - bounds.height
         let delta = horizontal ? velocity.x : velocity.y
         // Outward gestures at an edge go to the parent, so paging also works while zoomed.
-        if (position <= 1 && delta > 0) || (position >= maximum - 1 && delta < 0) { return false }
+        if (position <= lowEdge + 1 && delta > 0) || (position >= highEdge - 1 && delta < 0) {
+          return false
+        }
       }
       return super.gestureRecognizerShouldBegin(gestureRecognizer)
     }
@@ -1148,6 +1242,7 @@ extension DrawingView {
       scroll.backgroundColor = .clear
       scroll.bounces = false
       scroll.bouncesZoom = true
+      scroll.contentInsetAdjustmentBehavior = .never
       scroll.pinchGestureRecognizer?.allowedTouchTypes = [
         NSNumber(value: UITouch.TouchType.direct.rawValue)
       ]
@@ -1182,7 +1277,8 @@ extension DrawingView {
         scroll.contentSize = contentSize
         coordinator.centerPaper()
         scroll.setZoomScale(min(6, max(1, scale)), animated: false)
-        scroll.contentOffset = .zero
+        scroll.contentOffset = CGPoint(x: -scroll.contentInset.left, y: -scroll.contentInset.top)
+        coordinator.centerPaper()
       }
     }
     @MainActor final class Coordinator: NSObject, UIScrollViewDelegate {
@@ -1229,11 +1325,28 @@ extension DrawingView {
         }
         if let view { refresh(view) }
       }
+      // The paper is centred with content insets rather than by moving the view: the inset
+      // grows smoothly from "centred" to a fixed margin as the page outgrows the screen, so
+      // zooming never jumps, and a margin stays around the page so its top edge can be pulled
+      // out from under the toolbar and zoomed at like any other part.
       func centerPaper() {
-        guard let view = host?.view else { return }
-        view.center = CGPoint(
-          x: max(viewportSize.width, scroll.contentSize.width) / 2,
-          y: max(viewportSize.height, scroll.contentSize.height) / 2)
+        let size = scroll.bounds.size == .zero ? viewportSize : scroll.bounds.size
+        let content = scroll.contentSize
+        guard size.width > 0, size.height > 0 else { return }
+        let sideMargin: CGFloat = 28
+        let topMargin: CGFloat = 64
+        let bottomMargin: CGFloat = 28
+        let insetX = max(sideMargin, (size.width - content.width) / 2)
+        let spareY = (size.height - content.height) / 2
+        let inset = UIEdgeInsets(
+          top: max(topMargin, spareY), left: insetX, bottom: max(bottomMargin, spareY),
+          right: insetX)
+        if scroll.contentInset != inset { scroll.contentInset = inset }
+        // A page that fits stays exactly centred; a larger one keeps the offset UIKit chose.
+        var offset = scroll.contentOffset
+        if content.width <= size.width { offset.x = -insetX }
+        if content.height <= size.height { offset.y = -spareY }
+        if offset != scroll.contentOffset { scroll.contentOffset = offset }
         scroll.accessibilityValue = "Zoom \(Int(scroll.zoomScale * 100)) percent"
         scroll.accessibilityIdentifier = "notebookZoomSurface"
       }

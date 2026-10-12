@@ -333,16 +333,27 @@ import Testing
   #expect(result.map(\.id) == [left.id, right.id])
 }
 
-@Test func scribbleCutsOnlyThePassedThroughPartOfALongStroke() throws {
+@Test func scribbleRemovesTheWholeLineItWasDrawnOverButNothingNextToIt() throws {
   let underline = Stroke(
     samples: [Sample(point: Point(-50, 6)), Sample(point: Point(100, 6))], width: 2)
-  let scrub = (0..<8).map { Point($0.isMultiple(of: 2) ? 9 : 19, Double($0) * 1.7) }
-  let result = try #require(InkGestures.scratchErase(scrub, strokes: [underline]))
-  #expect(result.count == 2)
-  let xs = result.flatMap { $0.samples.map(\.point.x) }
-  #expect(xs.contains { $0 < -45 } && xs.contains { $0 > 95 })
-  #expect(!xs.contains { $0 > 10 && $0 < 18 }, "The scrubbed span must be gone")
-  #expect(xs.contains { $0 > -45 && $0 < 4 } && xs.contains { $0 > 24 && $0 < 95 })
+  let lineAbove = Stroke(
+    samples: [Sample(point: Point(-50, -14)), Sample(point: Point(100, -14))], width: 2)
+  let lineBelow = Stroke(
+    samples: [Sample(point: Point(-50, 26)), Sample(point: Point(100, 26))], width: 2)
+  // Back and forth across the underline, a little loose in height.
+  let scrub = (0..<9).map { Point($0.isMultiple(of: 2) ? 0 : 30, 6 + ($0.isMultiple(of: 2) ? -4 : 4)) }
+  let result = try #require(
+    InkGestures.scratchErase(scrub, strokes: [lineAbove, underline, lineBelow]))
+  #expect(result.map(\.id) == [lineAbove.id, lineBelow.id])
+}
+
+@Test func theTipOfAScribbleGrazingANeighbourDoesNotEraseIt() throws {
+  let target = Stroke(samples: [Sample(point: Point(0, 0)), Sample(point: Point(0, 40))], width: 2)
+  // The scribble runs over x = -8…8, its extreme sweep dips to touch a line at y = 46.
+  let scrub = (0..<9).map { Point($0.isMultiple(of: 2) ? -8 : 8, Double($0) * 4) }
+  let graze = Stroke(samples: [Sample(point: Point(-30, 34)), Sample(point: Point(30, 34))], width: 2)
+  let result = try #require(InkGestures.scratchErase(scrub, strokes: [target, graze]))
+  #expect(result.map(\.id) == [graze.id], "only the vertical line under the pen goes")
 }
 
 @Test func handwritingThatDoesNotDoubleBackIsNotAScribble() {
@@ -449,4 +460,30 @@ import Testing
   let old = try JSONDecoder().decode(
     Stroke.self, from: JSONSerialization.data(withJSONObject: legacy))
   #expect(old.tip == nil)
+}
+
+@Test func fastEraserSwipeDoesNotSkipInkBetweenSamples() {
+  let rung = Stroke(samples: [Sample(point: Point(100, 0)), Sample(point: Point(100, 40))], width: 2)
+  // Two samples 200 pt apart with an 8 pt eraser: a point-only test would jump over the stroke.
+  let result = Editing.erase(
+    strokes: [rung], along: [Point(0, 20), Point(200, 20)], radius: 8, mode: .stroke,
+    highlighterOnly: false)
+  #expect(result.isEmpty)
+}
+
+@Test func eraserOverADensePageStaysFast() {
+  var strokes: [Stroke] = []
+  for i in 0..<3000 {
+    let x = Double(i % 60) * 12
+    let y = Double(i / 60) * 14
+    strokes.append(
+      Stroke(samples: (0..<40).map { Sample(point: Point(x + Double($0) * 0.2, y + sin(Double($0)) * 3)) }))
+  }
+  let path = (0..<400).map { Point(Double($0) * 1.8, 300 + sin(Double($0) / 20) * 40) }
+  let start = ContinuousClock.now
+  let result = Editing.erase(
+    strokes: strokes, along: path, radius: 10, mode: .stroke, highlighterOnly: false)
+  let elapsed = ContinuousClock.now - start
+  #expect(result.count < strokes.count)
+  #expect(elapsed < .milliseconds(400), "took \(elapsed)")
 }

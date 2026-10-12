@@ -198,14 +198,15 @@ struct Workspace: View {
       ScrollView(horizontal ? .horizontal : .vertical, showsIndicators: false) {
         if horizontal {
           LazyHStack(alignment: .top, spacing: 0) {
-            ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
+            // The blank page that swiping creates sits in the same list as the real pages and
+            // keeps its ID when it becomes one, so its view (and zoom surface) is never rebuilt.
+            ForEach(
+              Array((notebook.pages + (trailingPage.map { [$0] } ?? [])).enumerated()),
+              id: \.element.id
+            ) { index, p in
               notebookPage(p, index: index, size: geometry.size)
                 .frame(width: geometry.size.width).id(p.id)
-            }
-            if let next = trailingPage {
-              // Same ID as the page it becomes, so committing it causes no visual jump.
-              notebookPage(next, index: notebook.pages.count, size: geometry.size)
-                .frame(width: geometry.size.width).id(next.id).allowsHitTesting(false)
+                .allowsHitTesting(index < notebook.pages.count)
             }
           }.scrollTargetLayout()
         } else {
@@ -997,7 +998,9 @@ struct Workspace: View {
       trailingPage = nil
       return
     }
-    trailingPage = InkGestures.blankPage(matching: last)
+    let next = InkGestures.blankPage(matching: last)
+    if keepZoomOnNewPage { pageZoom[next.id] = pageZoom[last.id] ?? 1 }
+    trailingPage = next
   }
   private func appendPage(_ next: Page) {
     pageZoom[next.id] = keepZoomOnNewPage ? (pageZoom[page.id] ?? zoom) : 1

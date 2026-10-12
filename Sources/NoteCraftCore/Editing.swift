@@ -129,12 +129,76 @@ public enum Editing {
     }
     return false
   }
+  // In-place erase that reports the page area whose pixels changed (nil when nothing was hit),
+  // so a canvas can repaint just that area.
+  public static func eraseTracking(
+    _ strokes: inout [Stroke], at point: Point, radius: Double, mode: EraserMode,
+    highlighterOnly: Bool
+  ) -> Rect? {
+    var dirty: Rect?
+    var result: [Stroke] = []
+    result.reserveCapacity(strokes.count)
+    for stroke in strokes {
+      let threshold = radius + stroke.width / 2
+      if (highlighterOnly && stroke.tool != .highlighter)
+        || !strokeIsNear(stroke, point, threshold)
+      {
+        result.append(stroke)
+        continue
+      }
+      let box = stroke.bounds
+      let pad = stroke.width * 2 + 2
+      let area = Rect(x: box.x - pad, y: box.y - pad, width: box.width + 2 * pad, height: box.height + 2 * pad)
+      if let current = dirty {
+        let minX = min(current.x, area.x)
+        let minY = min(current.y, area.y)
+        dirty = Rect(
+          x: minX, y: minY, width: max(current.x + current.width, area.x + area.width) - minX,
+          height: max(current.y + current.height, area.y + area.height) - minY)
+      } else {
+        dirty = area
+      }
+      result += erase(
+        strokes: [stroke], at: point, radius: radius, mode: mode, highlighterOnly: highlighterOnly)
+    }
+    if dirty != nil { strokes = result }
+    return dirty
+  }
+  // Points along the eraser's path no further apart than `spacing`, so a fast swipe cannot skip
+  // over ink between two samples.
+  public static func sweep(_ points: [Point], spacing: Double) -> [Point] {
+    guard var previous = points.first else { return [] }
+    var result = [previous]
+    for point in points.dropFirst() {
+      let gap = previous.distance(to: point)
+      if gap > spacing {
+        let steps = Int(min(512, (gap / spacing).rounded(.up)))
+        for i in 1..<steps {
+          let t = Double(i) / Double(steps)
+          result.append(Point(previous.x + (point.x - previous.x) * t, previous.y + (point.y - previous.y) * t))
+        }
+      }
+      result.append(point)
+      previous = point
+    }
+    return result
+  }
   public static func erase(
     strokes: [Stroke], along points: [Point], radius: Double, mode: EraserMode,
     highlighterOnly: Bool
   ) -> [Stroke] {
-    points.reduce(strokes) {
-      erase(strokes: $0, at: $1, radius: radius, mode: mode, highlighterOnly: highlighterOnly)
+    let path = sweep(points, spacing: max(2, radius / 2))
+    return strokes.flatMap { stroke -> [Stroke] in
+      if highlighterOnly && stroke.tool != .highlighter { return [stroke] }
+      let box = stroke.bounds
+      let reach = radius + stroke.width / 2
+      let relevant = path.filter {
+        $0.x >= box.x - reach && $0.x <= box.x + box.width + reach
+          && $0.y >= box.y - reach && $0.y <= box.y + box.height + reach
+      }
+      return relevant.reduce([stroke]) {
+        erase(strokes: $0, at: $1, radius: radius, mode: mode, highlighterOnly: highlighterOnly)
+      }
     }
   }
   public static func erase(
@@ -321,114 +385,86 @@ public enum InkGestures {
     return reversals >= 4 && length > 18 && length / max(1, diagonal) > 3
   }
 
-  // A stroke is erased only when the scribble actually touches its ink. The tolerance is the
-  // stroke's own half-width plus a small margin for pen jitter; a fixed 8 pt radius would also
-  // delete the neighbouring line of handwriting.
+  // The scribble is split into sweeps (the runs between reversals). A stroke is the one being
+  // scribbled out when the pen passed over it on at least two sweeps that are not neighbours:
+  // a deliberate back-and-forth. The tip of a single excursion that merely grazes a
+  // neighbouring line touches one sweep or two adjacent ones and never counts, and no bounding
+  // box or radius is involved, so nothing that is not actually under the pen goes with it.
   public static func scratchTargets(_ points: [Point], strokes: [Stroke]) -> Set<UUID> {
-    guard isScratch(points) else { return [] }
-    let scratchSegments = Array(zip(points, points.dropFirst()))
-    let scratchBounds = Rect(
-      x: points.map(\.x).min()!, y: points.map(\.y).min()!,
-      width: points.map(\.x).max()! - points.map(\.x).min()!,
-      height: points.map(\.y).max()! - points.map(\.y).min()!)
+    guard isScratch(points), let first = points.first else { return [] }
+    let minX = points.map(\.x).min()!
+    let maxX = points.map(\.x).max()!
+    let minY = points.map(\.y).min()!
+    let maxY = points.map(\.y).max()!
+    let step = min(8, max(2.5, hypot(maxX - minX, maxY - minY) * 0.1))
+    var path = [first]
+    for point in points.dropFirst() where point.distance(to: path.last!) >= step { path.append(point) }
+    guard path.count >= 3 else { return [] }
+    var sweeps: [Int] = []
+    var sweep = 0
+    for i in 1..<path.count {
+      if i > 1 {
+        let ux = path[i - 1].x - path[i - 2].x
+        let uy = path[i - 1].y - path[i - 2].y
+        let vx = path[i].x - path[i - 1].x
+        let vy = path[i].y - path[i - 1].y
+        if (ux * vx + uy * vy) / max(1, hypot(ux, uy) * hypot(vx, vy)) < -0.3 { sweep += 1 }
+      }
+      sweeps.append(sweep)
+    }
+    let segments = zip(path, path.dropFirst()).map { (a: $0.0, b: $0.1) }
+    let boxes = segments.map {
+      (minX: min($0.a.x, $0.b.x), maxX: max($0.a.x, $0.b.x),
+       minY: min($0.a.y, $0.b.y), maxY: max($0.a.y, $0.b.y))
+    }
     return Set(
       strokes.filter { stroke in
-        guard stroke.tool != .highlighter else { return false }
-        let tolerance = stroke.width / 2 + 2
+        guard stroke.tool != .highlighter, !stroke.samples.isEmpty else { return false }
         let box = stroke.bounds
-        guard box.x - tolerance <= scratchBounds.x + scratchBounds.width,
-          box.x + box.width + tolerance >= scratchBounds.x,
-          box.y - tolerance <= scratchBounds.y + scratchBounds.height,
-          box.y + box.height + tolerance >= scratchBounds.y
+        // A dot or i-point is hard to hit precisely with a small scrub, so it gets a wider reach.
+        let isDot = box.width <= stroke.width + 4 && box.height <= stroke.width + 4
+        let tolerance = stroke.width / 2 + (isDot ? 4.5 : 2)
+        guard box.x - tolerance <= maxX, box.x + box.width + tolerance >= minX,
+          box.y - tolerance <= maxY, box.y + box.height + tolerance >= minY
         else { return false }
-        guard stroke.samples.count > 1 else {
-          guard let only = stroke.samples.first?.point else { return false }
-          return scratchSegments.contains {
-            Editing.distance(only, toSegmentFrom: $0.0, to: $0.1) < tolerance
+        var lowest = Int.max
+        var highest = Int.min
+        func note(_ k: Int) {
+          lowest = min(lowest, sweeps[k])
+          highest = max(highest, sweeps[k])
+        }
+        func near(_ k: Int, _ x0: Double, _ x1: Double, _ y0: Double, _ y1: Double) -> Bool {
+          boxes[k].maxX + tolerance >= min(x0, x1) && boxes[k].minX - tolerance <= max(x0, x1)
+            && boxes[k].maxY + tolerance >= min(y0, y1) && boxes[k].minY - tolerance <= max(y0, y1)
+        }
+        if stroke.samples.count == 1 {
+          let only = stroke.samples[0].point
+          for k in segments.indices
+          where near(k, only.x, only.x, only.y, only.y)
+            && Editing.distance(only, toSegmentFrom: segments[k].a, to: segments[k].b) <= tolerance
+          {
+            note(k)
+          }ºº
+        } else {
+          for (a, b) in zip(stroke.samples, stroke.samples.dropFirst()) {
+            for k in segments.indices
+            where near(k, a.point.x, b.point.x, a.point.y, b.point.y)
+              && segmentDistance(a.point, b.point, segments[k].a, segments[k].b) <= tolerance
+            {
+              note(k)
+            }
+            if highest - lowest >= 2 { return true }
           }
         }
-        return zip(stroke.samples, stroke.samples.dropFirst()).contains { a, b in
-          scratchSegments.contains { c, d in
-            segmentDistance(a.point, b.point, c, d) <= tolerance
-          }
-        }
+        return highest != Int.min && highest - lowest >= 2
       }.map(\.id))
   }
-  private static func touches(
-    _ stroke: Stroke, scribble: [(Point, Point)], bounds: Rect
-  ) -> Bool {
-    let box = stroke.bounds
-    // A dot or i-point is hard to hit precisely with a small scrub, so it gets a wider reach.
-    let isDot = box.width <= stroke.width + 4 && box.height <= stroke.width + 4
-    let tolerance = stroke.width / 2 + (isDot ? 4.5 : 2)
-    guard box.x - tolerance <= bounds.x + bounds.width, box.x + box.width + tolerance >= bounds.x,
-      box.y - tolerance <= bounds.y + bounds.height, box.y + box.height + tolerance >= bounds.y
-    else { return false }
-    guard stroke.samples.count > 1 else {
-      guard let only = stroke.samples.first?.point else { return false }
-      return scribble.contains { Editing.distance(only, toSegmentFrom: $0.0, to: $0.1) < tolerance }
-    }
-    return zip(stroke.samples, stroke.samples.dropFirst()).contains { a, b in
-      scribble.contains { c, d in segmentDistance(a.point, b.point, c, d) <= tolerance }
-    }
-  }
-  // Erases what the scribble really covers. A stroke that mostly lies under the scribble
-  // (a single letter) disappears as a whole; a stroke that only passes through it (a long
-  // underline, a cursive word) is cut open along the scribble path so the rest survives.
-  // Returns nil when the gesture is not a scribble.
+  // Removes exactly the strokes the scribble was drawn over. Returns nil when the gesture is not
+  // a scribble.
   public static func scratchErase(_ points: [Point], strokes: [Stroke]) -> [Stroke]? {
     guard isScratch(points) else { return nil }
-    let segments = Array(zip(points, points.dropFirst()))
-    let minX = points.map(\.x).min()!
-    let minY = points.map(\.y).min()!
-    let bounds = Rect(
-      x: minX, y: minY, width: points.map(\.x).max()! - minX,
-      height: points.map(\.y).max()! - minY)
-    let cover = Rect(
-      x: bounds.x - 3, y: bounds.y - 3, width: bounds.width + 6, height: bounds.height + 6)
-    var path: [Point] = []
-    for (a, b) in segments {
-      let steps = max(1, Int(a.distance(to: b) / 2))
-      for i in 0..<steps {
-        let t = Double(i) / Double(steps)
-        path.append(Point(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t))
-      }
-    }
-    if let last = points.last { path.append(last) }
-    func coveredShare(_ stroke: Stroke) -> Double {
-      var total = 0.0
-      var inside = 0.0
-      for (a, b) in zip(stroke.samples, stroke.samples.dropFirst()) {
-        let length = a.point.distance(to: b.point)
-        total += length
-        if cover.contains(Point((a.point.x + b.point.x) / 2, (a.point.y + b.point.y) / 2)) {
-          inside += length
-        }
-      }
-      return total > 0 ? inside / total : 1
-    }
-    return strokes.flatMap { stroke -> [Stroke] in
-      guard stroke.tool != .highlighter, touches(stroke, scribble: segments, bounds: bounds)
-      else { return [stroke] }
-      if coveredShare(stroke) >= 0.6 { return [] }
-      let box = stroke.bounds
-      let reach = stroke.width / 2 + 3
-      var pieces = [stroke]
-      for point in path
-      where point.x >= box.x - reach && point.x <= box.x + box.width + reach
-        && point.y >= box.y - reach && point.y <= box.y + box.height + reach
-      {
-        pieces = Editing.erase(
-          strokes: pieces, at: point, radius: 2, mode: .precision, highlighterOnly: false)
-        if pieces.isEmpty { break }
-      }
-      // Drop specks the cut leaves behind; they read as stray dots.
-      return pieces.filter { piece in
-        zip(piece.samples, piece.samples.dropFirst()).reduce(0.0) {
-          $0 + $1.0.point.distance(to: $1.1.point)
-        } >= max(2, piece.width)
-      }
-    }
+    let doomed = scratchTargets(points, strokes: strokes)
+    return doomed.isEmpty ? strokes : strokes.filter { !doomed.contains($0.id) }
   }
   private static func segmentDistance(_ a: Point, _ b: Point, _ c: Point, _ d: Point) -> Double {
     if segmentsIntersect(a, b, c, d) { return 0 }
@@ -683,9 +719,9 @@ public enum NotebookPaging {
     }
     let delta = projected - origin
     let direction =
-      abs(velocity) > 80
+      abs(velocity) > 420
       ? (velocity > 0 ? 1.0 : -1.0)
-      : abs(delta) > pageWidth * 0.1 ? (delta > 0 ? 1.0 : -1.0) : 0
+      : abs(delta) > pageWidth * 0.3 ? (delta > 0 ? 1.0 : -1.0) : 0
     return min(last, max(0, current + direction)) * pageWidth
   }
 }

@@ -48,11 +48,16 @@ contacts are filtered. Disable Apple Pencil only in the overflow menu to draw wi
 read-only mode. Double-tap a supported Pencil to switch between the eraser and the previous
 tool.
 
-Draw a circle, ellipse, straight line or polygon and hold the tip still for about 0.45 seconds
-to straighten it. Continue dragging before lifting to resize the shape; closed shapes retain
-their center. Draw several broad zigzags over editable handwriting with the pen to erase it
-in one undoable operation. Both gestures can be disabled in the overflow menu. The eraser
-shows a live preview. Lasso handwriting, images and text, then drag inside the selection to
+Draw a shape and hold the tip still for about 0.45 seconds to clean it up: lines, circles and
+ellipses, rectangles, diamonds, triangles, right angles, arrows (shaft plus two barbs in one
+stroke), arcs and half circles, and any open or closed polyline, which keeps its corners and
+straightens its sides. A gentle curve stays as drawn. Continue dragging before lifting to
+resize the shape; closed shapes retain their center. Scribble back and forth over handwriting
+with the pen to erase exactly the strokes under the scribble (a stroke the pen only grazes with
+the tip of one sweep stays) in one undoable step. Both gestures can be disabled in the overflow
+menu. The eraser shows its reach as a ring that follows the pencil (and hovers with it on
+supported iPads), and it sweeps the path between samples so a quick swipe leaves nothing
+behind. Lasso handwriting, images and text, then drag inside the selection to
 move the group with a live preview; release commits one undoable change.
 
 In the default horizontal mode a swipe settles on exactly one page, and swiping past the last

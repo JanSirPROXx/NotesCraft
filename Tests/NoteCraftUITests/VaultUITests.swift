@@ -290,6 +290,41 @@ final class VaultUITests: XCTestCase {
     XCTAssertFalse(app.buttons["pageThumbnail-2"].exists, "Only one blank page is kept ahead")
     app.buttons["Documents"].tap()
   }
+  @MainActor func testPageCreatedBySwipingCanBeZoomedImmediately() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input"]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    XCTAssertTrue(app.descendants(matching: .any)["drawingCanvas"].firstMatch.waitForExistence(timeout: 10))
+    let pageScroll = app.scrollViews["notebookScrollView"]
+    XCTAssertTrue(pageScroll.exists)
+    pageScroll.swipeLeft()
+    app.buttons["Pages"].tap()
+    XCTAssertTrue(app.buttons["pageThumbnail-1"].waitForExistence(timeout: 5), "Swiping adds a page")
+    app.buttons["Pages"].tap()
+    // Wait for the swipe to settle on the new page, then pinch it.
+    Thread.sleep(forTimeInterval: 1)
+    let surface = try visibleZoomSurface(app)
+    surface.pinch(withScale: 3, velocity: 0.5)
+    XCTAssertGreaterThan(
+      Int((surface.value as? String ?? "").filter(\.isNumber)) ?? 0, 100,
+      "The page created by swiping must zoom like any other")
+    capture(app, name: "Swipe-created page zoomed")
+    // A second swipe back must still work after zooming (the paging pan is restored).
+    surface.pinch(withScale: 0.3, velocity: -1)
+    pageScroll.swipeRight()
+    app.buttons["More"].tap()
+    app.buttons["documentNavigatorMenu"].tap()
+    let pageNumber = app.descendants(matching: .any)["pageNumberField"].firstMatch
+    _ = pageNumber.waitForExistence(timeout: 3)
+    app.buttons["Done"].tap()
+  }
   @MainActor func testShapesStickersTextAndSelectionWorkflow() throws {
     continueAfterFailure = false
     let app = XCUIApplication()

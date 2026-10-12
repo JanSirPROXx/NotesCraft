@@ -24,7 +24,7 @@ import SwiftUI
   }
   static func render(
     _ page: Page, assets: [String: Data], in c: CGContext, includePDFAnnotations: Bool = true,
-    includeBackground: Bool = true, paperBounds: CGRect? = nil
+    includeBackground: Bool = true, paperBounds: CGRect? = nil, cull: CGRect? = nil
   ) {
     let pdf =
       includeBackground
@@ -32,12 +32,12 @@ import SwiftUI
     renderContent(
       page, assets: assets, in: c, backgroundDocument: pdf,
       includePDFAnnotations: includePDFAnnotations, includeBackground: includeBackground,
-      paperBounds: paperBounds)
+      paperBounds: paperBounds, cull: cull)
   }
   private nonisolated static func renderContent(
     _ page: Page, assets: [String: Data], in c: CGContext, backgroundDocument: PDFDocument?,
     includePDFAnnotations: Bool = true, includeBackground: Bool = true,
-    paperBounds: CGRect? = nil
+    paperBounds: CGRect? = nil, cull: CGRect? = nil
   ) {
     if includeBackground {
       let size = page.dimensions
@@ -65,6 +65,7 @@ import SwiftUI
       }
     }
     for image in page.images {
+      if let cull, !cull.intersects(CGRect(x: image.frame.x - image.frame.width, y: image.frame.y - image.frame.height, width: image.frame.width * 3, height: image.frame.height * 3)) { continue }
       guard let data = assets[image.filename],
         let source = CGImageSourceCreateWithData(data as CFData, nil),
         let bitmap = CGImageSourceCreateImageAtIndex(source, 0, nil)
@@ -80,7 +81,14 @@ import SwiftUI
     }
     for s in page.strokes.filter({ $0.tool == .highlighter })
       + page.strokes.filter({ $0.tool != .highlighter })
-    { stroke(s, in: c) }
+    {
+      if let cull {
+        let b = s.bounds
+        let pad = s.width * 2 + 2
+        guard cull.intersects(CGRect(x: b.x - pad, y: b.y - pad, width: b.width + 2 * pad, height: b.height + 2 * pad)) else { continue }
+      }
+      stroke(s, in: c)
+    }
     for text in page.texts {
       let r = text.layoutBounds
       c.saveGState()
