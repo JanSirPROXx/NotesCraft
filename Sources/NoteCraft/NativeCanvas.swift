@@ -444,16 +444,34 @@ import SwiftUI
     }
     private var displayLink: CADisplayLink?
     private var displayTarget: CanvasDisplayTarget?
+    // iOS 18's UIUpdateLink can deliver Pencil events in the middle of a frame instead of at its
+    // start, which leaves the draw twice as long to reach the display. It is only requested while
+    // ink is actually being laid down: the eraser and shape hold do heavier work per event, and an
+    // opted-in app that overruns its half frame drops frames. Older systems keep the CADisplayLink.
+    private var updateLink: AnyObject?
+    private func updateLowLatencyDispatch() {
+      guard #available(iOS 18.0, *), let link = updateLink as? UIUpdateLink else { return }
+      let inking =
+        activeTouch?.type == .pencil
+        && [.pen, .highlighter].contains(configuration?.tool)
+        && input.moveStart == nil
+      link.wantsLowLatencyEventDispatch = inking
+      link.requiresContinuousUpdates = inking
+      link.isEnabled = inking
+    }
     private func updateDisplayLink() {
       displayLink?.isPaused =
         activeTouch == nil
         && !(configuration?.onAppendPage != nil && observedScroll?.isDragging == true)
+      updateLowLatencyDispatch()
     }
     override func didMoveToWindow() {
       super.didMoveToWindow()
       displayLink?.invalidate()
       displayLink = nil
       displayTarget = nil
+      if #available(iOS 18.0, *), let link = updateLink as? UIUpdateLink { link.isEnabled = false }
+      updateLink = nil
       guard window != nil else {
         activeTouch = nil
         resetInput()
@@ -471,6 +489,11 @@ import SwiftUI
       link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
       link.add(to: .main, forMode: .common)
       displayLink = link
+      if #available(iOS 18.0, *) {
+        let update = UIUpdateLink(view: self)
+        update.addAction { _, _ in }
+        updateLink = update
+      }
       updateDisplayLink()
     }
     func sample(_ touch: UITouch) -> Sample {
