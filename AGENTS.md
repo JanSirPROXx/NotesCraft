@@ -30,7 +30,7 @@ Coordinates are PDF points everywhere in the model. Views convert through `ViewT
 
 1. `DrawingView` (UIView/NSView) receives touches, appends `Sample`s and, on iPad, coalesced and predicted touches.
 2. Existing page content is cached in a `CGLayer` (`cachedPage`) at device resolution; invalidate it only when the page, assets, viewport or resolution change.
-3. The active stroke is rendered incrementally: finished segments are baked into `input.liveLayer`, only the tail plus predicted samples is redrawn each frame.
+3. The active pen stroke is rendered incrementally into `inkOverlay`, a transparent subview of `DrawingView` (iOS), so a new sample never re-blits the page cache: finished segments are baked into `input.liveLayer`, only the tail plus predicted samples is redrawn each frame. While the pen is down, `UIUpdateLink` asks for low-latency Pencil event dispatch (iOS 18+). macOS draws the live stroke in the view itself.
 4. On touch end the stroke is stored as `pendingStroke`, handed to `onStroke`, and drawn straight into the page cache once the model update arrives, so no full re-render is needed.
 
 Rules that keep latency low:

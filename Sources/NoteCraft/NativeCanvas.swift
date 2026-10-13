@@ -58,6 +58,9 @@ import SwiftUI
     let input = CanvasInputState()
     var samples: [Sample] = []
     var predictedSamples: [Sample] = []
+    // The live stroke is drawn straight into the view on macOS.
+    var drawsInkInOverlay: Bool { false }
+    func invalidateOverlay(_ rect: CGRect? = nil) {}
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
     override func draw(_ dirtyRect: NSRect) {
@@ -196,6 +199,34 @@ import SwiftUI
       guard let c = UIGraphicsGetCurrentContext(), let configuration else { return }
       paint(configuration, c, dirty: rect)
     }
+    // The stroke being written lives on its own transparent view. Each new sample then repaints
+    // only a sliver of ink instead of re-blitting the cached page beneath it, and the compositor
+    // blends the two on the GPU. The page view is only touched again when the pen lifts.
+    private(set) var inkOverlay: InkOverlayView?
+    var drawsInkInOverlay: Bool { inkOverlay != nil }
+    override var contentScaleFactor: CGFloat {
+      didSet { inkOverlay?.contentScaleFactor = contentScaleFactor }
+    }
+    override func layoutSubviews() {
+      super.layoutSubviews()
+      inkOverlay?.frame = bounds
+    }
+    private func installInkOverlay() {
+      guard inkOverlay == nil else { return }
+      let overlay = InkOverlayView(frame: bounds)
+      overlay.owner = self
+      overlay.isOpaque = false
+      overlay.backgroundColor = .clear
+      overlay.isUserInteractionEnabled = false
+      overlay.clearsContextBeforeDrawing = true
+      overlay.contentScaleFactor = contentScaleFactor
+      addSubview(overlay)
+      inkOverlay = overlay
+    }
+    func invalidateOverlay(_ rect: CGRect? = nil) {
+      guard let inkOverlay else { return }
+      if let rect { inkOverlay.setNeedsDisplay(rect) } else { inkOverlay.setNeedsDisplay() }
+    }
     private var activeTouch: UITouch?
     private var pencilSeen = false
     private var pullStarted: TimeInterval?
@@ -246,6 +277,7 @@ import SwiftUI
         activeTouch = touch
       }
       if let activeTouch { append(activeTouch) }
+      if configuration.tool == .pen { invalidateInk() }
       // A finger that grabbed a selection handle must move it instead of scrolling the page.
       if input.moveStart != nil { configureScrolling() }
       updateDisplayLink()
@@ -482,6 +514,7 @@ import SwiftUI
         return
       }
       configureScrolling()
+      installInkOverlay()
       let target = CanvasDisplayTarget()
       target.view = self
       displayTarget = target
@@ -520,6 +553,16 @@ import SwiftUI
   }
 #endif
 
+#if os(iOS)
+  final class InkOverlayView: UIView {
+    weak var owner: DrawingView?
+    override func draw(_ rect: CGRect) {
+      guard let c = UIGraphicsGetCurrentContext() else { return }
+      owner?.paintOverlay(c)
+    }
+  }
+#endif
+
 @MainActor final class CanvasInputState {
   var liveLayer: CGLayer?
   var liveRect = CGRect.zero
@@ -550,6 +593,8 @@ import SwiftUI
   var cursor: Point?
   var cursorRect = CGRect.null
   var cacheRect = CGRect.zero
+  // Whether the ink overlay currently shows a stroke, so only then does it need clearing.
+  var overlayInked = false
 }
 enum SelectionHandle: Equatable {
   case move, resize, rotate
@@ -686,7 +731,12 @@ extension DrawingView {
     let dirty = fresh.union(input.lastInkRect)
     input.lastInkRect = fresh
     input.invalidatedSamples = samples.count
-    setNeedsDisplay(dirty.isNull ? bounds : dirty.intersection(bounds))
+    let area = dirty.isNull ? bounds : dirty.intersection(bounds)
+    if configuration.tool == .pen, drawsInkInOverlay {
+      invalidateOverlay(area)
+    } else {
+      setNeedsDisplay(area)
+    }
   }
   func resetInput() {
     if input.moveStart != nil || (configuration?.tool == .eraser && !samples.isEmpty) {
@@ -715,6 +765,7 @@ extension DrawingView {
     input.cursorRect = .null
     samples = []
     predictedSamples = []
+    if input.overlayInked { invalidateOverlay() }
   }
   // Tools whose selection can be moved, stretched and rotated in place.
   static let manipulatingTools: [InkTool] = [.lasso, .shapes, .image, .elements]
@@ -941,6 +992,7 @@ extension DrawingView {
           tip: configuration.tip)
         guard let shape = InkGestures.heldShape(raw) else { return }
         self.input.held = shape
+        self.invalidateOverlay()
         self.input.resizeStart = self.samples.last?.point
         self.samples = shape.samples
         self.predictedSamples = []
@@ -950,6 +1002,49 @@ extension DrawingView {
         #endif
         return
       }
+    }
+  }
+  // Moves a view-sized context into page/world coordinates and returns the visible world rect
+  // together with the device resolution caches and live layers are rendered at.
+  private func canvasSpace(_ c: CGContext, _ configuration: CanvasConfiguration) -> (
+    cacheRect: CGRect, resolution: Double
+  ) {
+    let cacheRect: CGRect
+    if let viewport = configuration.viewport {
+      c.translateBy(x: viewport.offset.x, y: viewport.offset.y)
+      c.scaleBy(x: viewport.scale, y: viewport.scale)
+      let origin = viewport.documentPoint(Point(0, 0))
+      cacheRect = CGRect(
+        x: origin.x, y: origin.y, width: bounds.width / viewport.scale,
+        height: bounds.height / viewport.scale)
+    } else {
+      let scale = bounds.width / configuration.page.dimensions.x
+      c.scaleBy(x: scale, y: scale)
+      cacheRect = CGRect(
+        x: 0, y: 0, width: configuration.page.dimensions.x, height: configuration.page.dimensions.y)
+    }
+    let resolution = min(hypot(c.ctm.a, c.ctm.b), 4096 / max(cacheRect.width, cacheRect.height))
+    return (cacheRect, resolution)
+  }
+  // The live pen stroke, drawn into the transparent overlay (iOS). Everything else about the page
+  // is painted by `paint`.
+  func paintOverlay(_ c: CGContext) {
+    guard let configuration, configuration.tool == .pen, input.held == nil,
+      input.moveStart == nil, !samples.isEmpty, bounds.width > 0, bounds.height > 0
+    else {
+      input.overlayInked = false
+      return
+    }
+    input.overlayInked = true
+    let (cacheRect, resolution) = canvasSpace(c, configuration)
+    if samples.count > 5 {
+      paintLiveInk(configuration, in: c, rect: cacheRect, resolution: resolution)
+    } else {
+      PageRenderer.stroke(
+        Stroke(
+          samples: samples + predictedSamples, color: configuration.color,
+          width: configuration.width, tool: .pen, style: configuration.style,
+          tip: configuration.tip), in: c)
     }
   }
   func paint(_ configuration: CanvasConfiguration, _ c: CGContext, dirty: CGRect? = nil) {
@@ -968,22 +1063,8 @@ extension DrawingView {
     if let dirty, dirty != bounds { c.clip(to: dirty) }
     c.setFillColor(CGColor(gray: 1, alpha: 1))
     c.fill(bounds)
-    let cacheRect: CGRect
-    if let viewport = configuration.viewport {
-      c.translateBy(x: viewport.offset.x, y: viewport.offset.y)
-      c.scaleBy(x: viewport.scale, y: viewport.scale)
-      let origin = viewport.documentPoint(Point(0, 0))
-      cacheRect = CGRect(
-        x: origin.x, y: origin.y, width: bounds.width / viewport.scale,
-        height: bounds.height / viewport.scale)
-    } else {
-      let scale = bounds.width / configuration.page.dimensions.x
-      c.scaleBy(x: scale, y: scale)
-      cacheRect = CGRect(
-        x: 0, y: 0, width: configuration.page.dimensions.x, height: configuration.page.dimensions.y)
-    }
+    let (cacheRect, resolution) = canvasSpace(c, configuration)
     // Cache the visible world at device resolution, including negative coordinates on a whiteboard.
-    let resolution = min(hypot(c.ctm.a, c.ctm.b), 4096 / max(cacheRect.width, cacheRect.height))
     if abs(resolution - cachedResolution) > 0.001 || cachedViewport != configuration.viewport {
       cachedPage = nil
     }
@@ -1048,6 +1129,8 @@ extension DrawingView {
         if configuration.tool == .pen, let held = input.heldResized ?? input.held {
           // Preview the committed shape itself so nothing shifts when the pen lifts.
           PageRenderer.stroke(held, in: c)
+        } else if configuration.tool == .pen, input.held == nil, drawsInkInOverlay {
+          // The overlay view shows the live stroke.
         } else if configuration.tool == .pen, input.held == nil, samples.count > 5 {
           paintLiveInk(configuration, in: c, rect: cacheRect, resolution: resolution)
         } else {
