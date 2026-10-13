@@ -382,7 +382,10 @@ public enum InkGestures {
         }
       }
     }
-    return reversals >= 4 && length > 18 && length / max(1, diagonal) > 3
+    // Two quick passes back and forth (three reversals) are a scribble too, as long as the path
+    // clearly doubles over itself; fewer reversals stay ink.
+    let ratio = length / max(1, diagonal)
+    return length > 18 && ((reversals >= 4 && ratio > 3) || (reversals == 3 && ratio > 3.4))
   }
 
   // The scribble is split into sweeps (the runs between reversals). A stroke is the one being

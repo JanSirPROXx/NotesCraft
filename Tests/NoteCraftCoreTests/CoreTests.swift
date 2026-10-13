@@ -356,6 +356,21 @@ import Testing
   #expect(result.map(\.id) == [graze.id], "only the vertical line under the pen goes")
 }
 
+@Test func twoQuickPassesBackAndForthOverInkErasesIt() throws {
+  // Right, left, right, left: three reversals along the same line, the way a quick scrub looks.
+  let xs: [Double] = [10, 50, 90, 50, 10, 50, 90, 50, 10]
+  let scrub = xs.enumerated().map { Point($0.element, 40 + ($0.offset.isMultiple(of: 2) ? 0 : 3)) }
+  let word = Stroke(samples: [Sample(point: Point(10, 40)), Sample(point: Point(90, 41))])
+  let other = Stroke(samples: [Sample(point: Point(10, 120)), Sample(point: Point(90, 120))])
+  #expect(InkGestures.isScratch(scrub))
+  let result = try #require(InkGestures.scratchErase(scrub, strokes: [word, other]))
+  #expect(result == [other])
+  // A single pass there and back is a stroke, not a scribble.
+  #expect(!InkGestures.isScratch([Point(10, 40), Point(90, 40), Point(10, 41)]))
+  // A zigzag "W" has reversals too, but does not run over itself enough to count.
+  #expect(!InkGestures.isScratch([Point(0, 0), Point(15, 40), Point(30, 0), Point(45, 40), Point(60, 0)]))
+}
+
 @Test func handwritingThatDoesNotDoubleBackIsNotAScribble() {
   let wave = (0..<40).map { Point(Double($0) * 3, 10 + sin(Double($0) * 0.5) * 6) }
   #expect(!InkGestures.isScratch(wave))

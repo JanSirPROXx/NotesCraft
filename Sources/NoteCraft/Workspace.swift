@@ -849,11 +849,15 @@ struct Workspace: View {
             {
               s.samples = [first, last]
             }
-            let scribbled =
-              tool == .pen && scratchToErase
-              ? InkGestures.scratchErase(s.samples.map(\.point), strokes: p.strokes) : nil
+            let scribble = tool == .pen && scratchToErase ? s.samples.map(\.point) : nil
             edit { package in
-              if let scribbled, scribbled != p.strokes {
+              // Judge the scribble against the page as it is now, not the snapshot this closure
+              // captured: two quick scribbles would otherwise both start from the same old page
+              // and the second would bring back what the first had erased.
+              let current = package.notebook.pages[index].strokes
+              if let scribble, let scribbled = InkGestures.scratchErase(scribble, strokes: current),
+                scribbled != current
+              {
                 package.notebook.pages[index].strokes = scribbled
               } else {
                 package.notebook.pages[index].strokes.append(s)
