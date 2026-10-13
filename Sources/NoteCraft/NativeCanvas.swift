@@ -269,7 +269,13 @@ import SwiftUI
     }
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
       guard let touch = activeTouch, touches.contains(touch) else { return }
-      resetInput()
+      // What the eraser already wiped from the screen has to stay gone; dropping the gesture would
+      // bring the ink back as soon as the page is redrawn.
+      if configuration?.tool == .eraser, input.moveStart == nil, !samples.isEmpty {
+        finish()
+      } else {
+        resetInput()
+      }
       activeTouch = nil
       configureScrolling()
       setNeedsDisplay()
@@ -502,6 +508,8 @@ import SwiftUI
   var holdDeadline: ContinuousClock.Instant?
   var holdPoint: Point?
   var held: Stroke?
+  // The held shape after the pen dragged it to a new size; this is what lifts off the screen.
+  var heldResized: Stroke?
   var resizeStart: Point?
   var moveStart: Point?
   var moveDelta = Point(0, 0)
@@ -562,7 +570,7 @@ extension DrawingView {
     else { return }
     defer { input.pendingStroke = nil }
     if let old, let new, let pending = input.pendingStroke,
-      pending.tool == .pen, Self.sameAssets(old.assets, new.assets),
+      pending.tool == .pen || pending.tool == .shapes, Self.sameAssets(old.assets, new.assets),
       old.viewport == new.viewport, input.moveStart == nil,
       new.page.strokes.last == pending, let context = cachedPage?.context
     {
@@ -669,6 +677,7 @@ extension DrawingView {
     input.holdDeadline = nil
     input.holdPoint = nil
     input.held = nil
+    input.heldResized = nil
     input.resizeStart = nil
     input.moveStart = nil
     input.moveDelta = Point(0, 0)
@@ -848,7 +857,9 @@ extension DrawingView {
       return
     }
     if let held = input.held, let start = input.resizeStart {
-      samples = InkGestures.resizeHeldShape(held, from: start, to: sample.point).samples
+      let resized = InkGestures.resizeHeldShape(held, from: start, to: sample.point)
+      input.heldResized = resized
+      samples = resized.samples
       predictedSamples = []
       return
     }
@@ -1011,7 +1022,10 @@ extension DrawingView {
             width: kind.isSticker ? 2.5 : configuration.width, fill: kind.stickerColor,
             fillOpacity: kind.isSticker ? 1 : nil), in: c)
       } else if [.pen, .highlighter, .shapes].contains(configuration.tool) {
-        if configuration.tool == .pen, input.held == nil, samples.count > 5 {
+        if configuration.tool == .pen, let held = input.heldResized ?? input.held {
+          // Preview the committed shape itself so nothing shifts when the pen lifts.
+          PageRenderer.stroke(held, in: c)
+        } else if configuration.tool == .pen, input.held == nil, samples.count > 5 {
           paintLiveInk(configuration, in: c, rect: cacheRect, resolution: resolution)
         } else {
           PageRenderer.stroke(
@@ -1115,6 +1129,14 @@ extension DrawingView {
     }
     switch configuration.tool {
     case .pen, .highlighter, .shapes:
+      // A held shape is committed exactly as previewed, with its spec so it stays editable. It
+      // must not go through the path below: stabilization would append the raw pen-up point and
+      // draw a stray line from the end of the shape to wherever the pen was lifted.
+      if configuration.tool == .pen, let shape = input.heldResized ?? input.held {
+        input.pendingStroke = shape
+        configuration.onStroke(shape)
+        break
+      }
       if configuration.tool == .pen, configuration.stabilization > 0, let raw = input.lastRaw,
         let last = samples.last, raw != last.point
       {

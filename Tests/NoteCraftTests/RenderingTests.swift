@@ -319,6 +319,34 @@ import UniformTypeIdentifiers
   #expect(view.configuration?.page.strokes == [selected])
 }
 
+@MainActor @Test func heldShapeLiftsOffAsEditableShapeWithoutAStrayTailLine() async throws {
+  let view = DrawingView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
+  var committed: Stroke?
+  view.configuration = CanvasConfiguration(
+    page: Page(), assets: [:], tool: .pen, color: .ink,
+    width: 2, style: .ballpoint, pencilOnly: false, selection: [],
+    onStroke: { committed = $0 }, onGesture: { _ in }, onTap: { _ in })
+  // Stabilization remembers the raw pen position and used to append it after the held shape.
+  view.configuration?.stabilization = 0.5
+  for i in 0...48 {
+    let angle = Double(i) / 48 * 2 * Double.pi
+    view.accept(Sample(point: Point(100 + 40 * cos(angle), 100 + 40 * sin(angle))))
+  }
+  let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+  while view.input.held == nil && ContinuousClock.now < deadline {
+    try await Task.sleep(for: .milliseconds(50))
+  }
+  #expect(view.input.held != nil)
+  let lift = Point(90, 112)
+  view.accept(Sample(point: lift))
+  view.finish()
+  let shape = try #require(committed)
+  #expect(shape.shape?.kind == .ellipse, "A held circle stays an editable shape")
+  #expect(shape.tool == .shapes)
+  #expect(shape.samples.first == shape.samples.last, "A closed shape has no tail")
+  #expect(!shape.samples.contains { $0.point == lift })
+}
+
 @MainActor @Test func selectionHandlesPreviewThenCommitResizeAndRotation() throws {
   let view = DrawingView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
   var page = Page()
