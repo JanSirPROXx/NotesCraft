@@ -805,15 +805,28 @@ extension DrawingView {
     handle: SelectionHandle, center: Point
   )? {
     let scale = configuration.viewport?.scale ?? self.bounds.width / configuration.page.dimensions.x
-    // Finger-sized targets: 16 pt keeps Pencil precision, 24 pt lets a fingertip grab a handle.
-    let hitRadius = 24 / scale
+    // A handle is only grabbed right at its dot, and never by more than a third of the shorter
+    // side of the selection: on a small selection a fixed 24 pt radius used to cover almost all
+    // of it, so a drag meant to move it resized it instead. Everything else inside moves it.
+    func reach(_ width: Double, _ height: Double, _ points: Double) -> Double {
+      let side = height > 0 ? min(width, height) : width
+      return min(points / scale, max(8 / scale, side / 3))
+    }
     if let frame = InkGestures.objectFrame(page: configuration.page, ids: configuration.selection) {
-      let handles = handlePoints(frame, scale: scale)
-      if let hit = handles.min(by: { point.distance(to: $0.1) < point.distance(to: $1.1) }),
-        point.distance(to: hit.1) < hitRadius
-      {
-        return (hit.0, frame.center)
-      }
+      let cornerReach = reach(frame.width, frame.height, 20)
+      let hit = handlePoints(frame, scale: scale)
+        .compactMap { handle -> (SelectionHandle, Point, Double)? in
+          let limit: Double
+          switch handle.0 {
+          case .edge: limit = reach(frame.width, frame.height, 12)
+          case .rotate: limit = 24 / scale
+          default: limit = cornerReach
+          }
+          let distance = point.distance(to: handle.1)
+          return distance < limit ? (handle.0, handle.1, distance) : nil
+        }
+        .min { $0.2 < $1.2 }
+      if let hit { return (hit.0, frame.center) }
       let dx = point.x - frame.center.x
       let dy = point.y - frame.center.y
       let lx = dx * cos(frame.rotation) + dy * sin(frame.rotation)
@@ -835,8 +848,9 @@ extension DrawingView {
       Point(bounds.x, bounds.y + bounds.height),
       Point(bounds.x + bounds.width, bounds.y + bounds.height),
     ]
-    if point.distance(to: rotate) < hitRadius { return (.rotate, center) }
-    if corners.contains(where: { point.distance(to: $0) < hitRadius }) { return (.resize, center) }
+    let cornerReach = reach(bounds.width, bounds.height, 20)
+    if point.distance(to: rotate) < 24 / scale { return (.rotate, center) }
+    if corners.contains(where: { point.distance(to: $0) < cornerReach }) { return (.resize, center) }
     if InkGestures.selectionContains(point, page: configuration.page, ids: configuration.selection)
     {
       return (.move, center)

@@ -347,6 +347,31 @@ import UniformTypeIdentifiers
   #expect(!shape.samples.contains { $0.point == lift })
 }
 
+@MainActor @Test func draggingInsideASmallSelectionMovesItInsteadOfResizingIt() throws {
+  let view = DrawingView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
+  var page = Page()
+  // A word-sized selection: 40 x 20 pt, smaller than two fixed-size handle radii.
+  let word = Stroke(samples: [Sample(point: Point(100, 100)), Sample(point: Point(140, 120))])
+  page.strokes = [word]
+  view.configuration = CanvasConfiguration(
+    page: page, assets: [:], tool: .lasso, color: .ink,
+    width: 2, style: .ballpoint, pencilOnly: true, selection: [word.id],
+    onStroke: { _ in }, onGesture: { _ in }, onTap: { _ in })
+  let configuration = try #require(view.configuration)
+  // Near a corner and in the middle of the lower half: both used to resize.
+  #expect(view.selectionHit(at: Point(122, 113), configuration)?.handle == .move)
+  #expect(view.selectionHit(at: Point(112, 108), configuration)?.handle == .move)
+  // Right on the corner still scales it.
+  #expect(view.selectionHit(at: Point(141, 121), configuration)?.handle != .move)
+  // A large selection keeps a corner target of a normal size and moves from everywhere else.
+  let sheet = Stroke(samples: [Sample(point: Point(50, 50)), Sample(point: Point(450, 450))])
+  view.configuration?.page.strokes = [sheet]
+  view.configuration?.selection = [sheet.id]
+  let large = try #require(view.configuration)
+  #expect(view.selectionHit(at: Point(465, 460), large)?.handle != .move)
+  #expect(view.selectionHit(at: Point(440, 300), large)?.handle == .move)
+}
+
 @MainActor @Test func selectionHandlesPreviewThenCommitResizeAndRotation() throws {
   let view = DrawingView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
   var page = Page()
