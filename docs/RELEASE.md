@@ -7,7 +7,8 @@ One-time setup (needs the Apple Developer account, cannot be scripted):
 2. Copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig` and set `DEVELOPMENT_TEAM`
    (gitignored; never commit signing details).
 3. Fill in the store listing: name, subtitle, description, keywords, support URL, **privacy policy URL**
-   (required), category (Productivity), age rating.
+   (required; the text is in `docs/PRIVACY.md`, fill in the contact placeholders and publish it on a
+   public URL, for example the file's page on GitHub or GitHub Pages), category (Productivity), age rating.
 4. App Privacy: "Data Not Collected" matches the app (no backend, no analytics, no accounts).
    `Sources/NoteCraft/PrivacyInfo.xcprivacy` declares the required-reason APIs in use
    (UserDefaults `CA92.1`, file timestamps `C617.1`/`3B52.1`); update it when adding such APIs.
