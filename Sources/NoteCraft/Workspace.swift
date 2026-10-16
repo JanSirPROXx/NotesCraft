@@ -325,6 +325,14 @@ struct Workspace: View {
     .onChange(of: lastPageHasContent) { ensureBlankTrailingPage() }
     .onChange(of: infinite) { ensureBlankTrailingPage() }
     .onAppear {
+      #if DEBUG
+        // Screenshot tour (scripts/screenshots.sh): fill a new, empty document with a sample page.
+        if notebook.pages.count == 1, page.strokes.isEmpty, page.texts.isEmpty,
+          let scene = ScreenshotScenes.next()
+        {
+          ScreenshotScenes.fill(&document.package.notebook, scene: scene)
+        }
+      #endif
       refreshTrailingPage()
       ensureBlankTrailingPage()
     }

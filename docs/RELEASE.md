@@ -12,8 +12,10 @@ One-time setup (needs the Apple Developer account, cannot be scripted):
 4. App Privacy: "Data Not Collected" matches the app (no backend, no analytics, no accounts).
    `Sources/NoteCraft/PrivacyInfo.xcprivacy` declares the required-reason APIs in use
    (UserDefaults `CA92.1`, file timestamps `C617.1`/`3B52.1`); update it when adding such APIs.
-5. Screenshots: iPad 13" (2064×2752) is required because the app supports iPad; iPhone 6.9" if you keep
-   the iPhone family (`TARGETED_DEVICE_FAMILY` is `1,2`).
+5. Screenshots: iPad 13" (2064×2752) is required. The app is iPad only (`TARGETED_DEVICE_FAMILY` is `2`),
+   so no iPhone screenshots are needed. `scripts/screenshots.sh` renders them on the "iPad Pro 13-inch (M5)"
+   simulator into `docs/screenshots/appstore/` (the debug build fills each new document with a sample page,
+   see `ScreenshotScenes.swift`; Release builds contain none of it). Re-run it after UI changes.
 6. Export compliance is answered in `Info.plist` (`ITSAppUsesNonExemptEncryption = NO`).
 
 Each release:
