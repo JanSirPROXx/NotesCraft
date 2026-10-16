@@ -25,10 +25,8 @@ final class VaultUITests: XCTestCase {
       String(
         repeating: XCUIKeyboardKey.delete.rawValue, count: (field.value as? String ?? "").count)
         + folderName + "\n")
-    let hideKeyboard = app.keyboards.buttons.matching(
-      NSPredicate(format: "label CONTAINS[c] 'hide' OR label CONTAINS[c] 'dismiss'")
-    ).firstMatch
-    if hideKeyboard.exists { hideKeyboard.tap() }
+    // The return key already ends editing; tapping the keyboard's hide button raced with it
+    // closing. Waiting for Open to become hittable below covers a keyboard that stays up.
     let open = app.buttons["Open"]
     let tappable = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "hittable == true"), object: open)
@@ -116,11 +114,13 @@ final class VaultUITests: XCTestCase {
     let bottom = pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.9))
     let top = pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.05))
     bottom.press(forDuration: 0.05, thenDragTo: top)
+    // One query for identifier and label: the indicator fades out after 1.5 s, so checking
+    // `exists` and then reading `label` separately can lose it in between.
+    let onLastPage = app.staticTexts.matching(
+      NSPredicate(format: "identifier == 'pageIndicator' AND label == '4 / 4'")
+    ).firstMatch
     for _ in 0..<3 {
-      if app.staticTexts["pageIndicator"].exists, app.staticTexts["pageIndicator"].label == "4 / 4"
-      {
-        break
-      }
+      if onLastPage.exists { break }
       bottom.press(
         forDuration: 0.05, thenDragTo: top, withVelocity: .slow, thenHoldForDuration: 0.8)
     }
@@ -221,11 +221,18 @@ final class VaultUITests: XCTestCase {
     let resetZoom = try visibleZoomSurface(app)
     XCTAssertEqual(resetZoom.value as? String, "Zoom 100 percent")
     app.buttons["Read only"].tap()
-    pageScroll.swipeRight()
+    // XCUITest's synthetic fast swipe is not picked up by the paging scroll view at this point
+    // of the flow (a slow drag is, as earlier in this test), so drag the page over by hand.
+    Thread.sleep(forTimeInterval: 1.5)
+    pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.65)).press(
+      forDuration: 0.05,
+      thenDragTo: pageScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.65)),
+      withVelocity: .slow, thenHoldForDuration: 0.5)
+    Thread.sleep(forTimeInterval: 1.0)
     app.buttons["More"].tap()
     app.buttons["documentNavigatorMenu"].tap()
     XCTAssertTrue(pageNumber.waitForExistence(timeout: 5))
-    XCTAssertEqual(pageNumber.value as? String, "5", "A flick must settle on one adjacent page")
+    XCTAssertEqual(pageNumber.value as? String, "5", "A drag must settle on one adjacent page")
     app.buttons["Done"].tap()
     capture(app, name: "Magnetic paging settles on the previous page")
 
@@ -248,10 +255,8 @@ final class VaultUITests: XCTestCase {
       String(
         repeating: XCUIKeyboardKey.delete.rawValue, count: (field.value as? String ?? "").count)
         + folderName + "\n")
-    let hideKeyboard = app.keyboards.buttons.matching(
-      NSPredicate(format: "label CONTAINS[c] 'hide' OR label CONTAINS[c] 'dismiss'")
-    ).firstMatch
-    if hideKeyboard.exists { hideKeyboard.tap() }
+    // The return key already ends editing; tapping the keyboard's hide button raced with it
+    // closing. Waiting for Open to become hittable below covers a keyboard that stays up.
     let open = app.buttons["Open"]
     let tappable = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "hittable == true"), object: open)
