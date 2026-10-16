@@ -18,6 +18,9 @@ import SwiftUI
   var onTranslateSelection: ((Point) -> Void)? = nil
   var onTransformSelection: ((SelectionTransform) -> Void)? = nil
   var onSelectionMenu: (() -> Void)? = nil
+  // A long finger press on empty paper (document point), e.g. to offer "Paste" there.
+  var onLongPress: ((Point) -> Void)? = nil
+  var onTouchDown: (() -> Void)? = nil
   var onPencilDetected: (() -> Void)? = nil
   var onToggleEraser: (() -> Void)? = nil
   var onAppendPage: (() -> Void)? = nil
@@ -158,6 +161,9 @@ import SwiftUI
       view.backgroundColor = .white
       view.isOpaque = true
       view.clearsContextBeforeDrawing = false
+      // Opaque and never drawn shows black. After the app returns from the background the view
+      // can be laid out at a new size without UIKit asking for a redraw, so ask for it always.
+      view.contentMode = .redraw
       view.contentScaleFactor = UIScreen.main.scale
       let pencil = UIPencilInteraction()
       pencil.delegate = view
@@ -252,6 +258,7 @@ import SwiftUI
     }
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
       guard let configuration else { return }
+      configuration.onTouchDown?()
       let pencil = touches.first { $0.type == .pencil }
       if let pencil {
         if !pencilSeen {
@@ -372,6 +379,29 @@ import SwiftUI
       configuration.onTap(
         configuration.viewport?.documentPoint(Point(p.x, p.y)) ?? Point(p.x / scale, p.y / scale))
     }
+    private lazy var fingerHold = UILongPressGestureRecognizer(
+      target: self, action: #selector(fingerHeld(_:)))
+    @objc private func fingerHeld(_ gesture: UILongPressGestureRecognizer) {
+      guard gesture.state == .began, let configuration, let onLongPress = configuration.onLongPress
+      else { return }
+      let p = gesture.location(in: self)
+      let scale = bounds.width / configuration.page.dimensions.x
+      let point =
+        configuration.viewport?.documentPoint(Point(p.x, p.y)) ?? Point(p.x / scale, p.y / scale)
+      // Holding on a selection is the start of dragging it, not a request for a menu.
+      if Self.manipulatingTools.contains(configuration.tool), !configuration.selection.isEmpty,
+        selectionHit(at: point, configuration) != nil
+      {
+        return
+      }
+      // A finger that is allowed to ink would otherwise leave a dot behind the menu.
+      if activeTouch?.type == .direct {
+        resetInput()
+        activeTouch = nil
+        setNeedsDisplay()
+      }
+      onLongPress(point)
+    }
     private lazy var boardPan = UIPanGestureRecognizer(
       target: self, action: #selector(panBoard(_:)))
     private lazy var boardPinch = UIPinchGestureRecognizer(
@@ -404,6 +434,12 @@ import SwiftUI
         fingerTap.cancelsTouchesInView = false
         fingerTap.delegate = self
         addGestureRecognizer(fingerTap)
+        fingerHold.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+        fingerHold.minimumPressDuration = 0.6
+        fingerHold.allowableMovement = 12
+        fingerHold.cancelsTouchesInView = false
+        fingerHold.delegate = self
+        addGestureRecognizer(fingerHold)
       }
       boardPan.minimumNumberOfTouches = configuration?.pencilOnly == true || pencilSeen ? 1 : 2
       let pencilActive = activeTouch?.type == .pencil || input.moveStart != nil
@@ -515,6 +551,9 @@ import SwiftUI
       }
       configureScrolling()
       installInkOverlay()
+      // The cache was dropped when the view left its window; repaint instead of waiting for
+      // a configuration change that may never come.
+      setNeedsDisplay()
       let target = CanvasDisplayTarget()
       target.view = self
       displayTarget = target
@@ -1342,6 +1381,17 @@ extension DrawingView {
   // Each paper has its own native zoom surface. The outer scroll view remains responsible for paging.
   @MainActor final class NotebookZoomScrollView: UIScrollView {
     var allowsZoom = true
+    var onBoundsChange: (() -> Void)?
+    private var laidOutSize = CGSize.zero
+    // SwiftUI only calls `updateUIViewController` when its own state changes. When the app comes
+    // back from the background the scroll view can be resized afterwards (rotation, safe area,
+    // split view), which would leave the paper off-centre until the next page switch.
+    override func layoutSubviews() {
+      super.layoutSubviews()
+      guard bounds.size != laidOutSize else { return }
+      laidOutSize = bounds.size
+      onBoundsChange?()
+    }
     override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
       if gestureRecognizer === panGestureRecognizer {
         guard zoomScale > minimumZoomScale + 0.01 else { return false }
@@ -1377,6 +1427,9 @@ extension DrawingView {
       let controller = UIViewController()
       let scroll = context.coordinator.scroll
       scroll.delegate = context.coordinator
+      scroll.onBoundsChange = { [weak coordinator = context.coordinator] in
+        coordinator?.centerPaper()
+      }
       scroll.minimumZoomScale = 1
       scroll.maximumZoomScale = 6
       scroll.showsHorizontalScrollIndicator = false

@@ -97,6 +97,8 @@ struct Workspace: View {
   @State private var selection: Set<UUID> = []
   @State private var selectionMenuPresented = false
   @State private var selectionPalette = false
+  // Where (page index, document point) a long finger press asked for the paste bar.
+  @State private var pasteSpot: (index: Int, point: Point)?
   private var undoStack: [NotebookPackage] {
     get { history.undo }
     nonmutating set { history.undo = newValue }
@@ -810,6 +812,141 @@ struct Workspace: View {
       }.padding(20)
     }.frame(width: 160).background(Color(red: 0.96, green: 0.97, blue: 0.98))
   }
+  // Kept out of `pageView`: one expression holding every canvas callback is too big for the type checker.
+  private func canvasConfiguration(
+    _ p: Page, index: Int, boardHeight: Double?, viewScale: Double
+  ) -> CanvasConfiguration {
+      CanvasConfiguration(
+        page: displayPage(p, index: index), assets: document.package.assets, tool: tool,
+        color: color, width: width, style: penStyle,
+        pencilOnly: pencilOnly, selection: index == activePage ? selection : [],
+        onStroke: { stroke in
+          activePage = index
+          var s = stroke
+          if tool == .shapes {
+            if let kind = shapeKind, let first = s.samples.first, let last = s.samples.last {
+              insertShape(kind, from: first.point, to: last.point)
+              return
+            }
+            // Freehand: exact shape when the stroke clearly is one, otherwise ordinary ink.
+            if let exact = InkGestures.recognizedShape(s) {
+              s = exact
+              s.fillColor = fillShapes && s.samples.count > 3 ? color : nil
+            } else {
+              s.tool = .pen
+            }
+          }
+          if tool == .highlighter && straightHighlight, let first = s.samples.first,
+            let last = s.samples.last
+          {
+            s.samples = [first, last]
+          }
+          let scribble = tool == .pen && scratchToErase ? s.samples.map(\.point) : nil
+          edit { package in
+            // Judge the scribble against the page as it is now, not the snapshot this closure
+            // captured: two quick scribbles would otherwise both start from the same old page
+            // and the second would bring back what the first had erased.
+            let current = package.notebook.pages[index].strokes
+            if let scribble, let scribbled = InkGestures.scratchErase(scribble, strokes: current),
+              scribbled != current
+            {
+              package.notebook.pages[index].strokes = scribbled
+            } else {
+              package.notebook.pages[index].strokes.append(s)
+            }
+          }
+        },
+        onGesture: { points in
+          activePage = index
+          if tool == .eraser {
+            edit { package in
+              package.notebook.pages[index].strokes = Editing.erase(
+                strokes: package.notebook.pages[index].strokes, along: points,
+                radius: max(8, width), mode: eraserMode, highlighterOnly: highlighterOnly)
+            }
+            if autoDeselect { tool = previousTool == .eraser ? .pen : previousTool }
+          } else if let tapped = points.first, tapExtent(points) < 10 / viewScale {
+            selectObject(at: tapped, on: p, viewScale: viewScale)
+          } else {
+            selection =
+              selectInk
+              ? Editing.selection(
+                strokes: p.strokes, polygon: points,
+                bounds: boardHeight == nil
+                  ? Rect(x: 0, y: 0, width: p.dimensions.x, height: p.dimensions.y)
+                  : PageRenderer.contentBounds(p)) : []
+            if selectImages {
+              selection.formUnion(
+                p.images.filter { intersects($0.bounds, polygon: points) }.map(\.id))
+            }
+            if selectTexts {
+              selection.formUnion(
+                p.texts.filter { intersects($0.bounds, polygon: points) }.map(\.id))
+            }
+          }
+        },
+        onTap: { point in
+          activePage = index
+          insertPoint = point
+          if tool == .readOnly { followLink(at: point, on: p) }
+          if tool == .lasso { selectObject(at: point, on: p, viewScale: viewScale) }
+          if tool == .text { beginInlineText(at: point, on: p) }
+          if tool == .image {
+            if let image = p.images.last(where: { $0.contains(point) }) {
+              selection = [image.id]
+            } else {
+              selection = []
+              importType = .image
+              importer = true
+            }
+          }
+          if tool == .elements { insertSticker(point) }
+        }, viewport: boardHeight == nil ? nil : boardViewport,
+        onViewportChange: { boardViewport = $0 },
+        onTranslateSelection: { delta in
+          activePage = index
+          edit { package in
+            package.notebook.pages[index] = InkGestures.translate(
+              package.notebook.pages[index], ids: selection, by: delta)
+          }
+        },
+        onTransformSelection: { transform in
+          activePage = index
+          edit { package in
+            package.notebook.pages[index] = InkGestures.transform(
+              package.notebook.pages[index],
+              ids: selection, by: transform)
+          }
+        },
+        onSelectionMenu: { selectionMenuPresented = true },
+        onLongPress: { point in
+          activePage = index
+          pasteSpot = (index, point)
+        },
+        onTouchDown: { if pasteSpot != nil { pasteSpot = nil } },
+        onPencilDetected: { pencilOnly = true },
+        onToggleEraser: {
+          if tool == .eraser {
+            tool = previousTool
+          } else {
+            previousTool = tool
+            tool = .eraser
+          }
+        },
+        onAppendPage: boardHeight == nil && !horizontal && !infinite
+          && index == notebook.pages.count - 1
+          ? {
+            let next = InkGestures.blankPage(matching: p)
+            appendPage(next)
+          } : nil,
+        onPagePull: { pagePullProgress = $0 }, horizontalPages: horizontal,
+        onScrollActivity: { showPageIndicator() }, holdToShape: holdToShape,
+        eraserMode: eraserMode, highlighterOnly: highlighterOnly,
+        searchHighlights: searchVisible
+          ? documentSearch.results.first(where: { $0.pageID == p.id })?.highlights ?? [] : [],
+        tip: PenTip(sharpness: tipSharpness, pressure: tipPressure, flatness: tipFlatness),
+        stabilization: stabilization, shapeKind: tool == .shapes ? shapeKind : nil)
+  }
   private func pageView(
     _ p: Page, index: Int, availableWidth: Double, availableHeight: Double? = nil,
     boardHeight: Double? = nil
@@ -824,138 +961,16 @@ struct Workspace: View {
     let viewScale = boardHeight == nil ? w / p.dimensions.x : boardViewport.scale
     return VStack(spacing: 10) {
       NativeCanvas(
-        configuration: CanvasConfiguration(
-          page: displayPage(p, index: index), assets: document.package.assets, tool: tool,
-          color: color, width: width, style: penStyle,
-          pencilOnly: pencilOnly, selection: index == activePage ? selection : [],
-          onStroke: { stroke in
-            activePage = index
-            var s = stroke
-            if tool == .shapes {
-              if let kind = shapeKind, let first = s.samples.first, let last = s.samples.last {
-                insertShape(kind, from: first.point, to: last.point)
-                return
-              }
-              // Freehand: exact shape when the stroke clearly is one, otherwise ordinary ink.
-              if let exact = InkGestures.recognizedShape(s) {
-                s = exact
-                s.fillColor = fillShapes && s.samples.count > 3 ? color : nil
-              } else {
-                s.tool = .pen
-              }
-            }
-            if tool == .highlighter && straightHighlight, let first = s.samples.first,
-              let last = s.samples.last
-            {
-              s.samples = [first, last]
-            }
-            let scribble = tool == .pen && scratchToErase ? s.samples.map(\.point) : nil
-            edit { package in
-              // Judge the scribble against the page as it is now, not the snapshot this closure
-              // captured: two quick scribbles would otherwise both start from the same old page
-              // and the second would bring back what the first had erased.
-              let current = package.notebook.pages[index].strokes
-              if let scribble, let scribbled = InkGestures.scratchErase(scribble, strokes: current),
-                scribbled != current
-              {
-                package.notebook.pages[index].strokes = scribbled
-              } else {
-                package.notebook.pages[index].strokes.append(s)
-              }
-            }
-          },
-          onGesture: { points in
-            activePage = index
-            if tool == .eraser {
-              edit { package in
-                package.notebook.pages[index].strokes = Editing.erase(
-                  strokes: package.notebook.pages[index].strokes, along: points,
-                  radius: max(8, width), mode: eraserMode, highlighterOnly: highlighterOnly)
-              }
-              if autoDeselect { tool = previousTool == .eraser ? .pen : previousTool }
-            } else if let tapped = points.first, tapExtent(points) < 10 / viewScale {
-              selectObject(at: tapped, on: p, viewScale: viewScale)
-            } else {
-              selection =
-                selectInk
-                ? Editing.selection(
-                  strokes: p.strokes, polygon: points,
-                  bounds: boardHeight == nil
-                    ? Rect(x: 0, y: 0, width: p.dimensions.x, height: p.dimensions.y)
-                    : PageRenderer.contentBounds(p)) : []
-              if selectImages {
-                selection.formUnion(
-                  p.images.filter { intersects($0.bounds, polygon: points) }.map(\.id))
-              }
-              if selectTexts {
-                selection.formUnion(
-                  p.texts.filter { intersects($0.bounds, polygon: points) }.map(\.id))
-              }
-            }
-          },
-          onTap: { point in
-            activePage = index
-            insertPoint = point
-            if tool == .readOnly { followLink(at: point, on: p) }
-            if tool == .lasso { selectObject(at: point, on: p, viewScale: viewScale) }
-            if tool == .text { beginInlineText(at: point, on: p) }
-            if tool == .image {
-              if let image = p.images.last(where: { $0.contains(point) }) {
-                selection = [image.id]
-              } else {
-                selection = []
-                importType = .image
-                importer = true
-              }
-            }
-            if tool == .elements { insertSticker(point) }
-          }, viewport: boardHeight == nil ? nil : boardViewport,
-          onViewportChange: { boardViewport = $0 },
-          onTranslateSelection: { delta in
-            activePage = index
-            edit { package in
-              package.notebook.pages[index] = InkGestures.translate(
-                package.notebook.pages[index], ids: selection, by: delta)
-            }
-          },
-          onTransformSelection: { transform in
-            activePage = index
-            edit { package in
-              package.notebook.pages[index] = InkGestures.transform(
-                package.notebook.pages[index],
-                ids: selection, by: transform)
-            }
-          },
-          onSelectionMenu: { selectionMenuPresented = true },
-          onPencilDetected: { pencilOnly = true },
-          onToggleEraser: {
-            if tool == .eraser {
-              tool = previousTool
-            } else {
-              previousTool = tool
-              tool = .eraser
-            }
-          },
-          onAppendPage: boardHeight == nil && !horizontal && !infinite
-            && index == notebook.pages.count - 1
-            ? {
-              let next = InkGestures.blankPage(matching: p)
-              appendPage(next)
-            } : nil,
-          onPagePull: { pagePullProgress = $0 }, horizontalPages: horizontal,
-          onScrollActivity: { showPageIndicator() }, holdToShape: holdToShape,
-          eraserMode: eraserMode, highlighterOnly: highlighterOnly,
-          searchHighlights: searchVisible
-            ? documentSearch.results.first(where: { $0.pageID == p.id })?.highlights ?? [] : [],
-          tip: PenTip(sharpness: tipSharpness, pressure: tipPressure, flatness: tipFlatness),
-          stabilization: stabilization, shapeKind: tool == .shapes ? shapeKind : nil)
-      )
+        configuration: canvasConfiguration(p, index: index, boardHeight: boardHeight, viewScale: viewScale))
       .accessibilityElement()
       .accessibilityLabel("Drawing canvas")
       .accessibilityIdentifier("drawingCanvas")
       .accessibilityValue("\(p.strokes.count) strokes")
       .overlay(alignment: .topLeading) {
         selectionBar(p, index: index, pageWidth: w, boardHeight: boardHeight, scale: viewScale)
+      }
+      .overlay(alignment: .topLeading) {
+        pasteBar(index: index, pageWidth: w, boardHeight: boardHeight, scale: viewScale, page: p)
       }
       .overlay(alignment: .topLeading) {
         if index == activePage, inlineText != nil {
@@ -1138,6 +1153,9 @@ struct Workspace: View {
     {
       let offset = boardHeight == nil ? Point(0, 0) : boardViewport.offset
       let height = boardHeight ?? w * p.dimensions.y / p.dimensions.x
+      // The page sits in a zoom surface that magnifies everything on it, so the bar is shrunk
+      // back to a constant on-screen size.
+      let zoomed = boardHeight == nil ? max(1, pageZoom[p.id] ?? 1) : 1
       HStack(spacing: 0) {
         Button {
           copySelection()
@@ -1180,9 +1198,36 @@ struct Workspace: View {
       .buttonStyle(.plain).foregroundStyle(.white)
       .background(Color(red: 0.16, green: 0.17, blue: 0.18), in: Capsule())
       .fixedSize()
+      .scaleEffect(1 / zoomed)
       .position(
-        x: min(w - 150, max(150, (b.x + b.width / 2) * scale + offset.x)),
-        y: min(height - 30, max(30, (b.y + b.height) * scale + offset.y + 56)))
+        x: min(w - 150 / zoomed, max(150 / zoomed, (b.x + b.width / 2) * scale + offset.x)),
+        y: min(
+          height - 30 / zoomed, max(30 / zoomed, (b.y + b.height) * scale + offset.y + 48 / zoomed)
+        ))
+    }
+  }
+  @ViewBuilder private func pasteBar(
+    index: Int, pageWidth w: Double, boardHeight: Double?, scale: Double, page p: Page
+  ) -> some View {
+    if let spot = pasteSpot, spot.index == index {
+      let offset = boardHeight == nil ? Point(0, 0) : boardViewport.offset
+      let height = boardHeight ?? w * p.dimensions.y / p.dimensions.x
+      let zoomed = boardHeight == nil ? max(1, pageZoom[p.id] ?? 1) : 1
+      let empty = clipboard.isEmpty && clipboardImages.isEmpty && clipboardTexts.isEmpty
+      Button {
+        paste(at: spot.point)
+        pasteSpot = nil
+      } label: {
+        Label("Paste", systemImage: "doc.on.clipboard").font(.system(size: 17, weight: .medium))
+          .padding(.horizontal, 16).frame(minHeight: 44).contentShape(Capsule())
+      }
+      .buttonStyle(.plain).foregroundStyle(empty ? Color.white.opacity(0.4) : .white)
+      .disabled(empty)
+      .background(Color(red: 0.16, green: 0.17, blue: 0.18), in: Capsule())
+      .fixedSize().scaleEffect(1 / zoomed).accessibilityIdentifier("pasteBar")
+      .position(
+        x: min(w - 60 / zoomed, max(60 / zoomed, spot.point.x * scale + offset.x)),
+        y: min(height - 30 / zoomed, max(30 / zoomed, spot.point.y * scale + offset.y - 40 / zoomed)))
     }
   }
   private var searchBar: some View {
@@ -1407,8 +1452,22 @@ struct Workspace: View {
       x: x - 8, y: y - 8, width: (bounds.map { $0.x + $0.width }.max() ?? x) - x + 16,
       height: (bounds.map { $0.y + $0.height }.max() ?? y) - y + 16)
   }
-  private func paste() {
+  // With a target the copy is centred there (long press); without one it lands slightly offset
+  // from the original so a duplicate is visible.
+  private func paste(at target: Point? = nil) {
     var pasted: Set<UUID> = []
+    var dx = 20.0
+    var dy = 20.0
+    if let target {
+      let bounds =
+        clipboard.map(\.bounds) + clipboardImages.map(\.bounds) + clipboardTexts.map(\.bounds)
+      if let minX = bounds.map(\.x).min(), let minY = bounds.map(\.y).min() {
+        let maxX = bounds.map { $0.x + $0.width }.max() ?? minX
+        let maxY = bounds.map { $0.y + $0.height }.max() ?? minY
+        dx = target.x - (minX + maxX) / 2
+        dy = target.y - (minY + maxY) / 2
+      }
+    }
     edit { p in
       p.assets.merge(InkClipboard.shared.assets) { existing, _ in existing }
       p.notebook.pages[activePage].strokes += clipboard.map {
@@ -1416,28 +1475,28 @@ struct Workspace: View {
         s.id = UUID()
         s.samples = s.samples.map {
           var sample = $0
-          sample.point.x += 20
-          sample.point.y += 20
+          sample.point.x += dx
+          sample.point.y += dy
           return sample
         }
-        s.shape?.center.x += 20
-        s.shape?.center.y += 20
+        s.shape?.center.x += dx
+        s.shape?.center.y += dy
         pasted.insert(s.id)
         return s
       }
       p.notebook.pages[activePage].images += clipboardImages.map {
         var image = $0
         image.id = UUID()
-        image.frame.x += 20
-        image.frame.y += 20
+        image.frame.x += dx
+        image.frame.y += dy
         pasted.insert(image.id)
         return image
       }
       p.notebook.pages[activePage].texts += clipboardTexts.map {
         var text = $0
         text.id = UUID()
-        text.origin.x += 20
-        text.origin.y += 20
+        text.origin.x += dx
+        text.origin.y += dy
         pasted.insert(text.id)
         return text
       }
