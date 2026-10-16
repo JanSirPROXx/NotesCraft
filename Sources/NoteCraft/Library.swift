@@ -660,18 +660,24 @@ private struct VaultCreationSheet: View {
     VStack(alignment: .leading, spacing: 22) {
       Text("New \(kind.rawValue.capitalized)").font(.title2.bold())
       TextField("Name", text: $title).textFieldStyle(.roundedBorder)
-      if kind == .notebook {
-        Picker("Size", selection: $paper.size) {
-          ForEach(PaperSize.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-        }.pickerStyle(.segmented)
-        Toggle("Landscape", isOn: $paper.landscape)
-      }
-      if kind == .notebook || kind == .whiteboard {
-        PaperPatternPicker(pattern: $paper.pattern, whiteboard: kind == .whiteboard)
-      }
-      if kind == .whiteboard {
-        Text("An open canvas with two-finger pan and pinch zoom.").foregroundStyle(.secondary)
-      }
+      // The name field stays outside the scroll view: with the keyboard up the sheet shrinks and
+      // only the options scroll, so what is typed never moves out of sight.
+      ScrollView {
+        VStack(alignment: .leading, spacing: 22) {
+          if kind == .notebook {
+            Picker("Size", selection: $paper.size) {
+              ForEach(PaperSize.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            }.pickerStyle(.segmented)
+            Toggle("Landscape", isOn: $paper.landscape)
+          }
+          if kind == .notebook || kind == .whiteboard {
+            PaperPatternPicker(pattern: $paper.pattern, whiteboard: kind == .whiteboard)
+          }
+          if kind == .whiteboard {
+            Text("An open canvas with two-finger pan and pinch zoom.").foregroundStyle(.secondary)
+          }
+        }
+      }.scrollDismissesKeyboard(.interactively)
       HStack {
         Button("Cancel") { dismiss() }
         Spacer()
