@@ -64,6 +64,7 @@ struct Workspace: View {
   @AppStorage("pencilOnlyDrawing") private var pencilOnly = true
   @AppStorage("holdToShape") private var holdToShape = true
   @AppStorage("scratchToErase") private var scratchToErase = true
+  @AppStorage("gpuInk") private var gpuInk = true
   @AppStorage("scribbleHint") private var scribbleHintMode = ScribbleHintMode.sometimes
   // Shown after a scribble took ink away, so a drawing that was mistaken for one can be kept.
   @State private var scribbleHint: ScribbleHint?
@@ -474,6 +475,7 @@ struct Workspace: View {
       Toggle("Keep zoom on new pages", isOn: $keepZoomOnNewPage)
       Toggle("Apple Pencil only", isOn: $pencilOnly)
       Toggle("Draw and hold for shapes", isOn: $holdToShape)
+      Toggle("Fast GPU ink", isOn: $gpuInk)
       Toggle("Scribble to erase", isOn: $scratchToErase)
       Picker("Scribble hint", selection: $scribbleHintMode) {
         ForEach(ScribbleHintMode.allCases, id: \.self) { Text($0.title).tag($0) }
@@ -957,7 +959,7 @@ struct Workspace: View {
           } : nil,
         onPagePull: { pagePullProgress = $0 }, horizontalPages: horizontal,
         onScrollActivity: { showPageIndicator() }, holdToShape: holdToShape,
-        scribblePreview: scratchToErase,
+        scribblePreview: scratchToErase, gpuInk: gpuInk,
         eraserMode: eraserMode, highlighterOnly: highlighterOnly,
         searchHighlights: searchVisible
           ? documentSearch.results.first(where: { $0.pageID == p.id })?.highlights ?? [] : [],

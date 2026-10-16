@@ -30,6 +30,8 @@ import SwiftUI
   var holdToShape = true
   // Marks the ink a scribble would take away while it is still being drawn.
   var scribblePreview = false
+  // Draws the live pen stroke on the GPU (iOS); off falls back to CoreGraphics.
+  var gpuInk = true
   var eraserMode: EraserMode = .stroke
   var highlighterOnly = false
   var searchHighlights: [Rect] = []
@@ -65,6 +67,9 @@ import SwiftUI
     var predictedSamples: [Sample] = []
     // The live stroke is drawn straight into the view on macOS.
     var drawsInkInOverlay: Bool { false }
+    var drawsInkOnGPU: Bool { false }
+    func clearGPUInk() {}
+    func metalInkClearNow() {}
     func invalidateOverlay(_ rect: CGRect? = nil) {}
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
@@ -212,12 +217,18 @@ import SwiftUI
     // blends the two on the GPU. The page view is only touched again when the pen lifts.
     private(set) var inkOverlay: InkOverlayView?
     var drawsInkInOverlay: Bool { inkOverlay != nil }
+    private(set) var metalInk: MetalInkView?
+    var drawsInkOnGPU: Bool { metalInk != nil && configuration?.gpuInk == true }
     override var contentScaleFactor: CGFloat {
-      didSet { inkOverlay?.contentScaleFactor = contentScaleFactor }
+      didSet {
+        inkOverlay?.contentScaleFactor = contentScaleFactor
+        metalInk?.contentScaleFactor = contentScaleFactor
+      }
     }
     override func layoutSubviews() {
       super.layoutSubviews()
       inkOverlay?.frame = bounds
+      metalInk?.frame = bounds
     }
     private func installInkOverlay() {
       guard inkOverlay == nil else { return }
@@ -230,10 +241,88 @@ import SwiftUI
       overlay.contentScaleFactor = contentScaleFactor
       addSubview(overlay)
       inkOverlay = overlay
+      // Above the overlay: the live stroke is the topmost thing on the page.
+      if let gpu = MetalInkView.make(frame: bounds) {
+        gpu.contentScaleFactor = contentScaleFactor
+        addSubview(gpu)
+        metalInk = gpu
+      }
     }
     func invalidateOverlay(_ rect: CGRect? = nil) {
       guard let inkOverlay else { return }
       if let rect { inkOverlay.setNeedsDisplay(rect) } else { inkOverlay.setNeedsDisplay() }
+    }
+    // Draws what the pen laid down since the last frame. Samples arrive many times per frame; the
+    // work is done once per display frame (and mid-frame while low-latency dispatch is on), and
+    // only the new segments plus the unstable tail are handed to the GPU.
+    func renderLiveInkIfNeeded() {
+      guard input.gpuInkDirty, let metalInk, let configuration, configuration.gpuInk,
+        configuration.tool == .pen, input.held == nil, input.moveStart == nil,
+        input.resizeStart == nil, !samples.isEmpty, bounds.width > 0
+      else { return }
+      input.gpuInkDirty = false
+      let lost = metalInk.fitDrawable()
+      if lost { input.bakedThrough = 0 }
+      let pixelScale = metalInk.pixelScale
+      let docScale = configuration.viewport?.scale ?? bounds.width / configuration.page.dimensions.x
+      let offset = configuration.viewport?.offset ?? Point(0, 0)
+      let count = samples.count
+      let uniforms = InkUniforms(
+        color: SIMD4(
+          Float(configuration.color.red), Float(configuration.color.green),
+          Float(configuration.color.blue), 1),
+        offset: SIMD2(Float(offset.x * pixelScale), Float(offset.y * pixelScale)),
+        viewport: SIMD2(Float(metalInk.surface.width), Float(metalInk.surface.height)),
+        scale: Float(docScale * pixelScale))
+      let fountain = configuration.style == .fountain && input.fountainWidths.count == count
+      let widths = fountain ? input.fountainWidths : nil
+      var bake: [InkCone] = []
+      // Segments up to the second-to-last sample are final; the rest is redrawn every frame.
+      let stableEnd = count - 2
+      if stableEnd > input.bakedThrough {
+        bake = InkTessellator.cones(
+          samples, range: (input.bakedThrough + 1)..<(stableEnd + 1), width: configuration.width,
+          style: configuration.style, widths: widths, finish: false,
+          pixelScale: docScale * pixelScale)
+        input.bakedThrough = stableEnd
+      }
+      let context = min(3, count)
+      let tailSamples = Array(samples.suffix(context)) + predictedSamples
+      var tailWidths: [Double]?
+      if fountain {
+        var state = input.fountain
+        tailWidths =
+          Array(input.fountainWidths.suffix(context))
+          + predictedSamples.map {
+            FountainInk.advance(
+              &state, sample: $0, base: configuration.width, tip: configuration.tip)
+          }
+      }
+      var tail = InkTessellator.cones(
+        tailSamples, range: (max(1, count - 1) - (count - context))..<tailSamples.count,
+        width: configuration.width, style: configuration.style, widths: tailWidths, finish: true,
+        pixelScale: docScale * pixelScale)
+      if count == 1, predictedSamples.isEmpty {
+        tail = [InkTessellator.dot(at: samples[0], width: configuration.width)]
+      }
+      metalInk.draw(bake: bake, tail: tail, uniforms: uniforms, reset: lost)
+    }
+    func metalInkClearNow() { metalInk?.clear() }
+    // The page cache gets the committed stroke on the next draw, so the GPU copy stays up a
+    // moment (two frames of identical ink) and is only removed once nothing can show through.
+    // A stroke that starts first takes over the surface at once.
+    func clearGPUInk() {
+      guard let metalInk, metalInk.surface.hasContent else { return }
+      input.gpuInkDirty = false
+      if samples.isEmpty {
+        metalInk.clear()
+        return
+      }
+      let generation = input.gpuClearGeneration
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.04) { [weak self] in
+        guard let self, self.input.gpuClearGeneration == generation else { return }
+        self.metalInk?.clear()
+      }
     }
     private var activeTouch: UITouch?
     private var pencilSeen = false
@@ -565,7 +654,11 @@ import SwiftUI
       displayLink = link
       if #available(iOS 18.0, *) {
         let update = UIUpdateLink(view: self)
-        update.addAction { _, _ in }
+        // Low-latency dispatch hands the freshest Pencil samples to this action in the middle of
+        // the frame; drawing here is what gets them on screen a frame earlier.
+        update.addAction { [weak self] _, _ in
+          MainActor.assumeIsolated { self?.renderLiveInkIfNeeded() }
+        }
         updateLink = update
       }
       updateDisplayLink()
@@ -590,6 +683,7 @@ import SwiftUI
     @objc func update() {
       guard let view else { return }
       view.checkPagePull()
+      view.renderLiveInkIfNeeded()
     }
   }
 #endif
@@ -639,6 +733,10 @@ import SwiftUI
   // Ink the running scribble would erase, and when it is next worth asking again.
   var scratchPreview: [Stroke] = []
   var nextScratchCheck: ContinuousClock.Instant?
+  // New samples the GPU has not drawn yet, and a counter that lets a late clear notice that
+  // another stroke has started in the meantime.
+  var gpuInkDirty = false
+  var gpuClearGeneration = 0
 }
 enum SelectionHandle: Equatable {
   case move, resize, rotate
@@ -763,6 +861,12 @@ extension DrawingView {
       invalidateCanvas()
       return
     }
+    if configuration.tool == .pen, drawsInkOnGPU {
+      // The GPU draws the stroke once per frame; nothing is repainted here.
+      input.gpuInkDirty = true
+      input.invalidatedSamples = samples.count
+      return
+    }
     let scale = configuration.viewport?.scale ?? bounds.width / configuration.page.dimensions.x
     // Brush tilt and pressure can widen a segment to roughly 3.4x the nominal width.
     let pad = max(8, configuration.width * scale * 4 + 4)
@@ -818,6 +922,10 @@ extension DrawingView {
     if input.moveStart != nil || (configuration?.tool == .eraser && !samples.isEmpty) {
       cachedPage = nil
     }
+    // Before `samples` is emptied: a stroke that just ended leaves the GPU copy up for a moment,
+    // a stroke that is about to start removes the previous one at once.
+    if samples.isEmpty { input.gpuClearGeneration += 1 }
+    clearGPUInk()
     input.liveLayer = nil
     input.bakedThrough = 0
     input.renderedSegments = 0
@@ -1094,6 +1202,8 @@ extension DrawingView {
           tip: configuration.tip)
         guard let shape = InkGestures.heldShape(raw) else { return }
         self.input.held = shape
+        self.input.gpuInkDirty = false
+        self.metalInkClearNow()
         self.invalidateOverlay()
         self.input.resizeStart = self.samples.last?.point
         self.samples = shape.samples
@@ -1140,6 +1250,11 @@ extension DrawingView {
     input.overlayInked = true
     let (cacheRect, resolution) = canvasSpace(c, configuration)
     drawScratchPreview(c)
+    if drawsInkOnGPU {
+      // The metal view above draws the stroke itself; this layer only carries the preview.
+      input.overlayInked = !input.scratchPreview.isEmpty
+      return
+    }
     if samples.count > 5 {
       paintLiveInk(configuration, in: c, rect: cacheRect, resolution: resolution)
     } else {
