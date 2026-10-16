@@ -879,7 +879,16 @@ extension DrawingView {
     }
     return handles
   }
+  // With the shapes tool only a handle grabs the selection. The body of a shape that was just
+  // drawn (a long wire, say) must stay free to draw on, or a rectangle started on it would drag
+  // the wire away instead of being drawn. Moving a shape as a whole is the lasso's job.
   func selectionHit(at point: Point, _ configuration: CanvasConfiguration) -> (
+    handle: SelectionHandle, center: Point
+  )? {
+    guard let hit = bodyOrHandleHit(at: point, configuration) else { return nil }
+    return configuration.tool == .shapes && hit.handle == .move ? nil : hit
+  }
+  private func bodyOrHandleHit(at point: Point, _ configuration: CanvasConfiguration) -> (
     handle: SelectionHandle, center: Point
   )? {
     let scale = configuration.viewport?.scale ?? self.bounds.width / configuration.page.dimensions.x

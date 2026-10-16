@@ -831,6 +831,8 @@ struct Workspace: View {
           activePage = index
           var s = stroke
           if tool == .shapes {
+            // A new figure starts fresh; the previous one must not stay grabbable.
+            selection = []
             if let kind = shapeKind, let first = s.samples.first, let last = s.samples.last {
               insertShape(kind, from: first.point, to: last.point)
               return
