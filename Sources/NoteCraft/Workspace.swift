@@ -64,6 +64,9 @@ struct Workspace: View {
   @AppStorage("pencilOnlyDrawing") private var pencilOnly = true
   @AppStorage("holdToShape") private var holdToShape = true
   @AppStorage("scratchToErase") private var scratchToErase = true
+  @AppStorage("scribbleHint") private var scribbleHintMode = ScribbleHintMode.sometimes
+  // Shown after a scribble took ink away, so a drawing that was mistaken for one can be kept.
+  @State private var scribbleHint: ScribbleHint?
   @State private var pagePullProgress = 0.0
   @State private var settings = false
   @State private var thumbnails = false
@@ -301,6 +304,7 @@ struct Workspace: View {
             .allowsHitTesting(false).accessibilityIdentifier("pagePullProgress")
         }
       }
+      .overlay(alignment: .bottom) { scribbleHintBar }
       if importing { ProgressView("Importing…").padding(8) }
     }
     .background(Color.white).foregroundStyle(Color(red: 0.12, green: 0.16, blue: 0.22)).tint(accent)
@@ -471,6 +475,9 @@ struct Workspace: View {
       Toggle("Apple Pencil only", isOn: $pencilOnly)
       Toggle("Draw and hold for shapes", isOn: $holdToShape)
       Toggle("Scribble to erase", isOn: $scratchToErase)
+      Picker("Scribble hint", selection: $scribbleHintMode) {
+        ForEach(ScribbleHintMode.allCases, id: \.self) { Text($0.title).tag($0) }
+      }.disabled(!scratchToErase)
       Text(
         pencilOnly
           ? "Pencil writes · one finger navigates" : "One finger draws · two fingers navigate")
@@ -842,18 +849,22 @@ struct Workspace: View {
             s.samples = [first, last]
           }
           let scribble = tool == .pen && scratchToErase ? s.samples.map(\.point) : nil
+          var certainty: InkGestures.ScratchOutcome.Certainty?
           edit { package in
             // Judge the scribble against the page as it is now, not the snapshot this closure
             // captured: two quick scribbles would otherwise both start from the same old page
             // and the second would bring back what the first had erased.
             let current = package.notebook.pages[index].strokes
-            if let scribble, let scribbled = InkGestures.scratchErase(scribble, strokes: current),
-              scribbled != current
-            {
-              package.notebook.pages[index].strokes = scribbled
+            if let scribble, let outcome = InkGestures.scratchOutcome(scribble, strokes: current) {
+              package.notebook.pages[index].strokes = outcome.strokes
+              certainty = outcome.certainty
             } else {
               package.notebook.pages[index].strokes.append(s)
             }
+          }
+          if let certainty, scribbleHintMode.shows(for: certainty) {
+            scribbleHint = ScribbleHint(
+              page: index, stroke: s, revision: document.package.notebook.revision)
           }
         },
         onGesture: { points in
@@ -923,7 +934,10 @@ struct Workspace: View {
           activePage = index
           pasteSpot = (index, point)
         },
-        onTouchDown: { if pasteSpot != nil { pasteSpot = nil } },
+        onTouchDown: {
+          if pasteSpot != nil { pasteSpot = nil }
+          if scribbleHint != nil { scribbleHint = nil }
+        },
         onPencilDetected: { pencilOnly = true },
         onToggleEraser: {
           if tool == .eraser {
@@ -941,6 +955,7 @@ struct Workspace: View {
           } : nil,
         onPagePull: { pagePullProgress = $0 }, horizontalPages: horizontal,
         onScrollActivity: { showPageIndicator() }, holdToShape: holdToShape,
+        scribblePreview: scratchToErase,
         eraserMode: eraserMode, highlighterOnly: highlighterOnly,
         searchHighlights: searchVisible
           ? documentSearch.results.first(where: { $0.pageID == p.id })?.highlights ?? [] : [],
@@ -1229,6 +1244,32 @@ struct Workspace: View {
         x: min(w - 60 / zoomed, max(60 / zoomed, spot.point.x * scale + offset.x)),
         y: min(height - 30 / zoomed, max(30 / zoomed, spot.point.y * scale + offset.y - 40 / zoomed)))
     }
+  }
+  @ViewBuilder private var scribbleHintBar: some View {
+    if let hint = scribbleHint, hint.revision == document.package.notebook.revision {
+      Button {
+        keepScribbleAsInk(hint)
+      } label: {
+        Label("Erased  ·  Keep as ink", systemImage: "arrow.uturn.backward")
+          .font(.system(size: 15, weight: .medium))
+          .padding(.horizontal, 16).frame(minHeight: 44).contentShape(Capsule())
+      }
+      .buttonStyle(.plain).foregroundStyle(.white)
+      .background(Color(red: 0.16, green: 0.17, blue: 0.18), in: Capsule())
+      .padding(18).accessibilityIdentifier("scribbleHint")
+      .task(id: hint.id) {
+        try? await Task.sleep(for: .seconds(3))
+        if scribbleHint?.id == hint.id { scribbleHint = nil }
+      }
+    }
+  }
+  // Takes the scribble back and puts it on the page as the stroke it was drawn as.
+  private func keepScribbleAsInk(_ hint: ScribbleHint) {
+    scribbleHint = nil
+    guard hint.revision == document.package.notebook.revision else { return }
+    undo()
+    guard notebook.pages.indices.contains(hint.page) else { return }
+    edit { $0.notebook.pages[hint.page].strokes.append(hint.stroke) }
   }
   private var searchBar: some View {
     VStack(alignment: .leading, spacing: 10) {
@@ -1941,4 +1982,28 @@ private struct PaperBackgroundSheet: View {
   var images: [PageAsset] = []
   var texts: [TextBox] = []
   var assets: [String: Data] = [:]
+}
+
+enum ScribbleHintMode: String, CaseIterable {
+  case off, sometimes, always
+  var title: String {
+    switch self {
+    case .off: "Off"
+    case .sometimes: "When unsure"
+    case .always: "Always"
+    }
+  }
+  func shows(for certainty: InkGestures.ScratchOutcome.Certainty) -> Bool {
+    switch self {
+    case .off: false
+    case .sometimes: certainty == .doubtful
+    case .always: true
+    }
+  }
+}
+struct ScribbleHint: Equatable {
+  let id = UUID()
+  let page: Int
+  let stroke: Stroke
+  let revision: UInt64
 }

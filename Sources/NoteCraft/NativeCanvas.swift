@@ -28,6 +28,8 @@ import SwiftUI
   var horizontalPages = false
   var onScrollActivity: (() -> Void)? = nil
   var holdToShape = true
+  // Marks the ink a scribble would take away while it is still being drawn.
+  var scribblePreview = false
   var eraserMode: EraserMode = .stroke
   var highlighterOnly = false
   var searchHighlights: [Rect] = []
@@ -634,6 +636,9 @@ import SwiftUI
   var cacheRect = CGRect.zero
   // Whether the ink overlay currently shows a stroke, so only then does it need clearing.
   var overlayInked = false
+  // Ink the running scribble would erase, and when it is next worth asking again.
+  var scratchPreview: [Stroke] = []
+  var nextScratchCheck: ContinuousClock.Instant?
 }
 enum SelectionHandle: Equatable {
   case move, resize, rotate
@@ -777,6 +782,38 @@ extension DrawingView {
       setNeedsDisplay(area)
     }
   }
+  // While a scribble is being drawn, the ink it would take away is tinted red. The question is
+  // only asked a few times a second, and only costs anything once the path looks like a scribble.
+  func updateScratchPreview() {
+    guard let configuration, configuration.scribblePreview, configuration.tool == .pen,
+      input.held == nil, samples.count >= 6
+    else { return }
+    let now = ContinuousClock.now
+    if let next = input.nextScratchCheck, now < next { return }
+    input.nextScratchCheck = now.advanced(by: .milliseconds(80))
+    let affected =
+      InkGestures.scratchOutcome(samples.map(\.point), strokes: configuration.page.strokes)?
+      .affected ?? []
+    guard affected != input.scratchPreview else { return }
+    input.scratchPreview = affected
+    if drawsInkInOverlay { invalidateOverlay() } else { invalidateCanvas() }
+  }
+  func drawScratchPreview(_ c: CGContext) {
+    guard !input.scratchPreview.isEmpty else { return }
+    c.saveGState()
+    c.setAlpha(0.55)
+    for var stroke in input.scratchPreview {
+      stroke.color = .red
+      stroke.width += 3
+      stroke.tool = .pen
+      stroke.style = .ballpoint
+      stroke.tip = nil
+      stroke.shape = nil
+      stroke.fillColor = nil
+      PageRenderer.stroke(stroke, in: c)
+    }
+    c.restoreGState()
+  }
   func resetInput() {
     if input.moveStart != nil || (configuration?.tool == .eraser && !samples.isEmpty) {
       cachedPage = nil
@@ -802,6 +839,8 @@ extension DrawingView {
     input.cursor = nil
     input.eraseDirty = .null
     input.cursorRect = .null
+    input.scratchPreview = []
+    input.nextScratchCheck = nil
     samples = []
     predictedSamples = []
     if input.overlayInked { invalidateOverlay() }
@@ -1028,6 +1067,7 @@ extension DrawingView {
       }
       if input.erased == nil { input.erased = strokes }
     }
+    updateScratchPreview()
     guard configuration.holdToShape, [.pen, .shapes].contains(configuration.tool) else { return }
     if let anchor = input.holdPoint, anchor.distance(to: sample.point) < 3 { return }
     input.holdPoint = sample.point
@@ -1090,6 +1130,7 @@ extension DrawingView {
     }
     input.overlayInked = true
     let (cacheRect, resolution) = canvasSpace(c, configuration)
+    drawScratchPreview(c)
     if samples.count > 5 {
       paintLiveInk(configuration, in: c, rect: cacheRect, resolution: resolution)
     } else {
@@ -1161,6 +1202,7 @@ extension DrawingView {
       moving.texts.removeAll { !configuration.selection.contains($0.id) }
       PageRenderer.render(moving, assets: configuration.assets, in: c, includeBackground: false)
     }
+    if !drawsInkInOverlay { drawScratchPreview(c) }
     if !samples.isEmpty {
       if configuration.tool == .lasso && input.moveStart == nil {
         c.setStrokeColor(PageRenderer.color(.blue))

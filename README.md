@@ -53,9 +53,14 @@ ellipses, rectangles, diamonds, triangles, right angles, arrows (shaft plus two 
 stroke), arcs and half circles, and any open or closed polyline, which keeps its corners and
 straightens its sides. A gentle curve stays as drawn. Continue dragging before lifting to
 resize the shape; closed shapes retain their center. Scribble back and forth over handwriting
-with the pen to erase exactly the strokes under the scribble (a stroke the pen only grazes with
-the tip of one sweep stays) in one undoable step. Both gestures can be disabled in the overflow
-menu. The eraser shows its reach as a ring that follows the pencil (and hovers with it on
+with the pen to erase it in one undoable step. The scribble sweeps out a zone whose reach follows
+how tightly it was drawn: a small scrub is precise, a big loose one also catches ink it did not
+quite touch. A stroke with at least 80 % of its length inside the zone goes entirely; a longer
+line (a wire, an underline) only loses the part under the scribble. The ink that will go turns
+red while you scribble. A loose scribble across nothing but long lines stays ink, so a symbol
+drawn over a wire is not mistaken for an eraser gesture. After an uncertain case a "Keep as ink"
+button appears for a few seconds; the overflow menu sets the hint to Off, When unsure or Always.
+Both gestures can be disabled in the overflow menu. The eraser shows its reach as a ring that follows the pencil (and hovers with it on
 supported iPads), and it sweeps the path between samples so a quick swipe leaves nothing
 behind. Lasso handwriting, images and text, then drag inside the selection to
 move the group with a live preview; release commits one undoable change.
