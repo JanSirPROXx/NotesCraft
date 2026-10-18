@@ -204,9 +204,92 @@ func diamondIsNotMistakenForACircle(corners: [Point]) throws {
   #expect(abs((points.map(\.y).min() ?? 0) - 200) < 6)
 }
 
-@Test func gentleCurveIsKeptAsDrawnOrBecomesAnArcButNeverALine() {
-  let wave = (0...60).map { i in Point(100 + Double(i) * 5, 200 + 40 * sin(Double(i) / 60 * 2 * .pi)) }
-  #expect(ShapeRecognizer.recognize(wave) == nil)
+// Largest distance from a point to the polyline.
+private func deviation(_ p: Point, from line: [Point]) -> Double {
+  var best = Double.infinity
+  for i in 1..<line.count {
+    best = min(best, Editing.distance(p, toSegmentFrom: line[i - 1], to: line[i]))
+  }
+  return best
+}
+
+// Largest turn (radians) between neighbouring segments: a clean curve has no kinks.
+private func sharpestTurn(_ line: [Point]) -> Double {
+  var worst = 0.0
+  for i in 2..<line.count {
+    let a = atan2(line[i - 1].y - line[i - 2].y, line[i - 1].x - line[i - 2].x)
+    let b = atan2(line[i].y - line[i - 1].y, line[i].x - line[i - 1].x)
+    var d = abs(a - b)
+    if d > .pi { d = 2 * .pi - d }
+    worst = max(worst, d)
+  }
+  return worst
+}
+
+@Test func gentleSineBecomesACleanCurveThatKeepsItsPeaks() throws {
+  var w = Wobble(state: 7)
+  let wave = (0...60).map { i in
+    Point(100 + Double(i) * 5 + w.next(1.2), 200 + 40 * sin(Double(i) / 60 * 2 * .pi) + w.next(1.2))
+  }
+  let curve = try #require(polygon(ShapeRecognizer.recognize(wave)))
+  #expect(curve.count > 60, "dense enough to look round at any zoom")
+  #expect(sharpestTurn(curve) < 0.12, "no kinks left from the hand's jitter")
+  #expect(abs((curve.map(\.y).min() ?? 0) - 160) < 6 && abs((curve.map(\.y).max() ?? 0) - 240) < 6)
+  #expect(curve[0].distance(to: wave[0]) < 0.001 && curve[curve.count - 1].distance(to: wave[60]) < 0.001)
+  for p in wave { #expect(deviation(p, from: curve) < 6) }
+}
+
+@Test(arguments: [
+  // Parabola, S-bend and a decaying exponential: the shapes of graphs.
+  (0...50).map { i -> Point in let x = Double(i) * 6; return Point(100 + x, 400 - x * x / 400) },
+  (0...50).map { i -> Point in
+    let t = Double(i) / 50
+    return Point(100 + 300 * t, 300 + 80 * sin(t * .pi * 2 - .pi) * (t < 0.5 ? 1 : 1))
+  },
+  (0...60).map { i -> Point in let x = Double(i) * 5; return Point(100 + x, 300 + 150 * exp(-x / 70)) },
+])
+func graphCurvesComeOutSmoothAndFaithful(wave: [Point]) throws {
+  var w = Wobble(state: 31)
+  let noisy = wave.map { Point($0.x + w.next(1), $0.y + w.next(1)) }
+  let curve = try #require(polygon(ShapeRecognizer.recognize(noisy)))
+  #expect(sharpestTurn(curve) < 0.2)
+  for p in wave { #expect(deviation(p, from: curve) < 8) }
+}
+
+@Test func curvedArrowKeepsItsBendAndGetsASymmetricHead() throws {
+  // A quarter-circle shaft with a hand-drawn head at the end.
+  let shaft = (0...40).map { i -> Point in
+    let a = -Double.pi / 2 + Double(i) / 40 * Double.pi / 2
+    return Point(100 + 200 * cos(a), 300 + 200 * sin(a))
+  }
+  let tip = shaft[40]
+  var points = shaft
+  points += polyline([tip, Point(tip.x - 30, tip.y - 22), tip, Point(tip.x + 30, tip.y - 22)], closed: false, wobble: 0.5)
+  let arrow = try #require(polygon(ShapeRecognizer.recognize(points)))
+  #expect(arrow[0].distance(to: shaft[0]) < 0.001)
+  let bow = shaft.map { deviation($0, from: arrow) }.max() ?? 99
+  #expect(bow < 5, "the curved shaft survives")
+  // Head: ... barb, tip, barb. The tip is the middle point and both barbs are the same length.
+  let end = arrow.count
+  let head = arrow[(end - 3)...]
+  #expect(abs(head[end - 3].distance(to: head[end - 2]) - head[end - 1].distance(to: head[end - 2])) < 0.5)
+  #expect(head[end - 2].distance(to: tip) < 6)
+}
+
+@Test func letterShapesAndZigzagsAreNotMistakenForCurves() {
+  var w = Wobble(state: 5)
+  // A zigzag with sharp corners.
+  let zigzag = polyline(
+    [Point(0, 0), Point(60, 80), Point(120, 0), Point(180, 80), Point(240, 0)], closed: false)
+  if case .polygon(let points, _)? = ShapeRecognizer.recognize(zigzag) {
+    #expect(points.count < 12, "kept as straight pieces, not rounded into a wave")
+  }
+  // Cursive loops cross themselves: that is writing.
+  let loops = (0..<120).map { i -> Point in
+    let t = Double(i) / 119 * 4 * .pi
+    return Point(100 + t * 18 + 25 * cos(t), 200 + 25 * sin(t) + w.next(1))
+  }
+  #expect(ShapeRecognizer.recognize(loops) == nil)
 }
 
 @Test func openCornerKeepsItsShapeAsPolyline() throws {

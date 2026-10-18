@@ -155,9 +155,10 @@ import Testing
   #expect(
     abs((resized.bounds.width - resized.width) / (circle.bounds.width - circle.width) - 2) < 0.01)
   #expect(abs(resized.bounds.x + resized.bounds.width / 2 - 100) < 0.01)
-  let curve = Stroke(
-    samples: (0..<20).map { Sample(point: Point(Double($0) * 5, sin(Double($0) * 0.3) * 30)) })
-  #expect(InkGestures.heldShape(curve) == nil)
+  // A held wiggle that is not one smooth curve is left alone.
+  let wiggle = Stroke(
+    samples: (0..<40).map { Sample(point: Point(Double($0) * 3, sin(Double($0) * 0.9) * 20)) })
+  #expect(InkGestures.heldShape(wiggle) == nil)
 }
 
 @Test func scribbleErasesIntersectedInkButKeepsOrdinaryHandwriting() throws {

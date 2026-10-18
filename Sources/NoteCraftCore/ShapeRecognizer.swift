@@ -21,6 +21,7 @@ public enum ShapeRecognizer {
     let gap = first.distance(to: last)
     let closed = gap < length * 0.2 && gap < diagonal * 0.6
     let count = min(200, max(48, Int(length / 4)))
+    if !closed, let arrow = curvedArrow(points) { return .polygon(arrow, closed: false) }
     var path = resample(points, count: count)
     if closed, path.count > 3 { path.removeLast() }
     path = smoothed(path, closed: closed)
@@ -48,7 +49,8 @@ public enum ShapeRecognizer {
     for range in segments {
       guard let segment = analyse(path, range, closed: closed, window: window) else {
         // A piece that is neither straight nor a clean arc: only a full ellipse can still explain it.
-        return closed ? roundShape(path, raw: points, diagonal: diagonal) : nil
+        if closed { return roundShape(path, raw: points, diagonal: diagonal) }
+        return smoothOpenCurve(points).map { .polygon($0, closed: false) }
       }
       analysed.append(segment)
     }
@@ -72,7 +74,15 @@ public enum ShapeRecognizer {
       case .line:
         return lineResult(only.start, only.end)
       case .arc:
-        return .polygon(only.arcPoints(), closed: false)
+        let arc = only.arcPoints()
+        // A parabola or an exponential bends like an arc but is not one; a circle through three
+        // of its points would drift several points away from what was drawn.
+        if let curve = smoothOpenCurve(points),
+          maxDeviation(of: points, from: arc) > max(2.5, 1.6 * maxDeviation(of: points, from: curve))
+        {
+          return .polygon(curve, closed: false)
+        }
+        return .polygon(arc, closed: false)
       }
     }
     guard corners.count <= 7 else { return nil }
@@ -84,6 +94,9 @@ public enum ShapeRecognizer {
       if vertices.count == 5, let arrow = arrow(vertices) { return arrow }
       return .polygon(regularized(vertices, closed: false), closed: false)
     }
+    // Lines and arcs strung together are how a sloppy curve segments; when the stroke is one
+    // smooth curve without corners it is that curve, not a chain of pieces that do not meet.
+    if let curve = smoothOpenCurve(points) { return .polygon(curve, closed: false) }
     return .polygon(composite(analysed, closed: false), closed: false)
   }
 
@@ -172,7 +185,8 @@ public enum ShapeRecognizer {
       from = atan2(a.y - circle.center.y, a.x - circle.center.x)
       sweep = .pi * orientation
     }
-    let steps = max(10, Int(abs(sweep) / 0.09))
+    // About every two points along the arc: a coarse arc shows its facets on a big radius.
+    let steps = min(720, max(10, Int(abs(sweep) * circle.radius / 2), Int(abs(sweep) / 0.09)))
     var result = (0...steps).map { i -> Point in
       let angle = from + sweep * Double(i) / Double(steps)
       return Point(
@@ -198,7 +212,7 @@ public enum ShapeRecognizer {
 
   // Sharp turns of the path, measured between chords of a fixed length on both sides so hand
   // jitter does not register and a gentle curve never reaches the threshold.
-  private static func cornerIndices(_ path: [Point], closed: Bool, window: Int) -> [Int] {
+  static func cornerIndices(_ path: [Point], closed: Bool, window: Int) -> [Int] {
     let n = path.count
     guard n > 2 * window + 2 else { return [] }
     func wrap(_ i: Int) -> Int { ((i % n) + n) % n }
@@ -233,7 +247,7 @@ public enum ShapeRecognizer {
 
   // Drops corners that sit almost on the line between their neighbours, and corners that would
   // leave a stub shorter than a few percent of the stroke.
-  private static func pruned(_ input: [Int], path: [Point], closed: Bool, length: Double) -> [Int] {
+  static func pruned(_ input: [Int], path: [Point], closed: Bool, length: Double) -> [Int] {
     var corners = input
     let minimum = max(8, length * 0.025)
     var changed = true
@@ -708,17 +722,17 @@ public enum ShapeRecognizer {
     if d < -.pi { d += 2 * .pi }
     return abs(d)
   }
-  private static func dedupe(_ points: [Point]) -> [Point] {
+  static func dedupe(_ points: [Point]) -> [Point] {
     var result: [Point] = []
     for p in points where result.last.map({ $0.distance(to: p) > 0.5 }) ?? true {
       result.append(p)
     }
     return result
   }
-  private static func pathLength(_ points: [Point]) -> Double {
+  static func pathLength(_ points: [Point]) -> Double {
     zip(points, points.dropFirst()).reduce(0) { $0 + $1.0.distance(to: $1.1) }
   }
-  private static func boundingBox(_ points: [Point]) -> Rect {
+  static func boundingBox(_ points: [Point]) -> Rect {
     let xs = points.map(\.x)
     let ys = points.map(\.y)
     let minX = xs.min() ?? 0
@@ -726,7 +740,7 @@ public enum ShapeRecognizer {
     return Rect(
       x: minX, y: minY, width: (xs.max() ?? 0) - minX, height: (ys.max() ?? 0) - minY)
   }
-  private static func resample(_ points: [Point], count: Int) -> [Point] {
+  static func resample(_ points: [Point], count: Int) -> [Point] {
     let total = pathLength(points)
     guard total > 0 else { return points }
     let step = total / Double(count - 1)

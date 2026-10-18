@@ -865,7 +865,11 @@ struct Workspace: View {
             // Freehand: exact shape when the stroke clearly is one, otherwise ordinary ink.
             if let exact = InkGestures.recognizedShape(s) {
               s = exact
-              s.fillColor = fillShapes && s.samples.count > 3 ? color : nil
+              // Only a closed figure has an inside; a curve or arrow would fill its chord.
+              let closed = s.samples.first.map { first in
+                s.samples.last.map { $0.point.distance(to: first.point) < 1 } ?? false
+              } ?? false
+              s.fillColor = fillShapes && s.samples.count > 3 && closed ? color : nil
             } else {
               s.tool = .pen
             }
