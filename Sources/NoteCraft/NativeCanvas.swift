@@ -733,6 +733,10 @@ import SwiftUI
   // Ink the running scribble would erase, and when it is next worth asking again.
   var scratchPreview: [Stroke] = []
   var nextScratchCheck: ContinuousClock.Instant?
+  // A background pass is in flight; the generation lets its late result notice that the stroke
+  // it was asked about is gone.
+  var scratchRunning = false
+  var scratchGeneration = 0
   // New samples the GPU has not drawn yet, and a counter that lets a late clear notice that
   // another stroke has started in the meantime.
   var gpuInkDirty = false
@@ -894,19 +898,36 @@ extension DrawingView {
     else { return }
     let now = ContinuousClock.now
     if let next = input.nextScratchCheck, now < next { return }
+    // Judging a big scribble against a page of handwriting takes milliseconds, which would
+    // drop a frame of the very stroke being drawn, so it runs off the main thread. One pass at
+    // a time; a result that arrives after the stroke ended or restarted is dropped.
+    guard !input.scratchRunning else { return }
+    input.scratchRunning = true
     input.nextScratchCheck = now.advanced(by: .milliseconds(80))
-    let affected =
-      InkGestures.scratchOutcome(samples.map(\.point), strokes: configuration.page.strokes)?
-      .affected ?? []
-    guard affected != input.scratchPreview else { return }
-    input.scratchPreview = affected
-    if drawsInkInOverlay { invalidateOverlay() } else { invalidateCanvas() }
+    let points = samples.map(\.point)
+    let strokes = configuration.page.strokes
+    let generation = input.scratchGeneration
+    Task { @MainActor [weak self] in
+      let affected = await Task.detached(priority: .userInitiated) {
+        InkGestures.scratchOutcome(points, strokes: strokes)?.affected ?? []
+      }.value
+      guard let self, input.scratchGeneration == generation else { return }
+      input.scratchRunning = false
+      guard affected != input.scratchPreview else { return }
+      input.scratchPreview = affected
+      if drawsInkInOverlay { invalidateOverlay() } else { invalidateCanvas() }
+    }
   }
   func drawScratchPreview(_ c: CGContext) {
     guard !input.scratchPreview.isEmpty else { return }
     c.saveGState()
     c.setAlpha(0.55)
+    // Only what is inside the dirty rect: a scribble over a full page marks thousands of strokes.
+    let clip = c.boundingBoxOfClipPath
     for var stroke in input.scratchPreview {
+      let box = stroke.bounds
+      guard CGRect(x: box.x, y: box.y, width: box.width, height: box.height).intersects(clip)
+      else { continue }
       stroke.color = .red
       stroke.width += 3
       stroke.tool = .pen
@@ -949,6 +970,8 @@ extension DrawingView {
     input.cursorRect = .null
     input.scratchPreview = []
     input.nextScratchCheck = nil
+    input.scratchRunning = false
+    input.scratchGeneration += 1
     samples = []
     predictedSamples = []
     if input.overlayInked { invalidateOverlay() }

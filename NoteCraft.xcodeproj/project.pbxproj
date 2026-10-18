@@ -40,6 +40,7 @@
 		AFCA6FA4889F0886ED4ABB5F /* ImportEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7498B04DDA06141A375AD880 /* ImportEngine.swift */; };
 		BE09234502E9611C98BFD209 /* VaultUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C0B8D61A66A011E45218373 /* VaultUITests.swift */; };
 		C410B0FA00E91CC6E9D93300 /* VaultCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 327B668A8960E2B8A8C80F45 /* VaultCover.swift */; };
+		C749B4E2D92EDC728A6FF056 /* ScribblePerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BEFB5FFC666C8AD680794AD /* ScribblePerformanceTests.swift */; };
 		C87DCE397B1F922A2B2A3E7F /* DocumentSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2D8EDF0ECB550E22A35AEE8 /* DocumentSearch.swift */; };
 		C89409F71FE8853E13F8E328 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB364BB9C08BDF203F68B72A /* App.swift */; };
 		CE7AAD86B3DC29EDC5E24C6B /* VaultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2DF4BA61A4AD7E1CBD55E03 /* VaultTests.swift */; };
@@ -115,6 +116,7 @@
 		1B18528EAB55247EA57BDEAF /* VaultFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFiles.swift; sourceTree = "<group>"; };
 		224B6213A14759EFA003EB49 /* Renderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Renderer.swift; sourceTree = "<group>"; };
 		2830385451CA3D1365E2ADF2 /* ScreenshotScenes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotScenes.swift; sourceTree = "<group>"; };
+		2BEFB5FFC666C8AD680794AD /* ScribblePerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScribblePerformanceTests.swift; sourceTree = "<group>"; };
 		2CE25C9D08742478F1554ABA /* LibrarySheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySheets.swift; sourceTree = "<group>"; };
 		2D38B019CE3F18AD600FCB7C /* ShapeRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeRecognizer.swift; sourceTree = "<group>"; };
 		327B668A8960E2B8A8C80F45 /* VaultCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultCover.swift; sourceTree = "<group>"; };
@@ -193,6 +195,7 @@
 			isa = PBXGroup;
 			children = (
 				06224446505127FB574CE719 /* CoreTests.swift */,
+				2BEFB5FFC666C8AD680794AD /* ScribblePerformanceTests.swift */,
 				8C6CA8AE2045682013E613E6 /* ShapeTests.swift */,
 				C2DF4BA61A4AD7E1CBD55E03 /* VaultTests.swift */,
 			);
@@ -416,6 +419,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1B974C057F8DABA631C1EE8E /* CoreTests.swift in Sources */,
+				C749B4E2D92EDC728A6FF056 /* ScribblePerformanceTests.swift in Sources */,
 				9669A46A095DCCDE46AB4F9A /* ShapeTests.swift in Sources */,
 				CE7AAD86B3DC29EDC5E24C6B /* VaultTests.swift in Sources */,
 			);

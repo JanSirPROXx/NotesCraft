@@ -81,7 +81,7 @@ extension InkGestures {
   // stay ink (not a scribble, nothing under it, or too ambiguous to take ink away).
   public static func scratchOutcome(_ points: [Point], strokes: [Stroke]) -> ScratchOutcome? {
     guard let scribble = scribble(points), scribble.path.count >= 3 else { return nil }
-    let zone = ScratchZone(scribble.path)
+    var zone = ScratchZone(scribble.path)
     var remaining: [Stroke] = []
     remaining.reserveCapacity(strokes.count)
     var removed = false
@@ -133,6 +133,17 @@ extension InkGestures {
     var maxX = 0.0
     var minY = 0.0
     var maxY = 0.0
+    // Uniform grid over the zone: a page of handwriting has thousands of strokes and a big
+    // scribble hundreds of segments, so testing every sample against every segment took seconds.
+    // Each stroke only looks at the segments in the cells around it.
+    private var cells: [[Int32]] = []
+    private var cellSize = 16.0
+    private var columns = 1
+    private var rows = 1
+    // Marks segments already collected for the current stroke, so a segment spanning several
+    // cells is tested once.
+    private var seen: [Int32] = []
+    private var stamp: Int32 = 0
 
     init(_ path: [Point]) {
       minX = path.map(\.x).min()!
@@ -168,9 +179,52 @@ extension InkGestures {
         gap = extent / Double(max(1, sweep))
       }
       radius = min(16, max(3, gap * 0.6))
+      buildGrid()
     }
 
-    func verdict(for stroke: Stroke) -> ScratchVerdict {
+    private func cell(_ value: Double, origin: Double, count: Int) -> Int {
+      min(count - 1, max(0, Int((value - origin) / cellSize)))
+    }
+
+    private mutating func buildGrid() {
+      // Capped so a huge scribble does not allocate a huge grid; cells just get coarser.
+      cellSize = max(16, max(maxX - minX, maxY - minY) / 96)
+      columns = Int((maxX - minX) / cellSize) + 1
+      rows = Int((maxY - minY) / cellSize) + 1
+      cells = Array(repeating: [], count: columns * rows)
+      seen = Array(repeating: 0, count: segments.count)
+      for (index, segment) in segments.enumerated() {
+        let c0 = cell(segment.minX, origin: minX, count: columns)
+        let c1 = cell(segment.maxX, origin: minX, count: columns)
+        let r0 = cell(segment.minY, origin: minY, count: rows)
+        let r1 = cell(segment.maxY, origin: minY, count: rows)
+        for r in r0...r1 {
+          for c in c0...c1 { cells[r * columns + c].append(Int32(index)) }
+        }
+      }
+    }
+
+    // Segments whose cells overlap the box grown by `tolerance`: a superset of the segments
+    // that can come within `tolerance` of any point inside the box.
+    private mutating func candidates(near box: Rect, tolerance: Double) -> [Int] {
+      stamp += 1
+      let c0 = cell(box.x - tolerance, origin: minX, count: columns)
+      let c1 = cell(box.x + box.width + tolerance, origin: minX, count: columns)
+      let r0 = cell(box.y - tolerance, origin: minY, count: rows)
+      let r1 = cell(box.y + box.height + tolerance, origin: minY, count: rows)
+      var found: [Int] = []
+      for r in r0...r1 {
+        for c in c0...c1 {
+          for index in cells[r * columns + c] where seen[Int(index)] != stamp {
+            seen[Int(index)] = stamp
+            found.append(Int(index))
+          }
+        }
+      }
+      return found
+    }
+
+    mutating func verdict(for stroke: Stroke) -> ScratchVerdict {
       guard stroke.tool != .highlighter, !stroke.samples.isEmpty else { return .keep }
       let box = stroke.bounds
       // A dot or i-point is hard to hit precisely with a small scrub, so it gets a wider reach.
@@ -179,6 +233,8 @@ extension InkGestures {
       guard box.x - tolerance <= maxX, box.x + box.width + tolerance >= minX,
         box.y - tolerance <= maxY, box.y + box.height + tolerance >= minY
       else { return .keep }
+      let near = candidates(near: box, tolerance: tolerance)
+      guard !near.isEmpty else { return .keep }
       let dense = InkGestures.densified(stroke.samples, spacing: max(1, min(2.5, radius / 2)))
       var inside = [Bool](repeating: false, count: dense.count)
       var count = 0
@@ -186,11 +242,12 @@ extension InkGestures {
       var highest = Int.min
       for (i, sample) in dense.enumerated() {
         let p = sample.point
-        for segment in segments
-        where segment.maxX + tolerance >= p.x && segment.minX - tolerance <= p.x
-          && segment.maxY + tolerance >= p.y && segment.minY - tolerance <= p.y
-          && Editing.distance(p, toSegmentFrom: segment.a, to: segment.b) <= tolerance
-        {
+        for index in near {
+          let segment = segments[index]
+          guard segment.maxX + tolerance >= p.x, segment.minX - tolerance <= p.x,
+            segment.maxY + tolerance >= p.y, segment.minY - tolerance <= p.y,
+            Editing.distance(p, toSegmentFrom: segment.a, to: segment.b) <= tolerance
+          else { continue }
           if !inside[i] {
             inside[i] = true
             count += 1
