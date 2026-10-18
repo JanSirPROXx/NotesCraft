@@ -35,5 +35,6 @@ struct NoteDocument: FileDocument {
   }
   var body: some Scene {
     WindowGroup("NoteCraft") { VaultRoot() }
+      .commands { WorkspaceCommands() }
   }
 }

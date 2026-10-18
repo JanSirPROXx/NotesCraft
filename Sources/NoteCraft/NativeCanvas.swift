@@ -22,7 +22,7 @@ import SwiftUI
   var onLongPress: ((Point) -> Void)? = nil
   var onTouchDown: (() -> Void)? = nil
   var onPencilDetected: (() -> Void)? = nil
-  var onToggleEraser: (() -> Void)? = nil
+  var onPencilAction: ((PencilAction) -> Void)? = nil
   var onAppendPage: (() -> Void)? = nil
   var onPagePull: ((Double) -> Void)? = nil
   var horizontalPages = false
@@ -39,6 +39,10 @@ import SwiftUI
   var stabilization = 0.0
   // With the shapes tool: the shape inserted by tapping or dragging; nil keeps freehand recognition.
   var shapeKind: ShapeKind? = nil
+}
+// What a Pencil double tap or squeeze should do, as chosen in Settings > Apple Pencil.
+enum PencilAction {
+  case switchEraser, switchPrevious, showPalette
 }
 #if os(macOS)
   struct NativeCanvas: NSViewRepresentable {
@@ -344,8 +348,34 @@ import SwiftUI
       }
       invalidateEraser()
     }
+    // The system settings decide what a tap or squeeze means; "Off" must really do nothing.
+    private func perform(_ preferred: UIPencilPreferredAction) {
+      switch preferred {
+      case .switchEraser: configuration?.onPencilAction?(.switchEraser)
+      case .switchPrevious: configuration?.onPencilAction?(.switchPrevious)
+      case .showColorPalette, .showInkAttributes, .showContextualPalette:
+        configuration?.onPencilAction?(.showPalette)
+      default: break
+      }
+    }
+    // Before iOS 17.5 only the plain tap callback exists; from 17.5 on the system calls the
+    // variants below instead.
     func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {
-      configuration?.onToggleEraser?()
+      perform(UIPencilInteraction.preferredTapAction)
+    }
+    @available(iOS 17.5, *)
+    func pencilInteraction(
+      _ interaction: UIPencilInteraction, didReceiveTap tap: UIPencilInteraction.Tap
+    ) {
+      perform(UIPencilInteraction.preferredTapAction)
+    }
+    // The squeeze of Apple Pencil Pro fires when it is released, not while it is pressed.
+    @available(iOS 17.5, *)
+    func pencilInteraction(
+      _ interaction: UIPencilInteraction, didReceiveSqueeze squeeze: UIPencilInteraction.Squeeze
+    ) {
+      guard squeeze.phase == .ended else { return }
+      perform(UIPencilInteraction.preferredSqueezeAction)
     }
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
       guard let configuration else { return }

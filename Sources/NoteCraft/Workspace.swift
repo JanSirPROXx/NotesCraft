@@ -343,6 +343,7 @@ struct Workspace: View {
       refreshTrailingPage()
     }
     .onDisappear { pageHUDTask?.cancel() }
+    .focusedSceneValue(\.workspaceActions, workspaceActions)
   }
   var body: some View {
     syncedContent
@@ -577,6 +578,31 @@ struct Workspace: View {
     }.font(.system(size: 13, weight: .medium)).foregroundStyle(Color.white).background(
       Color(red: 0.12, green: 0.20, blue: 0.36))
   }
+  private func switchTool(to item: InkTool) {
+    previousTool = tool
+    tool = item
+    selection = []
+    commitInlineText()
+    if item == .elements || item == .image { settings = true }
+  }
+  private var workspaceActions: WorkspaceActions {
+    WorkspaceActions(
+      tools: InkTool.allCases.map { .init(tool: $0, title: label($0)) },
+      selectTool: { item in if tool != item { switchTool(to: item) } },
+      toggleEraser: {
+        if tool == .eraser {
+          tool = previousTool
+        } else {
+          previousTool = tool
+          tool = .eraser
+        }
+      },
+      previousPage: { activePage = max(0, activePage - 1) },
+      nextPage: { activePage = min(notebook.pages.count - 1, activePage + 1) },
+      addPage: { appendPage(InkGestures.blankPage(matching: page)) },
+      canGoBack: activePage > 0,
+      canGoForward: activePage < notebook.pages.count - 1)
+  }
   private var toolBar: some View {
     GeometryReader { geometry in
       ScrollView(.horizontal, showsIndicators: false) {
@@ -589,11 +615,7 @@ struct Workspace: View {
               if tool == item {
                 settings.toggle()
               } else {
-                previousTool = tool
-                tool = item
-                selection = []
-                commitInlineText()
-                if item == .elements || item == .image { settings = true }
+                switchTool(to: item)
               }
             } label: {
               Image(systemName: icon(item)).font(.system(size: 21)).hitTarget(width: 44)
@@ -951,12 +973,19 @@ struct Workspace: View {
           if scribbleHint != nil { scribbleHint = nil }
         },
         onPencilDetected: { pencilOnly = true },
-        onToggleEraser: {
-          if tool == .eraser {
-            tool = previousTool
-          } else {
-            previousTool = tool
-            tool = .eraser
+        onPencilAction: { action in
+          switch action {
+          case .switchEraser:
+            if tool == .eraser {
+              tool = previousTool
+            } else {
+              previousTool = tool
+              tool = .eraser
+            }
+          case .switchPrevious:
+            (tool, previousTool) = (previousTool, tool)
+          case .showPalette:
+            settings.toggle()
           }
         },
         onAppendPage: boardHeight == nil && !horizontal && !infinite
