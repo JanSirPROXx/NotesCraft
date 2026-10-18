@@ -1,4 +1,5 @@
 import CoreGraphics
+import ImageIO
 import Foundation
 import NoteCraftCore
 import Testing
@@ -27,7 +28,15 @@ private func fullPage(style: PenStyle) -> Page {
 
 // Printed rather than asserted: it guides tuning, and debug builds are an order of magnitude
 // slower than release. Run with `swift test -c release -Xswiftc -enable-testing --filter pageRender`.
-@MainActor @Test func pageRenderTimings() throws {
+#if DEBUG
+  private let optimized = false
+#else
+  private let optimized = true
+#endif
+
+// Skipped in debug builds, where it would hold the main actor for seconds and starve the
+// timing-sensitive canvas tests.
+@MainActor @Test(.enabled(if: optimized)) func pageRenderTimings() throws {
   let clock = ContinuousClock()
   for style in [PenStyle.ballpoint, .fountain, .brush] {
     let page = fullPage(style: style)
@@ -40,4 +49,26 @@ private func fullPage(style: PenStyle) -> Page {
     let elapsed = clock.measure { PageRenderer.render(page, assets: [:], in: context) }
     print("TIMING render full page \(style): \(elapsed)")
   }
+}
+
+// Rebuilding a page cache must not decode the same photo again each time.
+@MainActor @Test func decodedImagesAreCachedPerAsset() throws {
+  let context = try #require(
+    CGContext(
+      data: nil, width: 64, height: 48, bitsPerComponent: 8, bytesPerRow: 64 * 4,
+      space: CGColorSpaceCreateDeviceRGB(),
+      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+  context.setFillColor(CGColor(red: 1, green: 0, blue: 0, alpha: 1))
+  context.fill(CGRect(x: 0, y: 0, width: 64, height: 48))
+  let image = try #require(context.makeImage())
+  let data = NSMutableData()
+  let destination = try #require(
+    CGImageDestinationCreateWithData(data, "public.png" as CFString, 1, nil))
+  CGImageDestinationAddImage(destination, image, nil)
+  #expect(CGImageDestinationFinalize(destination))
+  let bytes = data as Data
+  let first = try #require(PageRenderer.decodedImage("a.png", bytes))
+  #expect(PageRenderer.decodedImage("a.png", bytes) === first)
+  #expect(PageRenderer.decodedImage("b.png", bytes) !== first, "another asset is another image")
+  #expect(first.width == 64 && first.height == 48)
 }

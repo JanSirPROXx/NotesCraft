@@ -10,13 +10,37 @@ import SwiftUI
   typealias PlatformImage = UIImage
 #endif
 
+// NSCache is documented as thread safe; it is just not marked Sendable.
+private final class DecodedImages: @unchecked Sendable {
+  private let cache: NSCache<NSString, CGImage> = {
+    let cache = NSCache<NSString, CGImage>()
+    cache.totalCostLimit = 256 << 20
+    return cache
+  }()
+  func image(for key: NSString) -> CGImage? { cache.object(forKey: key) }
+  func store(_ image: CGImage, for key: NSString) {
+    cache.setObject(image, forKey: key, cost: image.bytesPerRow * image.height)
+  }
+}
+
 @MainActor enum PageRenderer {
   nonisolated static func color(_ ink: InkColor, alpha: Double = 1) -> CGColor {
     CGColor(red: ink.red, green: ink.green, blue: ink.blue, alpha: alpha)
   }
   private static var pdfCache: [(Data, PDFDocument)] = []
+  // The page cache asks for the background PDF on every rebuild; comparing a 50 MB document
+  // byte by byte each time is wasted work when it is the very same buffer.
+  private static func sameBytes(_ a: Data, _ b: Data) -> Bool {
+    guard a.count == b.count else { return false }
+    if a.isEmpty { return true }
+    return a.withUnsafeBytes { x in
+      b.withUnsafeBytes { y in
+        x.baseAddress == y.baseAddress || memcmp(x.baseAddress!, y.baseAddress!, x.count) == 0
+      }
+    }
+  }
   private static func document(_ data: Data) -> PDFDocument? {
-    if let cached = pdfCache.first(where: { $0.0 == data }) { return cached.1 }
+    if let cached = pdfCache.first(where: { sameBytes($0.0, data) }) { return cached.1 }
     guard let document = PDFDocument(data: data) else { return nil }
     pdfCache.append((data, document))
     if pdfCache.count > 3 { pdfCache.removeFirst() }
@@ -33,6 +57,43 @@ import SwiftUI
       page, assets: assets, in: c, backgroundDocument: pdf,
       includePDFAnnotations: includePDFAnnotations, includeBackground: includeBackground,
       paperBounds: paperBounds, cull: cull)
+  }
+  // Decoding a photo costs tens of milliseconds and the page cache is rebuilt on every undo,
+  // zoom and page change, so decoded bitmaps are kept (bounded, and dropped under memory
+  // pressure by NSCache). Anything larger than 4096 px is decoded downsampled: that is still
+  // several times the resolution a page shows or a PDF export needs.
+  private nonisolated static let decodedImages = DecodedImages()
+  nonisolated static func decodedImage(_ name: String, _ data: Data) -> CGImage? {
+    // The bytes' address and size plus a sample of their content identify the image without
+    // hashing megabytes on every render.
+    var hasher = Hasher()
+    data.withUnsafeBytes { raw in
+      hasher.combine(raw.baseAddress.map { Int(bitPattern: $0) })
+      hasher.combine(raw.count)
+    }
+    hasher.combine(data.prefix(256))
+    hasher.combine(data.suffix(256))
+    let key = "\(name)|\(hasher.finalize())" as NSString
+    if let cached = decodedImages.image(for: key) { return cached }
+    guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+    let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+    let width = properties?[kCGImagePropertyPixelWidth] as? Int ?? 0
+    let height = properties?[kCGImagePropertyPixelHeight] as? Int ?? 0
+    let image: CGImage?
+    if max(width, height) > 4096 {
+      image = CGImageSourceCreateThumbnailAtIndex(
+        source, 0,
+        [
+          kCGImageSourceCreateThumbnailFromImageAlways: true,
+          kCGImageSourceThumbnailMaxPixelSize: 4096,
+          kCGImageSourceShouldCacheImmediately: true,
+        ] as CFDictionary)
+    } else {
+      image = CGImageSourceCreateImageAtIndex(
+        source, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
+    }
+    if let image { decodedImages.store(image, for: key) }
+    return image
   }
   private nonisolated static func renderContent(
     _ page: Page, assets: [String: Data], in c: CGContext, backgroundDocument: PDFDocument?,
@@ -66,9 +127,7 @@ import SwiftUI
     }
     for image in page.images {
       if let cull, !cull.intersects(CGRect(x: image.frame.x - image.frame.width, y: image.frame.y - image.frame.height, width: image.frame.width * 3, height: image.frame.height * 3)) { continue }
-      guard let data = assets[image.filename],
-        let source = CGImageSourceCreateWithData(data as CFData, nil),
-        let bitmap = CGImageSourceCreateImageAtIndex(source, 0, nil)
+      guard let data = assets[image.filename], let bitmap = decodedImage(image.filename, data)
       else { continue }
       let r = image.frame
       c.saveGState()
