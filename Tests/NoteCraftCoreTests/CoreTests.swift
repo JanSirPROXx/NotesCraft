@@ -578,3 +578,16 @@ import Testing
   #expect(result.strokes.first == nearMiss)
   #expect(result.strokes.count == 3 && !result.strokes.contains(target), "the crossed line is cut")
 }
+
+@Test func samplesAreStoredCompactlyAndOlderKeyedSamplesStillLoad() throws {
+  let sample = Sample(point: Point(12.5, -3.25), pressure: 0.4, altitude: 0.9)
+  let encoded = try JSONEncoder().encode(sample)
+  #expect(String(decoding: encoded, as: UTF8.self) == "[12.5,-3.25,0.4,0.9]")
+  #expect(try JSONDecoder().decode(Sample.self, from: encoded) == sample)
+  let legacy = Data(
+    #"{"point":{"x":12.5,"y":-3.25},"pressure":0.4,"altitude":0.9}"#.utf8)
+  #expect(try JSONDecoder().decode(Sample.self, from: legacy) == sample)
+  #expect(throws: DecodingError.self) {
+    try JSONDecoder().decode(Sample.self, from: Data("[1,2]".utf8))
+  }
+}

@@ -4,7 +4,7 @@ A `.notecraft` document is a directory containing `manifest.json` and `assets/`.
 The manifest has `version: 1` and a `notebook` object. Notebook and page IDs are UUIDs.
 Coordinates and thickness are PDF points, independent of screen scale. A4 is 595 × 842;
 Letter is 612 × 792. Landscape swaps the dimensions. Each stroke stores an ordered
-array of position, pressure, and altitude samples plus color, tool, pen style and width. Fountain strokes may carry an optional `tip` object (`sharpness`, `pressure`, `flatness`, each 0–1) that fixes their nib behaviour; strokes without it render with the default tip.
+array of samples plus color, tool, pen style and width. A sample is the flat array `[x, y, pressure, altitude]`; files from earlier builds that store samples as `{"point":{"x":…,"y":…},"pressure":…,"altitude":…}` are still read. Fountain strokes may carry an optional `tip` object (`sharpness`, `pressure`, `flatness`, each 0–1) that fixes their nib behaviour; strokes without it render with the default tip.
 Highlighter strokes render before ink. Pages contain text boxes, image frames, bookmark
 state, paper settings and optional PDF asset filename plus zero-based page index.
 Assets have flat, validated filenames. Missing referenced assets and unsupported versions

@@ -109,6 +109,29 @@ public struct Sample: Codable, Equatable, Sendable {
     self.pressure = pressure
     self.altitude = altitude
   }
+  // A page of handwriting holds hundreds of thousands of samples, so a sample is stored as the
+  // flat array `[x, y, pressure, altitude]`: roughly half the bytes and a good deal faster to
+  // read and write than the keyed objects older files use. Those are still read.
+  private enum LegacyKeys: String, CodingKey { case point, pressure, altitude }
+  public init(from decoder: Decoder) throws {
+    if var list = try? decoder.unkeyedContainer() {
+      point = Point(try list.decode(Double.self), try list.decode(Double.self))
+      pressure = try list.decode(Double.self)
+      altitude = try list.decode(Double.self)
+      return
+    }
+    let keyed = try decoder.container(keyedBy: LegacyKeys.self)
+    point = try keyed.decode(Point.self, forKey: .point)
+    pressure = try keyed.decode(Double.self, forKey: .pressure)
+    altitude = try keyed.decode(Double.self, forKey: .altitude)
+  }
+  public func encode(to encoder: Encoder) throws {
+    var list = encoder.unkeyedContainer()
+    try list.encode(point.x)
+    try list.encode(point.y)
+    try list.encode(pressure)
+    try list.encode(altitude)
+  }
 }
 // Nib behaviour of the fountain pen, stored per stroke so changing the settings later never
 // restyles ink that is already on the page. Absent in older files, which keep the default.
