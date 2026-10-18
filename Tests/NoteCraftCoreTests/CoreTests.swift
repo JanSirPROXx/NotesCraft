@@ -167,7 +167,7 @@ import Testing
   #expect(InkGestures.isScratch(scratch))
   let cutThrough = try #require(InkGestures.scratchOutcome(scratch, strokes: [target, other]))
   #expect(cutThrough.strokes.contains(other), "ink away from the scribble stays")
-  #expect(!cutThrough.strokes.contains(target), "the line is cut, not left as it was")
+  #expect(!cutThrough.strokes.contains(target), "the whole line goes, not a piece of it")
   let neighbour = Stroke(
     samples: [Sample(point: Point(10, 78)), Sample(point: Point(110, 78))], width: 2)
   let highlight = Stroke(
@@ -336,7 +336,7 @@ import Testing
   #expect(result.certainty == .clear)
 }
 
-@Test func scribbleOnALongLineCutsOutOnlyTheScrubbedPart() throws {
+@Test func scribbleOnALongLineErasesTheWholeLine() throws {
   let underline = Stroke(
     samples: [Sample(point: Point(-50, 6)), Sample(point: Point(100, 6))], width: 2)
   let lineAbove = Stroke(
@@ -347,27 +347,21 @@ import Testing
   let scrub = (0..<9).map { Point($0.isMultiple(of: 2) ? 0 : 30, 6 + ($0.isMultiple(of: 2) ? -4 : 4)) }
   let result = try #require(
     InkGestures.scratchOutcome(scrub, strokes: [lineAbove, underline, lineBelow]))
-  #expect(result.strokes.first == lineAbove && result.strokes.last == lineBelow)
-  let pieces = Array(result.strokes.dropFirst().dropLast())
-  #expect(pieces.count == 2, "the underline is split, not removed")
-  let left = try #require(pieces.first)
-  let right = try #require(pieces.last)
-  #expect(left.bounds.x < -45 && left.bounds.x + left.bounds.width < 0)
-  #expect(right.bounds.x > 28 && right.bounds.x + right.bounds.width > 95)
-  #expect(result.certainty == .doubtful, "cutting through long ink is a close call")
+  #expect(result.strokes == [lineAbove, lineBelow], "pen down to pen up goes as one, no pieces stay")
+  #expect(result.affected == [underline])
+  #expect(result.certainty == .doubtful, "erasing long ink on partial contact is a close call")
 }
 
 @Test func strokesMostlyInsideTheScribbleGoEntirelyEvenWhereTheyStickOut() throws {
   // Scrub over x 0…60 along y = 20. A word 70 wide has 94 % inside: it goes whole.
   let scrub = (0..<9).map { Point($0.isMultiple(of: 2) ? 0 : 60, $0.isMultiple(of: 2) ? 17 : 23) }
   let word = Stroke(samples: [Sample(point: Point(-5, 20)), Sample(point: Point(65, 20))])
-  // About 65 of 100 inside is below 80 %, but it is crossed on every sweep: only that part goes.
+  // About 65 of 100 inside is below 80 %, but it is crossed on every sweep: it goes whole too.
   let rule = Stroke(samples: [Sample(point: Point(-20, 20)), Sample(point: Point(80, 20))])
   let tight = try #require(InkGestures.scratchOutcome(scrub, strokes: [word]))
   #expect(tight.strokes.isEmpty)
   let loose = try #require(InkGestures.scratchOutcome(scrub, strokes: [word, rule]))
-  #expect(loose.strokes.count == 2 && !loose.strokes.contains(word))
-  #expect(loose.strokes.allSatisfy { $0.samples.count > 1 && $0.id != rule.id })
+  #expect(loose.strokes.isEmpty)
 }
 
 @Test func aLooseScribbleReachesInkBetweenItsSweepsButASmallOneStaysPrecise() throws {
@@ -390,11 +384,11 @@ import Testing
   let symbol = (0..<6).map { Point($0.isMultiple(of: 2) ? 194 : 206, $0.isMultiple(of: 2) ? 35 : 65) }
   #expect(InkGestures.isScratch(symbol))
   #expect(InkGestures.scratchOutcome(symbol, strokes: [wire]) == nil)
-  // A dense scrub in the same place is unmistakable: it cuts, and says it was a close call.
+  // A dense scrub in the same place is unmistakable: the wire goes, and it says it was a close call.
   let dense = (0..<12).map { Point($0.isMultiple(of: 2) ? 194 : 206, $0.isMultiple(of: 2) ? 35 : 65) }
-  let cut = InkGestures.scratchOutcome(dense, strokes: [wire])
-  #expect(cut?.strokes.count == 2)
-  #expect(cut?.certainty == .doubtful)
+  let erased = InkGestures.scratchOutcome(dense, strokes: [wire])
+  #expect(erased?.strokes.isEmpty == true)
+  #expect(erased?.certainty == .doubtful)
 }
 
 @Test func onlyCloseCallsAreReportedAsDoubtful() throws {
@@ -575,8 +569,7 @@ import Testing
     return Point(10 + (phase < 1 ? phase : 2 - phase) * 60, 20 + Double(i) * 0.1)
   }
   let result = try #require(InkGestures.scratchOutcome(scribble, strokes: [nearMiss, target]))
-  #expect(result.strokes.first == nearMiss)
-  #expect(result.strokes.count == 3 && !result.strokes.contains(target), "the crossed line is cut")
+  #expect(result.strokes == [nearMiss], "the crossed line goes whole, the near miss stays")
 }
 
 @Test func samplesAreStoredCompactlyAndOlderKeyedSamplesStillLoad() throws {

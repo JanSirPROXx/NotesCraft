@@ -6,7 +6,8 @@ import Foundation
 //   - a stroke with at least 80 % of its length inside the zone goes entirely, also the bit that
 //     sticks out (letters, words);
 //   - a stroke that is only partly inside but was deliberately scribbled over (long wires,
-//     underlines, table borders) loses just the part under the scribble.
+//     underlines, table borders) goes entirely too: a stroke is what the pen drew between
+//     touching down and lifting, and erasing half of it leaves ink nobody asked to keep.
 extension InkGestures {
   public struct ScratchOutcome: Equatable, Sendable {
     public enum Certainty: Sendable {
@@ -16,7 +17,7 @@ extension InkGestures {
     }
     public var strokes: [Stroke]
     public var certainty: Certainty
-    // The ink that disappears (whole strokes, or the cut-out part of one), for a live preview.
+    // The strokes that disappear, for a live preview.
     public var affected: [Stroke]
   }
 
@@ -24,7 +25,7 @@ extension InkGestures {
   static let scratchCoverage = 0.8
   // Whole-stroke removals below this share count as close calls.
   static let scratchComfortableCoverage = 0.9
-  // A scribble that only cuts through long ink needs at least this many reversals, otherwise it
+  // A scribble that only crosses long ink needs at least this many reversals, otherwise it
   // is more likely a symbol drawn across a wire than an eraser gesture.
   static let scratchDenseReversals = 5
 
@@ -82,39 +83,39 @@ extension InkGestures {
   public static func scratchOutcome(_ points: [Point], strokes: [Stroke]) -> ScratchOutcome? {
     guard let scribble = scribble(points), scribble.path.count >= 3 else { return nil }
     var zone = ScratchZone(scribble.path)
-    var remaining: [Stroke] = []
-    remaining.reserveCapacity(strokes.count)
     var removed = false
-    var cut = false
+    var crossed = false
     var closeCall = false
     var affected: [Stroke] = []
     for stroke in strokes {
       switch zone.verdict(for: stroke) {
       case .keep:
-        remaining.append(stroke)
+        break
       case .remove(let coverage):
         removed = true
         affected.append(stroke)
         closeCall = closeCall || coverage < scratchComfortableCoverage
-      case .cut(let pieces, let gone):
-        cut = true
-        remaining += pieces
-        affected += gone
+      case .crossed:
+        crossed = true
+        affected.append(stroke)
       }
     }
-    guard removed || cut else { return nil }
-    // Only cutting through long ink with a loose scribble: that is how a symbol drawn across a
-    // wire looks, so it stays a drawing. A dense scrub is unmistakable and does cut.
+    guard removed || crossed else { return nil }
+    // Only crossing long ink with a loose scribble: that is how a symbol drawn across a wire
+    // looks, so it stays a drawing. A dense scrub is unmistakable and does erase the wire.
     if !removed && scribble.reversals < scratchDenseReversals { return nil }
     let doubtful = !removed || closeCall || scribble.reversals <= 3
+    let gone = Set(affected.map(\.id))
     return ScratchOutcome(
-      strokes: remaining, certainty: doubtful ? .doubtful : .clear, affected: affected)
+      strokes: strokes.filter { !gone.contains($0.id) }, certainty: doubtful ? .doubtful : .clear,
+      affected: affected)
   }
 
   private enum ScratchVerdict {
     case keep
     case remove(coverage: Double)
-    case cut([Stroke], removed: [Stroke])
+    // Mostly outside the zone, but scribbled over on several sweeps.
+    case crossed
   }
 
   private struct ScratchZone {
@@ -236,20 +237,20 @@ extension InkGestures {
       let near = candidates(near: box, tolerance: tolerance)
       guard !near.isEmpty else { return .keep }
       let dense = InkGestures.densified(stroke.samples, spacing: max(1, min(2.5, radius / 2)))
-      var inside = [Bool](repeating: false, count: dense.count)
       var count = 0
       var lowest = Int.max
       var highest = Int.min
-      for (i, sample) in dense.enumerated() {
+      for sample in dense {
         let p = sample.point
+        var hit = false
         for index in near {
           let segment = segments[index]
           guard segment.maxX + tolerance >= p.x, segment.minX - tolerance <= p.x,
             segment.maxY + tolerance >= p.y, segment.minY - tolerance <= p.y,
             Editing.distance(p, toSegmentFrom: segment.a, to: segment.b) <= tolerance
           else { continue }
-          if !inside[i] {
-            inside[i] = true
+          if !hit {
+            hit = true
             count += 1
           }
           lowest = min(lowest, segment.sweep)
@@ -259,39 +260,10 @@ extension InkGestures {
       guard count > 0 else { return .keep }
       let coverage = Double(count) / Double(dense.count)
       if coverage >= InkGestures.scratchCoverage { return .remove(coverage: coverage) }
-      // Cutting is the more destructive guess, so it needs a deliberate back and forth over the
-      // stroke: two sweeps that are not neighbours. A tip that merely grazes it does not count.
-      guard highest - lowest >= 2 else { return .keep }
-      var runs: [[Sample]] = [[]]
-      var gone: [[Sample]] = [[]]
-      for (sample, isInside) in zip(dense, inside) {
-        if isInside {
-          if !runs[runs.count - 1].isEmpty { runs.append([]) }
-          gone[gone.count - 1].append(sample)
-        } else {
-          if !gone[gone.count - 1].isEmpty { gone.append([]) }
-          runs[runs.count - 1].append(sample)
-        }
-      }
-      // Slivers left beside the cut are not worth keeping.
-      let crumb = max(3, stroke.width * 2)
-      let pieces = runs.filter { run in
-        zip(run, run.dropFirst()).reduce(0.0) { $0 + $1.0.point.distance(to: $1.1.point) } >= crumb
-      }
-      guard !pieces.isEmpty else { return .remove(coverage: coverage) }
-      func plain(_ samples: [Sample], id: UUID) -> Stroke {
-        var piece = stroke
-        piece.id = id
-        piece.samples = samples
-        // Parts of a stroke are plain ink: a shape spec or fill would redraw the whole figure.
-        piece.shape = nil
-        piece.fillColor = nil
-        piece.fillOpacity = nil
-        return piece
-      }
-      return .cut(
-        pieces.map { plain($0, id: UUID()) },
-        removed: gone.filter { !$0.isEmpty }.map { plain($0, id: stroke.id) })
+      // Taking a whole stroke on partial contact is the more destructive guess, so it needs a
+      // deliberate back and forth over the stroke: two sweeps that are not neighbours. A tip
+      // that merely grazes it does not count.
+      return highest - lowest >= 2 ? .crossed : .keep
     }
   }
 
