@@ -18,6 +18,7 @@ import UniformTypeIdentifiers
   page.backgroundPDF = "background.pdf"
   page.backgroundPage = 0
   let view = DrawingView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
+  view.input.backgroundCacheThreshold = .max
   var configuration = CanvasConfiguration(
     page: page, assets: ["background.pdf": red], tool: .pen, color: .ink, width: 2,
     style: .ballpoint, pencilOnly: true, selection: [], onStroke: { _ in }, onGesture: { _ in },

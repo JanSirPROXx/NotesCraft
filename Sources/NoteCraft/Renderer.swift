@@ -95,7 +95,7 @@ private final class DecodedImages: @unchecked Sendable {
     if let image { decodedImages.store(image, for: key) }
     return image
   }
-  private nonisolated static func renderContent(
+  nonisolated static func renderContent(
     _ page: Page, assets: [String: Data], in c: CGContext, backgroundDocument: PDFDocument?,
     includePDFAnnotations: Bool = true, includeBackground: Bool = true,
     paperBounds: CGRect? = nil, cull: CGRect? = nil
@@ -574,6 +574,55 @@ private final class DecodedImages: @unchecked Sendable {
 }
 
 // PDFKit objects and graphics contexts stay on this worker; only bytes cross to the UI.
+// A finished bitmap crossing from a render thread to the main actor. CGImage is immutable.
+struct RenderedPage: @unchecked Sendable {
+  let image: CGImage
+}
+
+// Rebuilds a page's cached bitmap off the main thread: a page of handwriting takes 30 to 100 ms
+// and a PDF background more, which would drop frames every time a page appears, is undone or
+// is zoomed. One at a time, because PDFKit documents must not be drawn from two threads.
+actor PageCacheWorker {
+  static let shared = PageCacheWorker()
+  private var pdfs: [(Data, PDFDocument)] = []
+
+  func render(
+    _ page: Page, assets: [String: Data], rect: CGRect, resolution: Double, infinitePaper: Bool
+  ) -> RenderedPage? {
+    autoreleasepool {
+      guard !Task.isCancelled else { return nil }
+      let width = Int((rect.width * resolution).rounded(.up))
+      let height = Int((rect.height * resolution).rounded(.up))
+      guard width > 0, height > 0, width <= 16384, height <= 16384,
+        let c = CGContext(
+          data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+          space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
+          bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
+            | CGBitmapInfo.byteOrder32Little.rawValue)
+      else { return nil }
+      // Page space is y-down; the first bitmap row is the top of the page.
+      c.translateBy(x: 0, y: Double(height))
+      c.scaleBy(x: resolution, y: -resolution)
+      c.translateBy(x: -rect.minX, y: -rect.minY)
+      PageRenderer.renderContent(
+        page, assets: assets, in: c,
+        backgroundDocument: page.backgroundPDF.flatMap { assets[$0] }.flatMap { document($0) },
+        paperBounds: infinitePaper ? rect : nil)
+      return c.makeImage().map(RenderedPage.init)
+    }
+  }
+
+  private func document(_ data: Data) -> PDFDocument? {
+    if let cached = pdfs.first(where: { $0.0.count == data.count && $0.0 == data }) {
+      return cached.1
+    }
+    guard let document = PDFDocument(data: data) else { return nil }
+    pdfs.append((data, document))
+    if pdfs.count > 2 { pdfs.removeFirst() }
+    return document
+  }
+}
+
 actor DocumentRenderWorker {
   static let shared = DocumentRenderWorker()
   private let files = VaultFiles()

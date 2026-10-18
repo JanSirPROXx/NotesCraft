@@ -72,3 +72,86 @@ private func fullPage(style: PenStyle) -> Page {
   #expect(PageRenderer.decodedImage("b.png", bytes) !== first, "another asset is another image")
   #expect(first.width == 64 && first.height == 48)
 }
+
+// The cache of a heavy page is built off the main thread, and what it shows must be the same
+// pixels the in-place build would have produced.
+@MainActor @Test func backgroundPageCacheMatchesTheInPlaceCache() async throws {
+  func flipped() throws -> CGContext {
+    let context = try #require(
+      CGContext(
+        data: nil, width: 595, height: 842, bitsPerComponent: 8, bytesPerRow: 0,
+        space: CGColorSpace(name: CGColorSpace.sRGB)!,
+        bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
+          | CGBitmapInfo.byteOrder32Little.rawValue))
+    // Like a UIKit context: y points down.
+    context.translateBy(x: 0, y: 842)
+    context.scaleBy(x: 1, y: -1)
+    return context
+  }
+  func configuration(_ page: Page) -> CanvasConfiguration {
+    CanvasConfiguration(
+      page: page, assets: [:], tool: .pen, color: .ink, width: 2, style: .ballpoint,
+      pencilOnly: true, selection: [], onStroke: { _ in }, onGesture: { _ in }, onTap: { _ in })
+  }
+  var page = fullPage(style: .ballpoint)
+  page.strokes.append(Stroke(samples: (0..<40).map { Sample(point: Point(500, 20 + Double($0) * 3)) }, color: .red, width: 6))
+
+  let reference = DrawingView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
+  reference.input.backgroundCacheThreshold = .max
+  let referenceContext = try flipped()
+  reference.paint(configuration(page), referenceContext)
+  #expect(reference.cachedPage != nil, "small threshold pages are built in place")
+
+  let view = DrawingView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
+  view.configuration = configuration(page)
+  let first = try flipped()
+  view.paint(configuration(page), first)
+  #expect(view.cachedPage == nil, "the first paint does not wait for the page")
+  let deadline = ContinuousClock.now.advanced(by: .seconds(20))
+  while view.input.readyCache == nil && ContinuousClock.now < deadline {
+    try await Task.sleep(for: .milliseconds(20))
+  }
+  let context = try flipped()
+  view.paint(configuration(page), context)
+  #expect(view.cachedPage != nil)
+  let expected = try #require(referenceContext.makeImage()?.dataProvider?.data as Data?)
+  let actual = try #require(context.makeImage()?.dataProvider?.data as Data?)
+  #expect(expected.count == actual.count)
+  var total = 0
+  for (a, b) in zip(expected, actual) { total += abs(Int(a) - Int(b)) }
+  // Anti-aliased edges may differ by a little where the bitmap is resampled onto the layer.
+  #expect(Double(total) / Double(expected.count) < 0.5, "mean byte difference \(Double(total) / Double(expected.count))")
+}
+
+@MainActor @Test func aPageEditedWhileItsCacheIsBuildingIsNeverShownStale() async throws {
+  let view = DrawingView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
+  view.input.backgroundCacheThreshold = 100
+  var page = fullPage(style: .ballpoint)
+  func configuration(_ page: Page) -> CanvasConfiguration {
+    CanvasConfiguration(
+      page: page, assets: [:], tool: .pen, color: .ink, width: 2, style: .ballpoint,
+      pencilOnly: true, selection: [], onStroke: { _ in }, onGesture: { _ in }, onTap: { _ in })
+  }
+  func context() throws -> CGContext {
+    try #require(
+      CGContext(
+        data: nil, width: 595, height: 842, bitsPerComponent: 8, bytesPerRow: 0,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+  }
+  view.configuration = configuration(page)
+  try view.paint(configuration(page), context())
+  let building = view.input.cacheBuilding
+  #expect(building)
+  let generation = view.input.cacheGeneration
+  page.strokes.removeLast()
+  view.configuration = configuration(page)
+  #expect(view.input.cacheGeneration > generation, "the edit retires the build in flight")
+  let deadline = ContinuousClock.now.advanced(by: .seconds(20))
+  while view.input.cacheBuilding && ContinuousClock.now < deadline {
+    try await Task.sleep(for: .milliseconds(20))
+  }
+  #expect(view.input.readyCache == nil, "the outdated bitmap was dropped")
+  try view.paint(configuration(page), context())
+  #expect(view.input.cacheBuilding, "a new build for the edited page started")
+}

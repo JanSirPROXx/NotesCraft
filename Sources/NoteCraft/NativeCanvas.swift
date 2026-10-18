@@ -63,7 +63,15 @@ enum PencilAction {
         if Self.affectsPixels(oldValue, configuration) { needsDisplay = true }
       }
     }
-    var cachedPage: CGLayer?
+    // Dropping the cache also retires any background rebuild still in flight, and keeps the
+    // dropped layer to show until the new one is ready.
+    var cachedPage: CGLayer? {
+      didSet {
+        guard cachedPage == nil else { return }
+        input.cacheGeneration += 1
+        if let oldValue { input.staleCache = oldValue }
+      }
+    }
     var cachedResolution = 0.0
     var cachedViewport: ViewTransform?
     let input = CanvasInputState()
@@ -206,7 +214,15 @@ enum PencilAction {
         #endif
       }
     }
-    var cachedPage: CGLayer?
+    // Dropping the cache also retires any background rebuild still in flight, and keeps the
+    // dropped layer to show until the new one is ready.
+    var cachedPage: CGLayer? {
+      didSet {
+        guard cachedPage == nil else { return }
+        input.cacheGeneration += 1
+        if let oldValue { input.staleCache = oldValue }
+      }
+    }
     var cachedResolution = 0.0
     var cachedViewport: ViewTransform?
     let input = CanvasInputState()
@@ -758,6 +774,16 @@ enum PencilAction {
   var cursor: Point?
   var cursorRect = CGRect.null
   var cacheRect = CGRect.zero
+  // The page cache of a heavy page is rebuilt on a worker (`DrawingView.startCacheBuild`). The
+  // generation moves on whenever the cache is dropped, so a late result can tell it is outdated.
+  var cacheGeneration = 0
+  var cacheBuilding = false
+  // Pages lighter than this many samples are rebuilt in place: the hop to a worker would cost
+  // more than it saves. About 12 000 is half a page of handwriting; a photo or a PDF page counts
+  // as a lot, since decoding and drawing them takes longer than their size suggests.
+  var backgroundCacheThreshold = 12_000
+  var readyCache: ReadyCache?
+  var staleCache: CGLayer?
   // Whether the ink overlay currently shows a stroke, so only then does it need clearing.
   var overlayInked = false
   // Ink the running scribble would erase, and when it is next worth asking again.
@@ -771,6 +797,13 @@ enum PencilAction {
   // another stroke has started in the meantime.
   var gpuInkDirty = false
   var gpuClearGeneration = 0
+}
+struct ReadyCache {
+  let image: CGImage
+  let rect: CGRect
+  let resolution: Double
+  let viewport: ViewTransform?
+  let generation: Int
 }
 enum SelectionHandle: Equatable {
   case move, resize, rotate
@@ -1318,6 +1351,60 @@ extension DrawingView {
           tip: configuration.tip), in: c)
     }
   }
+  func buildsCacheInBackground(_ configuration: CanvasConfiguration) -> Bool {
+    // A running gesture needs the cache now (the eraser patches it per sample).
+    guard samples.isEmpty, input.moveStart == nil, input.selectionTransform == nil,
+      configuration.tool != .eraser
+    else { return false }
+    let page = configuration.page
+    var weight = page.images.count * 30_000 + page.texts.count * 500
+    if page.backgroundPDF != nil { weight += 40_000 }
+    for stroke in page.strokes {
+      weight += stroke.samples.count
+      if weight >= input.backgroundCacheThreshold { return true }
+    }
+    return weight >= input.backgroundCacheThreshold
+  }
+  func startCacheBuild(_ configuration: CanvasConfiguration, rect: CGRect, resolution: Double) {
+    guard !input.cacheBuilding else { return }
+    input.cacheBuilding = true
+    let generation = input.cacheGeneration
+    let page = configuration.page
+    let assets = configuration.assets
+    let viewport = configuration.viewport
+    Task { @MainActor [weak self] in
+      let rendered = await PageCacheWorker.shared.render(
+        page, assets: assets, rect: rect, resolution: resolution, infinitePaper: viewport != nil)
+      guard let self else { return }
+      input.cacheBuilding = false
+      if let rendered, generation == input.cacheGeneration {
+        input.readyCache = ReadyCache(
+          image: rendered.image, rect: rect, resolution: resolution, viewport: viewport,
+          generation: generation)
+      }
+      // Either installs the result or, if the page changed meanwhile, starts the next build.
+      invalidateCanvas()
+    }
+  }
+  private func install(_ ready: ReadyCache, in c: CGContext) {
+    let size = CGSize(
+      width: ready.rect.width * ready.resolution, height: ready.rect.height * ready.resolution)
+    guard let layer = CGLayer(c, size: size, auxiliaryInfo: nil), let context = layer.context
+    else { return }
+    // The layer context is y-down like the page; a bitmap's first row is its top.
+    context.saveGState()
+    context.translateBy(x: 0, y: size.height)
+    context.scaleBy(x: 1, y: -1)
+    context.draw(ready.image, in: CGRect(origin: .zero, size: size))
+    context.restoreGState()
+    context.scaleBy(x: ready.resolution, y: ready.resolution)
+    context.translateBy(x: -ready.rect.minX, y: -ready.rect.minY)
+    cachedPage = layer
+    input.staleCache = nil
+    input.cacheRect = ready.rect
+    cachedResolution = ready.resolution
+    cachedViewport = ready.viewport
+  }
   func paint(_ configuration: CanvasConfiguration, _ c: CGContext, dirty: CGRect? = nil) {
     guard bounds.width > 0, bounds.height > 0 else { return }
     var configuration = configuration
@@ -1336,10 +1423,25 @@ extension DrawingView {
     c.fill(bounds)
     let (cacheRect, resolution) = canvasSpace(c, configuration)
     // Cache the visible world at device resolution, including negative coordinates on a whiteboard.
-    if abs(resolution - cachedResolution) > 0.001 || cachedViewport != configuration.viewport {
+    if cachedPage != nil
+      && (abs(resolution - cachedResolution) > 0.001 || cachedViewport != configuration.viewport)
+    {
       cachedPage = nil
     }
-    if cachedPage == nil,
+    if cachedPage == nil, let ready = input.readyCache {
+      input.readyCache = nil
+      if ready.generation == input.cacheGeneration, ready.rect == cacheRect,
+        abs(ready.resolution - resolution) <= 0.001, ready.viewport == configuration.viewport
+      {
+        install(ready, in: c)
+      }
+    }
+    if cachedPage == nil, buildsCacheInBackground(configuration) {
+      startCacheBuild(configuration, rect: cacheRect, resolution: resolution)
+      // The previous cache stands in until the new one is ready: a stale page is better than a
+      // blank one, and a lower resolution one is just a soft page for a moment.
+      if let stale = input.staleCache { c.draw(stale, in: input.cacheRect) }
+    } else if cachedPage == nil,
       let layer = CGLayer(
         c, size: CGSize(width: cacheRect.width * resolution, height: cacheRect.height * resolution),
         auxiliaryInfo: nil), let context = layer.context
@@ -1356,6 +1458,7 @@ extension DrawingView {
         background, assets: configuration.assets, in: context,
         paperBounds: configuration.viewport == nil ? nil : cacheRect)
       cachedPage = layer
+      input.staleCache = nil
       input.cacheRect = cacheRect
       cachedResolution = resolution
       cachedViewport = configuration.viewport
