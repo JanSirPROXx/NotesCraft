@@ -1,6 +1,6 @@
 # NoteCraft
 
-A clean-room native Swift notebook app for macOS and iPadOS. No third-party runtime
+A clean-room native Swift notebook app for iPad and Apple Pencil. No third-party runtime
 libraries, account system, proprietary cloud service, or AI features. Notes are portable
 `.notecraft` packages, alongside ordinary PDFs and Markdown files. Choose a storage folder
 on launch, including an existing Obsidian vault or a connected file provider.
@@ -11,11 +11,10 @@ on launch, including an existing Obsidian vault or a connected file provider.
 
 Requires Xcode 16 or newer with Swift 6, macOS 14 / iPadOS 17 or newer.
 
-- Open `NoteCraft.xcodeproj`, select the NoteCraft scheme and a Mac or iPad destination.
+- Open `NoteCraft.xcodeproj`, select the NoteCraft-iPad scheme and an iPad destination.
 - To run on a physical device, choose your own signing team in Xcode.
-- `swift test` runs core, rendering and vault integration tests on macOS.
+- `swift test` runs core, rendering and vault integration tests on macOS (the package builds there only as a test host; the app itself is iPad only).
 - The `NoteCraft-iPad` scheme runs the folder-picker, drawing and whiteboard UI test on an iPad simulator.
-- `swift run NoteCraft` runs the macOS app from the Swift package.
 - Optional: `xcodegen generate` regenerates the checked-in project from `project.yml`.
 
 ## Workflow

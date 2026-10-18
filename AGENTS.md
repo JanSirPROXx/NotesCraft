@@ -1,6 +1,6 @@
 # NoteCraft – Agent Guide
 
-Clean-room, native Swift notebook app for iPadOS and macOS, modelled on the classic
+Clean-room, native Swift notebook app for iPad and Apple Pencil (the package also builds on macOS, only as the host for `swift test`), modelled on the classic
 GoodNotes workflow. Product scope and philosophy live in [`Plan.md`](Plan.md); user-facing
 behaviour in [`README.md`](README.md); file format in [`docs/FORMAT.md`](docs/FORMAT.md);
 remaining feature gaps in [`docs/PARITY.md`](docs/PARITY.md).
