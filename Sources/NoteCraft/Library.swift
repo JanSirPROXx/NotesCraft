@@ -53,7 +53,7 @@ struct VaultRoot: View {
       } catch { vault.error = error.localizedDescription }
     }
     .alert(
-      "NoteCraft",
+      "NotesCraft",
       isPresented: Binding(get: { vault.error != nil }, set: { if !$0 { vault.error = nil } })
     ) {
       Button("OK") { vault.error = nil }
@@ -230,7 +230,7 @@ struct Library: View {
   private var navigation: some View {
     VStack(alignment: .leading, spacing: 14) {
       HStack {
-        Text("NoteCraft").font(.system(size: 17, weight: .semibold))
+        Text("NotesCraft").font(.system(size: 17, weight: .semibold))
         Spacer()
         Button {
           sidebar = false

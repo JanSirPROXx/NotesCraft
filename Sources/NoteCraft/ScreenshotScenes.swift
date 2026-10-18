@@ -309,7 +309,7 @@
       page.strokes.append(
         shape(.ellipse, center, 250, 150, color: .blue, line: 3.4, fill: .blue, opacity: 0.2))
       page.texts.append(
-        text("NoteCraft", at: Point(center.x - 120, center.y - 24), size: 38, color: .blue.darkened(),
+        text("NotesCraft", at: Point(center.x - 120, center.y - 24), size: 38, color: .blue.darkened(),
              font: "Noteworthy-Bold", width: 240, align: "center"))
       page.strokes.append(.sticker(.star, at: Point(880, 250), size: Point(54, 54)))
       page.strokes.append(.sticker(.heart, at: Point(150, 760), size: Point(54, 50)))

@@ -31,7 +31,7 @@ struct NoteDocument: FileDocument {
     #endif
   }
   var body: some Scene {
-    WindowGroup("NoteCraft") { VaultRoot() }
+    WindowGroup("NotesCraft") { VaultRoot() }
       .commands { WorkspaceCommands() }
   }
 }

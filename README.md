@@ -1,11 +1,11 @@
-# NoteCraft
+# NotesCraft
 
 A clean-room native Swift notebook app for iPad and Apple Pencil. No third-party runtime
 libraries, account system, proprietary cloud service, or AI features. Notes are portable
 `.notecraft` packages, alongside ordinary PDFs and Markdown files. Choose a storage folder
 on launch, including an existing Obsidian vault or a connected file provider.
 
-<img src="docs/screenshots/new-menu.png" width="760" alt="NoteCraft Documents library and New menu on iPad">
+<img src="docs/screenshots/new-menu.png" width="760" alt="NotesCraft Documents library and New menu on iPad">
 
 ## Build
 

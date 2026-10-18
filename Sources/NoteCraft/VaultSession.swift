@@ -298,7 +298,7 @@ struct WorkspaceTab: Identifiable {
             notebook: Notebook(title: entry.title, pages: [page]), assets: [name: snapshot.data]),
           stamp: snapshot.stamp)
       default:
-        error = "This file type can be browsed, but is not editable in NoteCraft."
+        error = "This file type can be browsed, but is not editable in NotesCraft."
         return
       }
       if let position = readingPositions[session.url.vaultPath] {

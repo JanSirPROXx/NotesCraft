@@ -28,6 +28,7 @@
 		5A0E432B5DBABD77470F7982 /* Editing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DFF298F863075A387BD1348 /* Editing.swift */; };
 		70983F5CE1C7B37D2D003C68 /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAEDCF2464F505B39B0EDDB7 /* Storage.swift */; };
 		8214887E731BD706250D9D7B /* ScreenshotScenes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2830385451CA3D1365E2ADF2 /* ScreenshotScenes.swift */; };
+		88226F358DF63DB57B8C3B99 /* CurveFitter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDC7C0DC30B9DDAFD228FBAD /* CurveFitter.swift */; };
 		8C0882676A6114FB78EADAF7 /* WorkspaceCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508F352E349747AA65DE46CE /* WorkspaceCommands.swift */; };
 		8CBE6468DAB424A5B1A074C9 /* LibrarySheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CE25C9D08742478F1554ABA /* LibrarySheets.swift */; };
 		8E72C220865F59B0E7360574 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DCBBD880B488E8E9D9F78307 /* PrivacyInfo.xcprivacy */; };
@@ -150,6 +151,7 @@
 		E53FA053B01B52E525809AEF /* Scribble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scribble.swift; sourceTree = "<group>"; };
 		EBB02F7D207B76F150CD3E09 /* PDFForms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFForms.swift; sourceTree = "<group>"; };
 		F34C2411DFFD86FCA20BE3C3 /* InlineText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineText.swift; sourceTree = "<group>"; };
+		FDC7C0DC30B9DDAFD228FBAD /* CurveFitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurveFitter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -175,6 +177,7 @@
 		064390D5E72308DD61EE33B6 /* NoteCraftCore */ = {
 			isa = PBXGroup;
 			children = (
+				FDC7C0DC30B9DDAFD228FBAD /* CurveFitter.swift */,
 				8DFF298F863075A387BD1348 /* Editing.swift */,
 				DC0F0A9A567741EBB11E3961 /* ElementClip.swift */,
 				9B5E65BF43B80AFC81DD50F6 /* FountainInk.swift */,
@@ -429,6 +432,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				88226F358DF63DB57B8C3B99 /* CurveFitter.swift in Sources */,
 				5A0E432B5DBABD77470F7982 /* Editing.swift in Sources */,
 				EF83E3C1A207AD1450319206 /* ElementClip.swift in Sources */,
 				95091443F52CEA62893DEBA9 /* FountainInk.swift in Sources */,
@@ -589,7 +593,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = Config/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = NoteCraft;
+				INFOPLIST_KEY_CFBundleDisplayName = NotesCraft;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
@@ -603,7 +607,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.notecraft.app;
+				PRODUCT_BUNDLE_IDENTIFIER = notescraft;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -666,7 +670,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = Config/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = NoteCraft;
+				INFOPLIST_KEY_CFBundleDisplayName = NotesCraft;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
@@ -680,7 +684,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.notecraft.app;
+				PRODUCT_BUNDLE_IDENTIFIER = notescraft;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;

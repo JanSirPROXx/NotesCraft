@@ -2,7 +2,7 @@
 
 One-time setup (needs the Apple Developer account, cannot be scripted):
 
-1. App Store Connect → Apps → **+** → New App. Platform iOS, bundle ID `app.notecraft.app`
+1. App Store Connect → Apps → **+** → New App. Platform iOS, bundle ID `notescraft`
    (register it under Certificates, Identifiers & Profiles first if it is missing), choose a SKU.
 2. Copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig` and set `DEVELOPMENT_TEAM`
    (gitignored; never commit signing details).
