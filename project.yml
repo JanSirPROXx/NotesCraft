@@ -10,6 +10,12 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
     CODE_SIGN_STYLE: Automatic
     GENERATE_INFOPLIST_FILE: YES
+  configs:
+    # An unoptimized Swift build is 10 to 40 times slower on the work this app does per pen event
+    # (erasing, scribble, shape fitting, saving), so runs from Xcode would feel nothing like the
+    # shipped app. Set this to -Onone only when stepping through code line by line.
+    Debug:
+      SWIFT_OPTIMIZATION_LEVEL: -O
 configFiles:
   Debug: Config/Signing.xcconfig
   Release: Config/Signing.xcconfig

@@ -29,6 +29,13 @@ struct Workspace: View {
   var onSelectTab: ((UUID) -> Void)? = nil
   var history: EditHistory = EditHistory()
   @Environment(\.dismiss) private var dismiss
+  #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    // Slide Over and the narrow side of Split View.
+    private var narrow: Bool { horizontalSizeClass == .compact }
+  #else
+    private var narrow: Bool { false }
+  #endif
   @Environment(\.openURL) private var openURL
   @Environment(\.openWindow) private var openWindow
   @State private var tool: InkTool = .pen
@@ -267,7 +274,7 @@ struct Workspace: View {
       toolBar
       if searchVisible { searchBar }
       HStack(spacing: 0) {
-        if thumbnails { pageSidebar }
+        if thumbnails && !narrow { pageSidebar }
         GeometryReader { geometry in
           if notebook.kind == .whiteboard {
             pageView(
@@ -279,7 +286,11 @@ struct Workspace: View {
         }
       }
       .overlay(alignment: .top) {
-        contextualToolBar.padding(.top, 8)
+        // In Split View or Slide Over the bar can be wider than the window: it then scrolls.
+        ViewThatFits(in: .horizontal) {
+          contextualToolBar
+          ScrollView(.horizontal, showsIndicators: false) { contextualToolBar.padding(.horizontal, 8) }
+        }.padding(.top, 8)
       }
       .overlay(alignment: .bottomTrailing) {
         if pageHUD && notebook.kind != .whiteboard {
@@ -622,7 +633,7 @@ struct Workspace: View {
               isPresented: Binding(get: { settings && tool == item }, set: { settings = $0 })
             ) {
               ScrollView { toolSettings.padding(22) }
-                .frame(width: 320).frame(maxHeight: 640).preferredColorScheme(.dark)
+                .adaptiveWidth(320).frame(maxHeight: 640).preferredColorScheme(.dark)
             }
           }
           Spacer(minLength: 8)
@@ -1194,7 +1205,7 @@ struct Workspace: View {
         }
       }
     }
-    .padding(14).frame(width: 270).frame(maxHeight: 520)
+    .padding(14).adaptiveWidth(270).frame(maxHeight: 520)
     .foregroundStyle(.primary).preferredColorScheme(.dark)
     .onChange(of: selection) { if selection.isEmpty { selectionMenuPresented = false } }
   }
@@ -1454,7 +1465,7 @@ struct Workspace: View {
           textSheet = false
         }.buttonStyle(.borderedProminent).disabled(text.isEmpty)
       }
-    }.padding(28).frame(width: 440)
+    }.padding(28).adaptiveWidth(440)
   }
   // Edits that share a `coalescing` key within two seconds (dragging through colors, say) form a
   // single undo step instead of filling the history.
@@ -1888,7 +1899,7 @@ struct TemplatePicker: View {
         dismiss()
       }.buttonStyle(.borderedProminent).frame(maxWidth: .infinity, alignment: .trailing)
         .accessibilityIdentifier("confirmAddPage")
-    }.padding(28).frame(width: 450)
+    }.padding(28).adaptiveWidth(450)
   }
 }
 

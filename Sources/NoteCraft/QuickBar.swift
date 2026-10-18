@@ -2,6 +2,11 @@ import NoteCraftCore
 import SwiftUI
 
 extension View {
+  // A popover or sheet that is `width` wide when there is room and narrower in Split View and
+  // Slide Over, where a fixed width would be cut off at the screen edge.
+  func adaptiveWidth(_ width: CGFloat) -> some View {
+    frame(minWidth: 0, idealWidth: width, maxWidth: width)
+  }
   // `.buttonStyle(.plain)` hit-tests only drawn pixels, so a 4 pt dot or a clear padded circle
   // is nearly untappable. Every quick-bar control gets an explicit full-size touch area.
   func hitTarget(width: CGFloat = 44, height: CGFloat = 44) -> some View {
@@ -109,7 +114,7 @@ struct ColorPalette: View {
         #endif
         .onSubmit { if let parsed = InkColor(hex: hex) { color = parsed } }
     }
-    .padding(18).frame(width: 322).preferredColorScheme(.dark)
+    .padding(18).adaptiveWidth(322).preferredColorScheme(.dark)
     .onAppear {
       hex = color.hex
       custom = color.swiftUI
@@ -191,7 +196,7 @@ struct WidthEditor: View {
       }
       .accessibilityLabel("Thickness")
     }
-    .padding(18).frame(width: 300).preferredColorScheme(.dark)
+    .padding(18).adaptiveWidth(300).preferredColorScheme(.dark)
     .onAppear { draft = value }
     .onDisappear { value = draft.tenths }
   }

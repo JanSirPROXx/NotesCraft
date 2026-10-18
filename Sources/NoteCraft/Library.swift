@@ -430,7 +430,7 @@ struct Library: View {
           .padding(16).background(Color(white: 0.16), in: RoundedRectangle(cornerRadius: 16))
       }
     }.buttonStyle(.plain).foregroundStyle(Color.white).padding(20).background(Color(white: 0.10))
-      .frame(width: 420)
+      .adaptiveWidth(420)
   }
   private func newTile(_ title: String, _ symbol: String, _ kind: CreationKind) -> some View {
     Button {

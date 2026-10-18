@@ -50,12 +50,15 @@ tool.
 Draw a shape and hold the tip still for about 0.45 seconds to clean it up: lines, circles and
 ellipses, rectangles, diamonds, triangles, right angles, arrows (shaft plus two barbs in one
 stroke), arcs and half circles, and any open or closed polyline, which keeps its corners and
-straightens its sides. A gentle curve stays as drawn. Continue dragging before lifting to
+straightens its sides. A smooth curve (a graph, an S-bend, a curved arrow with its head drawn in
+the same stroke) becomes a clean spline through your path: jitter is averaged out, peaks and end
+points stay where you drew them. Handwriting, loops and sharp zigzags are left alone. Continue dragging before lifting to
 resize the shape; closed shapes retain their center. Scribble back and forth over handwriting
 with the pen to erase it in one undoable step. The scribble sweeps out a zone whose reach follows
 how tightly it was drawn: a small scrub is precise, a big loose one also catches ink it did not
-quite touch. A stroke with at least 80 % of its length inside the zone goes entirely; a longer
-line (a wire, an underline) only loses the part under the scribble. The ink that will go turns
+quite touch. A stroke is erased whole, from pen down to pen up, never in pieces: one with at
+least 80 % of its length inside the zone goes, and so does a longer line (a wire, an underline)
+that was scribbled over on several sweeps. The ink that will go turns
 red while you scribble. A loose scribble across nothing but long lines stays ink, so a symbol
 drawn over a wire is not mistaken for an eraser gesture. After an uncertain case a "Keep as ink"
 button appears for a few seconds; the overflow menu sets the hint to Off, When unsure or Always.
@@ -161,7 +164,7 @@ is not affiliated with or endorsed by Goodnotes.
 
 - **Shapes** tool: pick a shape (line, arrow, right angle, rectangle, circle, triangle, …) and tap the
   page or drag to size it. Freehand mode snaps clear lines, rectangles, circles, triangles and right
-  angles and leaves anything else as ink.
+  angles, turns smooth curves into clean splines and leaves anything else as ink.
 - Shapes, stickers, images and text boxes share one editor: drag to move, corners scale, edge handles
   stretch, the top handle rotates (snapping to 15°). The bar below the selection recolors, deletes and
   opens the full menu (line width, fill, order, duplicate, save as element).
