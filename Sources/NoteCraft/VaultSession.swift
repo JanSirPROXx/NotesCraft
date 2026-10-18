@@ -107,12 +107,8 @@ struct WorkspaceTab: Identifiable {
     do {
       // Validate the new location before releasing the current folder's access.
       _ = try await files.list(url)
-      #if os(macOS)
-        let bookmark = try url.bookmarkData(options: .withSecurityScope)
-      #else
-        let bookmark = try url.bookmarkData(
-          options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
-      #endif
+      let bookmark = try url.bookmarkData(
+        options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
       let existing = storages.firstIndex { $0.id == storageID || $0.path == url.vaultPath }
       let storage = SavedStorage(
         id: existing.map { storages[$0].id } ?? UUID(),
@@ -144,15 +140,8 @@ struct WorkspaceTab: Identifiable {
   }
   private func resolveBookmark(_ data: Data) throws -> URL {
     var stale = false
-    #if os(macOS)
-      return try URL(
-        resolvingBookmarkData: data, options: .withSecurityScope,
-        relativeTo: nil, bookmarkDataIsStale: &stale)
-    #else
-      return try URL(
-        resolvingBookmarkData: data, options: [], relativeTo: nil,
-        bookmarkDataIsStale: &stale)
-    #endif
+    return try URL(
+      resolvingBookmarkData: data, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
   }
   func selectStorage(_ storage: SavedStorage) async {
     do { await choose(try resolveBookmark(storage.bookmark), storageID: storage.id) } catch {

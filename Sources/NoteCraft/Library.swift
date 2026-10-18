@@ -67,9 +67,6 @@ struct VaultRoot: View {
     } message: {
       Text(vault.error ?? "")
     }
-    #if os(macOS)
-      .onAppear { AppLifecycle.register(vault) }
-    #endif
     .onChange(of: scenePhase) {
       if scenePhase != .active {
         Task {

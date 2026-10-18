@@ -17,9 +17,6 @@ struct NoteDocument: FileDocument {
   }
 }
 @main struct NoteCraftApp: App {
-  #if os(macOS)
-    @NSApplicationDelegateAdaptor(AppLifecycle.self) private var lifecycle
-  #endif
   init() {
     #if DEBUG
       if CommandLine.arguments.contains("--ui-test-reset-input") {

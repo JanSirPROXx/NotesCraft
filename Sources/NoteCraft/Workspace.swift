@@ -155,13 +155,6 @@ struct Workspace: View {
     }
   }
   private let accent = Color(red: 0.17, green: 0.36, blue: 0.72)
-  private var minimumWidth: Double {
-    #if os(macOS)
-      600
-    #else
-      0
-    #endif
-  }
   private var color: InkColor {
     get { InkColor(hex: colorHex) ?? .ink }
     nonmutating set { colorHex = newValue.hex }
@@ -310,7 +303,7 @@ struct Workspace: View {
     }
     .background(Color.white).foregroundStyle(Color(red: 0.12, green: 0.16, blue: 0.22)).tint(accent)
     .environment(\.colorScheme, .light).preferredColorScheme(.dark)
-    .frame(minWidth: minimumWidth, minHeight: 500)
+    .frame(minHeight: 500)
   }
   private var syncedContent: some View {
     // Split into stages: one chained expression this long exceeds the type checker.
