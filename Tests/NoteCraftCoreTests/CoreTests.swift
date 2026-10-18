@@ -585,3 +585,32 @@ import Testing
     try JSONDecoder().decode(Sample.self, from: Data("[1,2]".utf8))
   }
 }
+
+@Test func packedSamplesRoundTripExactlyAndOlderStrokeFormatsStillLoad() throws {
+  let samples = (0..<50).map {
+    Sample(
+      point: Point(Double($0) * 1.337 - 20, Double($0) * 0.0049), pressure: Double($0) / 49,
+      altitude: .pi / 2 - Double($0) * 0.003)
+  }
+  let stroke = Stroke(samples: samples, color: .red, width: 3)
+  let json = try JSONEncoder().encode(stroke)
+  #expect(String(decoding: json, as: UTF8.self).contains("\"samples\":\""), "stored as one string")
+  #expect(try JSONDecoder().decode(Stroke.self, from: json) == stroke)
+  // Values off the grid snap, also when assigned later.
+  var sample = Sample(point: Point(1.234567, 2.345678), pressure: 0.12345, altitude: 1.23456789)
+  #expect(sample.point == Point(1.23, 2.35) && sample.pressure == 0.123 && sample.altitude == 1.2346)
+  sample.point.x += 0.0033333
+  #expect(sample.point.x == 1.23)
+  // Earlier builds wrote each sample as a list, the first ones as objects.
+  let id = stroke.id.uuidString
+  let tail = "\"color\":{\"red\":1,\"green\":0,\"blue\":0},\"width\":3,\"tool\":\"pen\",\"style\":\"ballpoint\""
+  let nested = Data("{\"id\":\"\(id)\",\"samples\":[[1.5,2.5,0.5,1.5],[3.5,4.5,1,1]],\(tail)}".utf8)
+  let list = try JSONDecoder().decode(Stroke.self, from: nested)
+  #expect(list.samples.count == 2 && list.samples[1].point == Point(3.5, 4.5))
+  let keyed = Data(
+    ("{\"id\":\"\(id)\",\"samples\":[{\"point\":{\"x\":1,\"y\":2},\"pressure\":0.5,\"altitude\":1}],\(tail)}").utf8)
+  #expect(try JSONDecoder().decode(Stroke.self, from: keyed).samples.first?.point == Point(1, 2))
+  // Truncated data is an error, not a crash or a half stroke.
+  let broken = Data("{\"id\":\"\(id)\",\"samples\":\"AAAA\",\(tail)}".utf8)
+  #expect(throws: DecodingError.self) { try JSONDecoder().decode(Stroke.self, from: broken) }
+}

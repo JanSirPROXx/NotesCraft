@@ -101,13 +101,21 @@ public struct Paper: Codable, Equatable, Sendable {
   }
 }
 public struct Sample: Codable, Equatable, Sendable {
-  public var point: Point
-  public var pressure: Double
-  public var altitude: Double
+  // Assigning (also `sample.point.x += 1`) snaps again, so an edit such as moving a selection
+  // can never leave a value that would not survive a save.
+  public var point: Point { didSet { point = Point(Self.snap(point.x, 100), Self.snap(point.y, 100)) } }
+  public var pressure: Double { didSet { pressure = Self.snap(pressure, 1000) } }
+  public var altitude: Double { didSet { altitude = Self.snap(altitude, 10000) } }
+  // Samples sit on the grid they are stored at (0.01 pt, 0.001 pressure, 0.0001 rad), so what
+  // is saved and read back equals what was in memory. A tip or a screen resolves far less.
   public init(point: Point, pressure: Double = 1, altitude: Double = .pi / 2) {
-    self.point = point
-    self.pressure = pressure
-    self.altitude = altitude
+    self.point = Point(Self.snap(point.x, 100), Self.snap(point.y, 100))
+    self.pressure = Self.snap(pressure, 1000)
+    self.altitude = Self.snap(altitude, 10000)
+  }
+  static func snap(_ value: Double, _ scale: Double) -> Double {
+    guard value.isFinite, abs(value) < 1e9 else { return value }
+    return (value * scale).rounded() / scale
   }
   // A page of handwriting holds hundreds of thousands of samples, so a sample is stored as the
   // flat array `[x, y, pressure, altitude]`: roughly half the bytes and a good deal faster to
@@ -170,6 +178,47 @@ public struct Stroke: Codable, Equatable, Identifiable, Sendable {
     self.tool = tool
     self.style = style
     self.tip = tip
+  }
+  private enum CodingKeys: String, CodingKey {
+    case id, samples, color, width, tool, style, fillColor, tip, shape, fillOpacity
+  }
+  // Parsing numbers is what made a dense notebook slow to open and to autosave (JSON decoding
+  // costs ~300 ns per number and a page holds a hundred thousand samples), so a stroke's samples
+  // are one Base64 string of packed 12-byte records: see `SampleCodec`. Files that list each
+  // sample as `[x, y, pressure, altitude]` or as an object still load.
+  public init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    id = try values.decode(UUID.self, forKey: .id)
+    if let packed = try? values.decode(String.self, forKey: .samples) {
+      guard let decoded = SampleCodec.unpack(packed) else {
+        throw DecodingError.dataCorruptedError(
+          forKey: .samples, in: values, debugDescription: "Invalid packed samples.")
+      }
+      samples = decoded
+    } else {
+      samples = try values.decode([Sample].self, forKey: .samples)
+    }
+    color = try values.decode(InkColor.self, forKey: .color)
+    width = try values.decode(Double.self, forKey: .width)
+    tool = try values.decode(InkTool.self, forKey: .tool)
+    style = try values.decode(PenStyle.self, forKey: .style)
+    fillColor = try values.decodeIfPresent(InkColor.self, forKey: .fillColor)
+    tip = try values.decodeIfPresent(PenTip.self, forKey: .tip)
+    shape = try values.decodeIfPresent(ShapeSpec.self, forKey: .shape)
+    fillOpacity = try values.decodeIfPresent(Double.self, forKey: .fillOpacity)
+  }
+  public func encode(to encoder: Encoder) throws {
+    var values = encoder.container(keyedBy: CodingKeys.self)
+    try values.encode(id, forKey: .id)
+    try values.encode(SampleCodec.pack(samples), forKey: .samples)
+    try values.encode(color, forKey: .color)
+    try values.encode(width, forKey: .width)
+    try values.encode(tool, forKey: .tool)
+    try values.encode(style, forKey: .style)
+    try values.encodeIfPresent(fillColor, forKey: .fillColor)
+    try values.encodeIfPresent(tip, forKey: .tip)
+    try values.encodeIfPresent(shape, forKey: .shape)
+    try values.encodeIfPresent(fillOpacity, forKey: .fillOpacity)
   }
   public var bounds: Rect {
     guard let first = samples.first else { return Rect(x: 0, y: 0, width: 0, height: 0) }

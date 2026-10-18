@@ -34,6 +34,7 @@
 		8E72C220865F59B0E7360574 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DCBBD880B488E8E9D9F78307 /* PrivacyInfo.xcprivacy */; };
 		8EC037F53FE3B30C5EC3B79F /* NoteCraftCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */; };
 		95091443F52CEA62893DEBA9 /* FountainInk.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B5E65BF43B80AFC81DD50F6 /* FountainInk.swift */; };
+		9533363C14CA5DD2A9CD61DB /* SampleCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86F0B54A3AD9D8FC001C136B /* SampleCodec.swift */; };
 		9669A46A095DCCDE46AB4F9A /* ShapeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C6CA8AE2045682013E613E6 /* ShapeTests.swift */; };
 		A248374E0E106BE73B0A15EC /* ScreenshotTour.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F4C8BFD47E8EEBD9510B9FB /* ScreenshotTour.swift */; };
 		A43579F439E4E01D9F10DCE2 /* Shapes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B63B23C1154FDC27E76662B8 /* Shapes.swift */; };
@@ -127,6 +128,7 @@
 		60AAD7C60FE3807BE65F423F /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
 		6961F7917F77CAD924567EC6 /* NativeCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCanvas.swift; sourceTree = "<group>"; };
 		7498B04DDA06141A375AD880 /* ImportEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportEngine.swift; sourceTree = "<group>"; };
+		86F0B54A3AD9D8FC001C136B /* SampleCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleCodec.swift; sourceTree = "<group>"; };
 		8C6CA8AE2045682013E613E6 /* ShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeTests.swift; sourceTree = "<group>"; };
 		8DFF298F863075A387BD1348 /* Editing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Editing.swift; sourceTree = "<group>"; };
 		934B5242780CD4A297E839A1 /* MetalInk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalInk.swift; sourceTree = "<group>"; };
@@ -183,6 +185,7 @@
 				9B5E65BF43B80AFC81DD50F6 /* FountainInk.swift */,
 				7498B04DDA06141A375AD880 /* ImportEngine.swift */,
 				AAC464B97F48428A387BD481 /* Models.swift */,
+				86F0B54A3AD9D8FC001C136B /* SampleCodec.swift */,
 				E53FA053B01B52E525809AEF /* Scribble.swift */,
 				2D38B019CE3F18AD600FCB7C /* ShapeRecognizer.swift */,
 				B63B23C1154FDC27E76662B8 /* Shapes.swift */,
@@ -438,6 +441,7 @@
 				95091443F52CEA62893DEBA9 /* FountainInk.swift in Sources */,
 				AFCA6FA4889F0886ED4ABB5F /* ImportEngine.swift in Sources */,
 				1847B6051A23D921B4FC3E07 /* Models.swift in Sources */,
+				9533363C14CA5DD2A9CD61DB /* SampleCodec.swift in Sources */,
 				FC0ED3F795DE08F525C6E7F6 /* Scribble.swift in Sources */,
 				13BFD03872D4CADCF0728368 /* ShapeRecognizer.swift in Sources */,
 				A43579F439E4E01D9F10DCE2 /* Shapes.swift in Sources */,

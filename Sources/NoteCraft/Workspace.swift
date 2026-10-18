@@ -1825,9 +1825,6 @@ struct Workspace: View {
     }
     activePage = max(0, notebook.pages.count - scans.count)
   }
-  private func swiftColor(_ c: InkColor) -> Color {
-    Color(red: c.red, green: c.green, blue: c.blue)
-  }
   private func convertColor(_ c: Color) -> InkColor {
     #if os(macOS)
       let rgb = NSColor(c).usingColorSpace(.deviceRGB) ?? .black
