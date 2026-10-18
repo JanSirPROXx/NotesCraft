@@ -33,20 +33,25 @@ public struct NotebookPackage: Sendable {
     !name.isEmpty && name != "." && name != ".." && !name.contains("/") && !name.contains("\\")
   }
   public func fileWrapper() throws -> FileWrapper {
-    guard !notebook.pages.isEmpty else { throw PackageError.invalidPackage }
+    let manifest = try manifestData()
     var files: [String: FileWrapper] = [:]
-    for (name, data) in assets {
+    for (name, data) in assets { files[name] = FileWrapper(regularFileWithContents: data) }
+    return FileWrapper(directoryWithFileWrappers: [
+      "manifest.json": FileWrapper(regularFileWithContents: manifest),
+      "assets": FileWrapper(directoryWithFileWrappers: files),
+    ])
+  }
+  // Checks the package is writable at all, then encodes `manifest.json`. Throws before anything
+  // has been touched on disk.
+  func manifestData() throws -> Data {
+    guard !notebook.pages.isEmpty else { throw PackageError.invalidPackage }
+    for name in assets.keys {
       guard Self.validName(name) else { throw PackageError.invalidAsset(name) }
-      files[name] = FileWrapper(regularFileWithContents: data)
     }
     try validateAssets()
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys]
-    return FileWrapper(directoryWithFileWrappers: [
-      "manifest.json": FileWrapper(
-        regularFileWithContents: try encoder.encode(Manifest(version: 1, notebook: notebook))),
-      "assets": FileWrapper(directoryWithFileWrappers: files),
-    ])
+    return try encoder.encode(Manifest(version: 1, notebook: notebook))
   }
   public init(fileWrapper: FileWrapper) throws {
     guard let files = fileWrapper.fileWrappers,
@@ -131,6 +136,25 @@ public struct NotebookPackage: Sendable {
 // Coordination and revision checks also protect explicit vault saves from competing writers.
 public actor PackageStore {
   public init() {}
+  // The assets last read from or written to each package. A save only writes what differs, so an
+  // autosave after a pen stroke touches `manifest.json` and not the 50 MB PDF beside it (which
+  // would also have iCloud upload that PDF again). Bounded: a few packages are open at a time.
+  private var known: [String: [String: Data]] = [:]
+  private var knownOrder: [String] = []
+
+  private func remember(_ assets: [String: Data], at url: URL) {
+    let key = url.standardizedFileURL.path
+    known[key] = assets
+    knownOrder.removeAll { $0 == key }
+    knownOrder.append(key)
+    while knownOrder.count > 4 { known[knownOrder.removeFirst()] = nil }
+  }
+  private func forget(_ url: URL) {
+    let key = url.standardizedFileURL.path
+    known[key] = nil
+    knownOrder.removeAll { $0 == key }
+  }
+
   public func read(from url: URL) throws -> NotebookPackage {
     let scoped = url.startAccessingSecurityScopedResource()
     defer { if scoped { url.stopAccessingSecurityScopedResource() } }
@@ -144,37 +168,107 @@ public actor PackageStore {
     }
     if let coordinationError { throw coordinationError }
     guard let result else { throw PackageError.invalidPackage }
-    return try result.get()
+    let package = try result.get()
+    remember(package.assets, at: url)
+    return package
   }
+
+  // The revision stored in a package, read without loading its pages or media.
+  private static func diskRevision(of url: URL) throws -> UInt64 {
+    struct Probe: Decodable {
+      struct Inner: Decodable { var revision: UInt64? }
+      var notebook: Inner
+    }
+    let data = try Data(contentsOf: url.appendingPathComponent("manifest.json"))
+    return try JSONDecoder().decode(Probe.self, from: data).notebook.revision ?? 0
+  }
+
+  private static func sameBuffer(_ a: Data, _ b: Data) -> Bool {
+    a.count == b.count
+      && a.withUnsafeBytes { x in b.withUnsafeBytes { y in x.baseAddress == y.baseAddress } }
+  }
+
   public func save(
     _ package: NotebookPackage, to url: URL, expectedRevision: UInt64? = nil,
     createOnly: Bool = false
   ) throws {
-    let wrapper = try package.fileWrapper()
+    let manifest = try package.manifestData()
     let scoped = url.startAccessingSecurityScopedResource()
     defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+    let exists = FileManager.default.fileExists(atPath: url.path)
     var coordinationError: NSError?
     var result: Result<Void, Error>?
+    var written: [String: Data]?
+    let previous = known[url.standardizedFileURL.path] ?? [:]
     NSFileCoordinator().coordinate(
-      writingItemAt: url, options: .forReplacing, error: &coordinationError
+      writingItemAt: url, options: exists && !createOnly ? .forMerging : .forReplacing,
+      error: &coordinationError
     ) { coordinatedURL in
       result = Result {
-        if createOnly && FileManager.default.fileExists(atPath: coordinatedURL.path) {
-          throw PackageError.conflict
-        }
+        let present = FileManager.default.fileExists(atPath: coordinatedURL.path)
+        if createOnly && present { throw PackageError.conflict }
         if let expectedRevision {
-          guard FileManager.default.fileExists(atPath: coordinatedURL.path) else {
+          guard present, (try? Self.diskRevision(of: coordinatedURL)) == expectedRevision else {
             throw PackageError.conflict
           }
-          let existing = try NotebookPackage(
-            fileWrapper: FileWrapper(url: coordinatedURL, options: .immediate))
-          guard existing.notebook.revision == expectedRevision else { throw PackageError.conflict }
         }
-        try wrapper.write(to: coordinatedURL, options: .atomic, originalContentsURL: nil)
+        let manifestFile = coordinatedURL.appendingPathComponent("manifest.json")
+        if present, FileManager.default.fileExists(atPath: manifestFile.path) {
+          written = try Self.update(
+            coordinatedURL, manifest: manifest, assets: package.assets, previous: previous)
+        } else {
+          try package.fileWrapper().write(
+            to: coordinatedURL, options: .atomic, originalContentsURL: nil)
+          written = package.assets
+        }
       }
     }
-    if let coordinationError { throw coordinationError }
+    if let coordinationError {
+      forget(url)
+      throw coordinationError
+    }
     guard let result else { throw PackageError.invalidPackage }
-    try result.get()
+    do {
+      try result.get()
+      if let written { remember(written, at: url) }
+    } catch {
+      // What is on disk is no longer what was remembered.
+      forget(url)
+      throw error
+    }
+  }
+
+  // Writes into an existing package: new or changed assets first, then the manifest (an atomic
+  // replace, so a crash leaves the old, consistent notebook), then removes what is no longer
+  // used. Returns what the package's assets are afterwards.
+  private static func update(
+    _ package: URL, manifest: Data, assets: [String: Data], previous: [String: Data]
+  ) throws -> [String: Data] {
+    let files = FileManager.default
+    let folder = package.appendingPathComponent("assets", isDirectory: true)
+    try files.createDirectory(at: folder, withIntermediateDirectories: true)
+    var current: [String: Data] = [:]
+    for (name, data) in assets {
+      let file = folder.appendingPathComponent(name)
+      if let old = previous[name], sameBuffer(old, data) {
+        current[name] = data
+        continue
+      }
+      let size = (try? files.attributesOfItem(atPath: file.path)[.size] as? Int) ?? nil
+      if previous[name] == nil, size == data.count,
+        let existing = try? Data(contentsOf: file, options: .mappedIfSafe), existing == data
+      {
+        current[name] = data
+        continue
+      }
+      try data.write(to: file, options: .atomic)
+      current[name] = data
+    }
+    try manifest.write(to: package.appendingPathComponent("manifest.json"), options: .atomic)
+    for name in (try? files.contentsOfDirectory(atPath: folder.path)) ?? []
+    where assets[name] == nil {
+      try? files.removeItem(at: folder.appendingPathComponent(name))
+    }
+    return current
   }
 }

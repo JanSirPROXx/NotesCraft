@@ -614,3 +614,52 @@ import Testing
   let broken = Data("{\"id\":\"\(id)\",\"samples\":\"AAAA\",\(tail)}".utf8)
   #expect(throws: DecodingError.self) { try JSONDecoder().decode(Stroke.self, from: broken) }
 }
+
+@Test func savingAnOpenPackageRewritesOnlyWhatChanged() async throws {
+  let url = FileManager.default.temporaryDirectory.appendingPathComponent(
+    UUID().uuidString + ".notecraft")
+  defer { try? FileManager.default.removeItem(at: url) }
+  let big = Data(repeating: 7, count: 2_000_000)
+  var package = NotebookPackage(assets: ["big.pdf": big, "old.png": Data([1, 2, 3])])
+  let store = PackageStore()
+  try await store.save(package, to: url)
+  let bigFile = url.appendingPathComponent("assets/big.pdf")
+  func stamp(_ file: URL) throws -> Date {
+    try #require(
+      try FileManager.default.attributesOfItem(atPath: file.path)[.modificationDate] as? Date)
+  }
+  let before = try stamp(bigFile)
+  try await Task.sleep(for: .milliseconds(1100))
+
+  // A stroke, a new asset, one dropped: the 2 MB file stays exactly as it was.
+  package = try await store.read(from: url)
+  package.notebook.pages[0].strokes.append(Stroke(samples: [Sample(point: Point(1, 2))]))
+  package.notebook.revision += 1
+  package.assets["new.png"] = Data([9, 9])
+  package.assets["old.png"] = nil
+  try await store.save(package, to: url, expectedRevision: 0)
+  #expect(try stamp(bigFile) == before, "an unchanged asset is not rewritten")
+  #expect(!FileManager.default.fileExists(atPath: url.appendingPathComponent("assets/old.png").path))
+  let reopened = try await PackageStore().read(from: url)
+  #expect(reopened.assets == package.assets)
+  #expect(reopened.notebook.pages[0].strokes.count == 1 && reopened.notebook.revision == 1)
+
+  // Same name and size but other bytes (a digest sidecar): that one is written.
+  package.assets["new.png"] = Data([5, 5])
+  package.notebook.revision += 1
+  try await store.save(package, to: url, expectedRevision: 1)
+  #expect(try await PackageStore().read(from: url).assets["new.png"] == Data([5, 5]))
+
+  // A store that has not seen this package compares bytes instead of trusting the name.
+  package.assets["big.pdf"] = Data(repeating: 8, count: 2_000_000)
+  package.notebook.revision += 1
+  try await PackageStore().save(package, to: url, expectedRevision: 2)
+  #expect(try await PackageStore().read(from: url).assets["big.pdf"]?.first == 8)
+
+  // A changed revision on disk is still a conflict, and nothing is written.
+  package.notebook.revision += 1
+  await #expect(throws: PackageError.self) {
+    try await store.save(package, to: url, expectedRevision: 0)
+  }
+  #expect(try await PackageStore().read(from: url).notebook.revision == 3)
+}
