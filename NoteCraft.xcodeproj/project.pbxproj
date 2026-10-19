@@ -27,6 +27,7 @@
 		551F0CF829C15BE662903339 /* MetalInk.swift in Sources */ = {isa = PBXBuildFile; fileRef = 934B5242780CD4A297E839A1 /* MetalInk.swift */; };
 		5A0E432B5DBABD77470F7982 /* Editing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DFF298F863075A387BD1348 /* Editing.swift */; };
 		70983F5CE1C7B37D2D003C68 /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAEDCF2464F505B39B0EDDB7 /* Storage.swift */; };
+		7EC54F90D9D3B6D387946D28 /* EraseSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CB304711543F998B0B73322 /* EraseSession.swift */; };
 		8214887E731BD706250D9D7B /* ScreenshotScenes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2830385451CA3D1365E2ADF2 /* ScreenshotScenes.swift */; };
 		88226F358DF63DB57B8C3B99 /* CurveFitter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDC7C0DC30B9DDAFD228FBAD /* CurveFitter.swift */; };
 		8C0882676A6114FB78EADAF7 /* WorkspaceCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508F352E349747AA65DE46CE /* WorkspaceCommands.swift */; };
@@ -123,6 +124,7 @@
 		2D38B019CE3F18AD600FCB7C /* ShapeRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeRecognizer.swift; sourceTree = "<group>"; };
 		327B668A8960E2B8A8C80F45 /* VaultCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultCover.swift; sourceTree = "<group>"; };
 		3C0B8D61A66A011E45218373 /* VaultUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultUITests.swift; sourceTree = "<group>"; };
+		3CB304711543F998B0B73322 /* EraseSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EraseSession.swift; sourceTree = "<group>"; };
 		4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = NoteCraftCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		508F352E349747AA65DE46CE /* WorkspaceCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceCommands.swift; sourceTree = "<group>"; };
 		60AAD7C60FE3807BE65F423F /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
@@ -182,6 +184,7 @@
 				FDC7C0DC30B9DDAFD228FBAD /* CurveFitter.swift */,
 				8DFF298F863075A387BD1348 /* Editing.swift */,
 				DC0F0A9A567741EBB11E3961 /* ElementClip.swift */,
+				3CB304711543F998B0B73322 /* EraseSession.swift */,
 				9B5E65BF43B80AFC81DD50F6 /* FountainInk.swift */,
 				7498B04DDA06141A375AD880 /* ImportEngine.swift */,
 				AAC464B97F48428A387BD481 /* Models.swift */,
@@ -438,6 +441,7 @@
 				88226F358DF63DB57B8C3B99 /* CurveFitter.swift in Sources */,
 				5A0E432B5DBABD77470F7982 /* Editing.swift in Sources */,
 				EF83E3C1A207AD1450319206 /* ElementClip.swift in Sources */,
+				7EC54F90D9D3B6D387946D28 /* EraseSession.swift in Sources */,
 				95091443F52CEA62893DEBA9 /* FountainInk.swift in Sources */,
 				AFCA6FA4889F0886ED4ABB5F /* ImportEngine.swift in Sources */,
 				1847B6051A23D921B4FC3E07 /* Models.swift in Sources */,

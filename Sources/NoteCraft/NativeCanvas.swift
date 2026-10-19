@@ -784,8 +784,8 @@ enum PencilAction {
   var fountain = FountainInk.State()
   var fountainWidths: [Double] = []
   var lastRaw: Point?
-  // Strokes with the eraser path applied so far; each new sample only erases incrementally.
-  var erased: [Stroke]?
+  // The page with the eraser path applied so far; each new sample only erases incrementally.
+  var eraseSession: EraseSession?
   var eraseDirty = CGRect.null
   var cursor: Point?
   var cursorRect = CGRect.null
@@ -920,15 +920,16 @@ extension DrawingView {
   // The eraser changes a small area at a time: redraw just that area of the cached page instead
   // of rebuilding the whole page for every sample.
   func patchCache(page area: Rect) {
-    guard let configuration, let erased = input.erased, let context = cachedPage?.context,
+    guard let configuration, input.eraseSession != nil, let context = cachedPage?.context,
       cachedViewport == configuration.viewport
     else {
       cachedPage = nil
       return
     }
-    var page = configuration.page
-    page.strokes = erased
     let rect = CGRect(x: area.x, y: area.y, width: area.width, height: area.height)
+    // Only the strokes that reach the patch: the rest of the page is already in the cache.
+    var page = configuration.page
+    page.strokes = input.eraseSession?.strokes(reaching: area) ?? []
     context.saveGState()
     context.clip(to: rect)
     PageRenderer.render(
@@ -1064,7 +1065,7 @@ extension DrawingView {
     input.frame = nil
     input.invalidatedSamples = 0
     input.lastInkRect = .null
-    input.erased = nil
+    input.eraseSession = nil
     input.cursor = nil
     input.eraseDirty = .null
     input.cursorRect = .null
@@ -1286,7 +1287,10 @@ extension DrawingView {
           &input.fountain, sample: sample, base: configuration.width, tip: configuration.tip))
     }
     if configuration.tool == .eraser {
-      var strokes = input.erased ?? configuration.page.strokes
+      // Mutated in place in `input`: a second reference would copy the whole index per hit.
+      if input.eraseSession == nil {
+        input.eraseSession = EraseSession(strokes: configuration.page.strokes)
+      }
       let radius = max(8, configuration.width)
       // Fill the gap to the previous sample so a quick swipe leaves no ink behind.
       let path = samples.count > 1
@@ -1294,18 +1298,16 @@ extension DrawingView {
         : [sample.point]
       input.cursor = sample.point
       for point in path.dropFirst(path.count > 1 ? 1 : 0) {
-        guard let area = Editing.eraseTracking(
-          &strokes, at: point, radius: radius, mode: configuration.eraserMode,
+        guard let area = input.eraseSession?.erase(
+          at: point, radius: radius, mode: configuration.eraserMode,
           highlighterOnly: configuration.highlighterOnly)
         else { continue }
-        input.erased = strokes
         patchCache(page: area)
         let a = viewPoint(Point(area.x, area.y))
         let b = viewPoint(Point(area.x + area.width, area.y + area.height))
         input.eraseDirty = input.eraseDirty.union(
           CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(b.x - a.x), height: abs(b.y - a.y)))
       }
-      if input.erased == nil { input.erased = strokes }
     }
     updateScratchPreview()
     guard configuration.holdToShape, [.pen, .shapes].contains(configuration.tool) else { return }
@@ -1449,9 +1451,6 @@ extension DrawingView {
       configuration.page = InkGestures.transform(
         configuration.page, ids: configuration.selection, by: transform)
     }
-    if configuration.tool == .eraser, !samples.isEmpty, let erased = input.erased {
-      configuration.page.strokes = erased
-    }
     c.saveGState()
     // While inking only a few points change per frame; clipping keeps the page blit and
     // the white fill proportional to the stroke tail instead of the whole screen.
@@ -1486,6 +1485,9 @@ extension DrawingView {
       context.scaleBy(x: resolution, y: resolution)
       context.translateBy(x: -cacheRect.minX, y: -cacheRect.minY)
       var background = configuration.page
+      if configuration.tool == .eraser, !samples.isEmpty, let session = input.eraseSession {
+        background.strokes = session.strokes
+      }
       if input.moveStart != nil {
         background.strokes.removeAll { configuration.selection.contains($0.id) }
         background.images.removeAll { configuration.selection.contains($0.id) }

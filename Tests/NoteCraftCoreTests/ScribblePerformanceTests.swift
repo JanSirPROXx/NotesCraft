@@ -58,12 +58,14 @@ private func bigScribble(sweeps: Int = 30) -> [Point] {
     print("TIMING \(label): \(t)")
   }
   // Eraser: a drag of 400 events across the page, as one gesture.
-  var strokes = page
-  time("eraseTracking x400") {
-    for i in 0..<400 {
-      _ = Editing.eraseTracking(
-        &strokes, at: Point(40 + Double(i) * 1.4, 50 + Double(i) * 1.8), radius: 10,
-        mode: .stroke, highlighterOnly: false)
+  for mode in [EraserMode.stroke, .precision] {
+    var session = EraseSession(strokes: page)
+    time("EraseSession x400 \(mode)") {
+      for i in 0..<400 {
+        _ = session.erase(
+          at: Point(40 + Double(i) * 1.4, 50 + Double(i) * 1.8), radius: 10, mode: mode,
+          highlighterOnly: false)
+      }
     }
   }
   // Lasso around most of the page.
@@ -82,4 +84,31 @@ private func bigScribble(sweeps: Int = 30) -> [Point] {
   let size = wrapper?.fileWrappers?["manifest.json"]?.regularFileContents?.count ?? 0
   print("TIMING manifest bytes: \(size)")
   try time("decode 10 pages") { _ = try NotebookPackage(fileWrapper: try #require(wrapper)) }
+}
+
+// The grid must change nothing about what the eraser does, only how fast it finds the ink.
+@Test(arguments: [EraserMode.precision, .stroke, .entireStroke])
+func eraseSessionMatchesStraightforwardErasing(mode: EraserMode) {
+  let page = denseTextPage(lines: 12, wordsPerLine: 6)
+  var long = Stroke(samples: [Sample(point: Point(-500, 100)), Sample(point: Point(5000, 140))], width: 3)
+  long.tool = .highlighter
+  let strokes = page + [long]
+  let path = (0..<120).map { i in Point(30 + Double(i) * 3.1, 40 + Double(i) * 2.2) }
+
+  var expected = strokes
+  for point in Editing.sweep(path, spacing: 5) {
+    expected = Editing.erase(strokes: expected, at: point, radius: 10, mode: mode, highlighterOnly: false)
+  }
+  let actual = Editing.erase(strokes: strokes, along: path, radius: 10, mode: mode, highlighterOnly: false)
+  #expect(actual.map(\.samples) == expected.map(\.samples))
+  #expect(actual.count < strokes.count || mode == .precision)
+}
+
+@Test func eraseSessionReportsDirtyAreaAndRepaintStrokes() {
+  var session = EraseSession(strokes: denseTextPage(lines: 4, wordsPerLine: 3))
+  #expect(session.erase(at: Point(900, 900), radius: 10, mode: .stroke, highlighterOnly: false) == nil)
+  let dirty = session.erase(at: Point(46, 58), radius: 10, mode: .stroke, highlighterOnly: false)
+  #expect(dirty != nil)
+  let nearby = session.strokes(reaching: Rect(x: 40, y: 50, width: 20, height: 20))
+  #expect(nearby.count < session.strokes.count)
 }

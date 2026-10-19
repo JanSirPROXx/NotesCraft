@@ -106,7 +106,7 @@ public enum Editing {
       ).filter { strokeIntersects($0, polygon: polygon) }.map(\.id))
   }
   // One pass with a bounding-box reject: most strokes on a page are nowhere near the eraser.
-  private static func strokeIsNear(_ stroke: Stroke, _ point: Point, _ threshold: Double) -> Bool {
+  static func strokeIsNear(_ stroke: Stroke, _ point: Point, _ threshold: Double) -> Bool {
     guard var previous = stroke.samples.first?.point else { return false }
     var minX = previous.x
     var maxX = minX
@@ -128,41 +128,6 @@ public enum Editing {
       previous = sample.point
     }
     return false
-  }
-  // In-place erase that reports the page area whose pixels changed (nil when nothing was hit),
-  // so a canvas can repaint just that area.
-  public static func eraseTracking(
-    _ strokes: inout [Stroke], at point: Point, radius: Double, mode: EraserMode,
-    highlighterOnly: Bool
-  ) -> Rect? {
-    var dirty: Rect?
-    var result: [Stroke] = []
-    result.reserveCapacity(strokes.count)
-    for stroke in strokes {
-      let threshold = radius + stroke.width / 2
-      if (highlighterOnly && stroke.tool != .highlighter)
-        || !strokeIsNear(stroke, point, threshold)
-      {
-        result.append(stroke)
-        continue
-      }
-      let box = stroke.bounds
-      let pad = stroke.width * 2 + 2
-      let area = Rect(x: box.x - pad, y: box.y - pad, width: box.width + 2 * pad, height: box.height + 2 * pad)
-      if let current = dirty {
-        let minX = min(current.x, area.x)
-        let minY = min(current.y, area.y)
-        dirty = Rect(
-          x: minX, y: minY, width: max(current.x + current.width, area.x + area.width) - minX,
-          height: max(current.y + current.height, area.y + area.height) - minY)
-      } else {
-        dirty = area
-      }
-      result += erase(
-        strokes: [stroke], at: point, radius: radius, mode: mode, highlighterOnly: highlighterOnly)
-    }
-    if dirty != nil { strokes = result }
-    return dirty
   }
   // Points along the eraser's path no further apart than `spacing`, so a fast swipe cannot skip
   // over ink between two samples.
@@ -187,19 +152,11 @@ public enum Editing {
     strokes: [Stroke], along points: [Point], radius: Double, mode: EraserMode,
     highlighterOnly: Bool
   ) -> [Stroke] {
-    let path = sweep(points, spacing: max(2, radius / 2))
-    return strokes.flatMap { stroke -> [Stroke] in
-      if highlighterOnly && stroke.tool != .highlighter { return [stroke] }
-      let box = stroke.bounds
-      let reach = radius + stroke.width / 2
-      let relevant = path.filter {
-        $0.x >= box.x - reach && $0.x <= box.x + box.width + reach
-          && $0.y >= box.y - reach && $0.y <= box.y + box.height + reach
-      }
-      return relevant.reduce([stroke]) {
-        erase(strokes: $0, at: $1, radius: radius, mode: mode, highlighterOnly: highlighterOnly)
-      }
+    var session = EraseSession(strokes: strokes)
+    for point in sweep(points, spacing: max(2, radius / 2)) {
+      _ = session.erase(at: point, radius: radius, mode: mode, highlighterOnly: highlighterOnly)
     }
+    return session.strokes
   }
   public static func erase(
     strokes: [Stroke], at point: Point, radius: Double, mode: EraserMode, highlighterOnly: Bool
