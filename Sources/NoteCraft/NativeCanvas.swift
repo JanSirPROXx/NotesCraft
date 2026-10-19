@@ -661,9 +661,6 @@ enum PencilAction {
         && [.pen, .highlighter].contains(configuration?.tool)
         && input.moveStart == nil
       link.wantsLowLatencyEventDispatch = inking
-      // Presents the frame drawn after the last Pencil event one frame duration sooner. The work
-      // per frame is one small Metal pass; if the page ever starts to judder, this is the knob.
-      link.wantsImmediatePresentation = inking
       link.requiresContinuousUpdates = inking
       link.isEnabled = inking
     }
@@ -703,16 +700,10 @@ enum PencilAction {
       displayLink = link
       if #available(iOS 18.0, *) {
         let update = UIUpdateLink(view: self)
-        update.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
-        // The plain `addAction` runs before the CADisplayLink callbacks, i.e. before the
-        // low-latency Pencil events of this frame were dispatched, so it would always draw the
-        // previous frame's samples. Drawing right after the low-latency dispatch is what puts the
-        // freshest samples on screen a frame earlier; the other phase covers events that were not
-        // eligible (and a frame whose events all arrived in the normal phase).
-        for phase in [UIUpdateActionPhase.afterLowLatencyEventDispatch, .afterEventDispatch] {
-          update.addAction(to: phase) { [weak self] _, _ in
-            MainActor.assumeIsolated { self?.renderLiveInkIfNeeded() }
-          }
+        // Low-latency dispatch hands the freshest Pencil samples to this action in the middle of
+        // the frame; drawing here is what gets them on screen a frame earlier.
+        update.addAction { [weak self] _, _ in
+          MainActor.assumeIsolated { self?.renderLiveInkIfNeeded() }
         }
         updateLink = update
       }
