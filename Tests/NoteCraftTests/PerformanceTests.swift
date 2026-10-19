@@ -155,3 +155,41 @@ private func fullPage(style: PenStyle) -> Page {
   try view.paint(configuration(page), context())
   #expect(view.input.cacheBuilding, "a new build for the edited page started")
 }
+
+// Committing a pen stroke repaints the box of that stroke, not the whole page.
+@MainActor @Test func anAppendedPenStrokeRepaintsOnlyItsOwnBox() throws {
+  func configuration(_ page: Page) -> CanvasConfiguration {
+    CanvasConfiguration(
+      page: page, assets: [:], tool: .pen, color: .ink, width: 2, style: .ballpoint,
+      pencilOnly: true, selection: [], onStroke: { _ in }, onGesture: { _ in }, onTap: { _ in })
+  }
+  func context() throws -> CGContext {
+    try #require(
+      CGContext(
+        data: nil, width: 595, height: 842, bitsPerComponent: 8, bytesPerRow: 0,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+  }
+  var page = Page()
+  let view = DrawingView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
+  view.configuration = configuration(page)
+  try view.paint(configuration(page), context())
+  #expect(view.cachedPage != nil)
+
+  let stroke = Stroke(samples: (0..<20).map { Sample(point: Point(100 + Double($0), 200)) })
+  view.input.pendingStroke = stroke
+  let old = configuration(page)
+  page.strokes.append(stroke)
+  let rect = try #require(view.updatePageCache(from: old, to: configuration(page)))
+  #expect(view.cachedPage != nil, "the stroke went into the cache")
+  #expect(rect.width < 100 && rect.height < 60, "\(rect)")
+  #expect(rect.contains(CGPoint(x: 110, y: 200)))
+  #expect(!DrawingView.affectsPixels(old, configuration(page), ignoringPage: true))
+  #expect(DrawingView.affectsPixels(old, configuration(page)))
+
+  // Without a pending stroke the cache cannot be patched, so nothing narrows the repaint.
+  let before = configuration(page)
+  page.strokes.removeLast()
+  #expect(view.updatePageCache(from: before, to: configuration(page)) == nil)
+  #expect(view.cachedPage == nil)
+}

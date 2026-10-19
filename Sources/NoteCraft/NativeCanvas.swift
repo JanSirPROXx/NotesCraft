@@ -59,7 +59,7 @@ enum PencilAction {
   @MainActor final class DrawingView: NSView {
     var configuration: CanvasConfiguration? {
       didSet {
-        updatePageCache(from: oldValue, to: configuration)
+        _ = updatePageCache(from: oldValue, to: configuration)
         if Self.affectsPixels(oldValue, configuration) { needsDisplay = true }
       }
     }
@@ -205,8 +205,14 @@ enum PencilAction {
   final class DrawingView: UIView, UIPencilInteractionDelegate, UIGestureRecognizerDelegate {
     var configuration: CanvasConfiguration? {
       didSet {
-        updatePageCache(from: oldValue, to: configuration)
-        if Self.affectsPixels(oldValue, configuration) { setNeedsDisplay() }
+        // A pen stroke that was only appended changes the pixels inside its own box: repainting
+        // the whole page for it would re-blit the full cache after every stroke of a word.
+        let appended = updatePageCache(from: oldValue, to: configuration)
+        if Self.affectsPixels(oldValue, configuration, ignoringPage: appended != nil) {
+          setNeedsDisplay()
+        } else if let appended {
+          setNeedsDisplay(appended)
+        }
         #if os(iOS)
           if oldValue?.pencilOnly == true && configuration?.pencilOnly == false {
             pencilSeen = false
@@ -425,7 +431,9 @@ enum PencilAction {
       // A finger that grabbed a selection handle must move it instead of scrolling the page.
       if input.moveStart != nil { configureScrolling() }
       updateDisplayLink()
-      setNeedsDisplay()
+      // Plain pen ink lives on the GPU/overlay layer: repainting the page at the moment the first
+      // ink should appear would only delay it.
+      if !(configuration.tool == .pen && input.moveStart == nil) { setNeedsDisplay() }
     }
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
       guard let touch = activeTouch, touches.contains(touch) else { return }
@@ -438,10 +446,18 @@ enum PencilAction {
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
       guard let touch = activeTouch, touches.contains(touch) else { return }
       append(touch)
+      // Measured before `finish` empties the samples. The committed stroke is drawn into the page
+      // cache by the model update, which repaints the same box; this covers the moment before.
+      var inkRect: CGRect?
+      if let configuration, configuration.tool == .pen, input.held == nil,
+        input.moveStart == nil, input.resizeStart == nil, input.selectionTransform == nil
+      {
+        inkRect = viewRect(of: samples, width: configuration.width, in: configuration)
+      }
       finish()
       activeTouch = nil
       configureScrolling()
-      setNeedsDisplay()
+      if let inkRect { setNeedsDisplay(inkRect) } else { setNeedsDisplay() }
     }
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
       guard let touch = activeTouch, touches.contains(touch) else { return }
@@ -829,10 +845,12 @@ extension DrawingView {
     return true
   }
   // Color, pen style and width only matter to the next stroke, so they must not repaint.
-  static func affectsPixels(_ old: CanvasConfiguration?, _ new: CanvasConfiguration?) -> Bool {
+  static func affectsPixels(
+    _ old: CanvasConfiguration?, _ new: CanvasConfiguration?, ignoringPage: Bool = false
+  ) -> Bool {
     guard let old, let new else { return true }
     if old.tool != new.tool || old.selection != new.selection || old.viewport != new.viewport
-      || old.searchHighlights != new.searchHighlights || old.page != new.page
+      || old.searchHighlights != new.searchHighlights || (!ignoringPage && old.page != new.page)
       || !sameAssets(old.assets, new.assets)
     {
       return true
@@ -841,10 +859,12 @@ extension DrawingView {
       && (old.width != new.width || old.eraserMode != new.eraserMode
         || old.highlighterOnly != new.highlighterOnly)
   }
-  func updatePageCache(from old: CanvasConfiguration?, to new: CanvasConfiguration?) {
+  // Returns the area of the view the stroke covers when it went straight into the cache.
+  @discardableResult
+  func updatePageCache(from old: CanvasConfiguration?, to new: CanvasConfiguration?) -> CGRect? {
     guard old?.page != new?.page
       || !Self.sameAssets(old?.assets ?? [:], new?.assets ?? [:])
-    else { return }
+    else { return nil }
     defer { input.pendingStroke = nil }
     if let old, let new, let pending = input.pendingStroke,
       pending.tool == .pen || pending.tool == .shapes, Self.sameAssets(old.assets, new.assets),
@@ -855,10 +875,27 @@ extension DrawingView {
       previous.strokes.removeLast()
       if previous == old.page {
         PageRenderer.stroke(pending, in: context)
-        return
+        // Shapes bring handles and fills of their own; only plain ink has a tight box.
+        guard pending.tool == .pen, pending.shape == nil else { return nil }
+        return viewRect(of: pending.samples, width: pending.width, in: new)
       }
     }
     cachedPage = nil
+    return nil
+  }
+  // The view area ink laid down along `samples` can touch. Brush tilt and pressure can widen a
+  // segment to roughly 3.4x the nominal width.
+  func viewRect(of samples: [Sample], width: Double, in configuration: CanvasConfiguration) -> CGRect?
+  {
+    guard !samples.isEmpty else { return nil }
+    let scale = configuration.viewport?.scale ?? bounds.width / configuration.page.dimensions.x
+    var rect = CGRect.null
+    for sample in samples {
+      let p = viewPoint(sample.point)
+      rect = rect.union(CGRect(x: p.x, y: p.y, width: 0, height: 0))
+    }
+    let pad = max(8, width * scale * 4 + 4)
+    return rect.insetBy(dx: -pad, dy: -pad).intersection(bounds)
   }
   func invalidateCanvas() {
     #if os(macOS)
