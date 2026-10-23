@@ -53,6 +53,29 @@ has not been established.
 - Screenshot comparison on physical iPad sizes and both appearance settings, followed
   by spacing, toolbar, menu and animation refinements. Current editor is explicitly light.
 
+## Compared with the Goodnotes Mac app (checked October 2026)
+
+Its Tools menu lists Elements, Eraser, Highlighter, Image, Lasso, Laser, Pen, Pencil, Draw Shape,
+Shape, Sticky Notes, Tape, Text, Writing, Ruler and Timer. The pen popover has fountain/ball/brush,
+tip sharpness, pressure sensitivity, tip flatness and stroke stabilization (all present here), plus
+Adjust Thickness by Speed, Reduce Latency, Draw and Hold (snap to other shapes, fill), Scribble to
+Erase and Circle to Lasso.
+
+Not built yet, in the order they matter for writing:
+
+- Circle to Lasso: drawing a loop around ink with the pen selects it.
+- Pencil: a textured pen with its own settings.
+- Tape: strips that hide the content under them, with Straight Tape and Remove All Tape.
+- Laser pointer, Ruler, Timer and Sticky Notes.
+- A switch for Adjust Thickness by Speed (the fountain pen always does it).
+- Highlighter ink is a raw polyline: it does not go through the pen's smoothing yet.
+- New Quick Record (audio), Study Set, QuickNote and Text Document from the File menu.
+- The page is one bitmap that is rebuilt when a pinch ends, so a zoomed page stays soft until it
+  has been redrawn; tiled rendering would remove the wait.
+
+Handwriting recognition, spell check of handwriting and math assist depend on a recognition model
+and stay out of scope together with the items below.
+
 Accounts, proprietary cloud collaboration, marketplace and AI features are outside the
 local clean-room scope described in Plan.md.
 
