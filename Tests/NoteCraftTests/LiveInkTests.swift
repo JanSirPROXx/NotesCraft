@@ -14,9 +14,13 @@ import Testing
   return view
 }
 
-@MainActor private func write(_ view: DrawingView, count: Int, from x: Double = 20) {
+@MainActor private func write(
+  _ view: DrawingView, count: Int, from x: Double = 20, at start: TimeInterval = 100
+) {
   for i in 0..<count {
-    view.accept(Sample(point: Point(x + Double(i) * 3, 60 + sin(Double(i) / 4) * 8), pressure: 0.6))
+    view.accept(
+      Sample(point: Point(x + Double(i) * 3, 60 + sin(Double(i) / 4) * 8), pressure: 0.6),
+      time: start + Double(i) / 240)
   }
 }
 
@@ -29,6 +33,52 @@ import Testing
   // second stroke that inherits the first one's widths falls back to plain pressure widths and then
   // changes thickness when the pen lifts.
   #expect(view.input.fountain.widths.count == view.samples.count)
+}
+
+@MainActor @Test func theSmootherStartsFreshWithEachStroke() throws {
+  let view = penCanvas(style: .ballpoint)
+  write(view, count: 40, from: 20)
+  view.finish()
+  // A second stroke far away must not be pulled towards where the first one ended.
+  write(view, count: 3, from: 400, at: 101)
+  let first = try #require(view.samples.first)
+  #expect(first.point == Point(400, 60))
+}
+
+@MainActor @Test func theCommittedStrokeEndsWhereThePenLifted() throws {
+  let view = penCanvas(style: .ballpoint)
+  var committed: Stroke?
+  view.configuration?.onStroke = { committed = $0 }
+  write(view, count: 40)
+  let lift = Sample(point: Point(300, 90), pressure: 0.6)
+  view.accept(lift, time: 100 + 40.0 / 240)
+  view.finish()
+  let end = try #require(committed?.samples.last)
+  #expect(end.point == lift.point, "ink must reach the tip even though the filter trails it")
+}
+
+@MainActor @Test func aSteadyHandKeepsItsShapeThroughTheSmoother() throws {
+  // A straight horizontal stroke at 3 pt per sample: the smoother may only trail, not wander.
+  let view = penCanvas(style: .ballpoint)
+  view.accept(Sample(point: Point(20, 200)), time: 100)
+  var wander = 0.0
+  for i in 1..<120 {
+    view.accept(Sample(point: Point(20 + Double(i) * 3, 200)), time: 100 + Double(i) / 240)
+    wander = max(wander, abs(view.samples[i].point.y - 200))
+  }
+  #expect(wander < 0.01)
+}
+
+@MainActor @Test func lowerStabilizationLetsTheTipFollowCloser() throws {
+  func lag(_ stabilization: Double) -> Double {
+    let view = penCanvas(style: .ballpoint, stabilization: stabilization)
+    for i in 0..<240 {
+      view.accept(Sample(point: Point(20 + Double(i) * 2, 200)), time: 100 + Double(i) / 240)
+    }
+    return 20 + 239 * 2 - (view.samples.last?.point.x ?? 0)
+  }
+  #expect(lag(0) < lag(0.5) && lag(0.5) < lag(1))
+  #expect(lag(0) < 1)
 }
 
 // The plan must keep doing what the live renderer did before Pencil estimates existed.

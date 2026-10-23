@@ -168,8 +168,10 @@ enum PencilAction {
         Sample(
           point: configuration.viewport?.documentPoint(Point(p.x, p.y))
             ?? Point(p.x / scale, p.y / scale),
-          pressure: event.pressure > 0 ? Double(event.pressure) : 1))
+          pressure: event.pressure > 0 ? Double(event.pressure) : 1),
+        time: event.timestamp)
     }
+    var screenPointsPerViewPoint: Double { 1 }
   }
 #else
   struct NativeCanvas: UIViewRepresentable {
@@ -439,7 +441,7 @@ enum PencilAction {
       for sample in event?.coalescedTouches(for: touch) ?? [touch] { append(sample) }
       predictedSamples =
         input.held == nil && input.moveStart == nil
-        ? (event?.predictedTouches(for: touch) ?? []).map { sample($0) } : []
+        ? smoothedPrediction(from: event?.predictedTouches(for: touch) ?? []) : []
       invalidateInk()
     }
     // Force and tilt of the newest samples are estimates until the Pencil's own reading arrives, a
@@ -768,7 +770,7 @@ enum PencilAction {
     func append(_ touch: UITouch) {
       guard let configuration else { return }
       let before = samples.count
-      accept(sample(touch))
+      accept(sample(touch), time: touch.timestamp)
       guard samples.count > before else { return }
       // Ballpoint ink ignores force and tilt, so nothing about it has to wait for the measured
       // values.
@@ -778,6 +780,26 @@ enum PencilAction {
       else { return }
       input.estimates.expect(updateIndex: key, forSample: samples.count - 1)
       input.estimates.expire(newest: samples.count - 1)
+    }
+    // The system's prediction of where the tip is heading, passed through a copy of the live filter
+    // so it continues the filtered line instead of starting from the raw tip.
+    private func smoothedPrediction(from touches: [UITouch]) -> [Sample] {
+      var filter = configuration?.tool == .pen ? input.smoother : nil
+      return touches.map { touch in
+        var predicted = sample(touch)
+        if filter != nil {
+          predicted.point = filter?.advance(predicted.point, at: touch.timestamp) ?? predicted.point
+        }
+        return predicted
+      }
+    }
+    // Where the view is on screen, so the smoother's speeds are those of the fingertip, not of the
+    // zoomed paper underneath it.
+    var screenPointsPerViewPoint: Double {
+      guard window != nil else { return 1 }
+      let origin = convert(CGPoint.zero, to: nil)
+      let unit = convert(CGPoint(x: 1, y: 0), to: nil)
+      return max(0.0001, hypot(unit.x - origin.x, unit.y - origin.y))
     }
   }
   @MainActor private final class CanvasDisplayTarget: NSObject {
@@ -822,6 +844,8 @@ enum PencilAction {
   var invalidatedSamples = 0
   var lastInkRect = CGRect.null
   var fountain = FountainTrack()
+  // The pen path is steadied as it arrives, so the live ink and the stored stroke are the same line.
+  var smoother: InkSmoother?
   // Samples whose force and tilt are still estimates; see `PendingEstimates`.
   var estimates = PendingEstimates()
   var lastRaw: Point?
@@ -1093,7 +1117,9 @@ extension DrawingView {
     input.bakedThrough = 0
     input.renderedSegments = 0
     input.fountain.removeAll()
+    input.smoother = nil
     input.estimates.removeAll()
+    input.lastRaw = nil
     input.holdTask?.cancel()
     input.holdTask = nil
     input.holdDeadline = nil
@@ -1219,7 +1245,7 @@ extension DrawingView {
     }
     return nil
   }
-  func accept(_ sample: Sample) {
+  func accept(_ sample: Sample, time: TimeInterval = ProcessInfo.processInfo.systemUptime) {
     guard let configuration else { return }
     if samples.isEmpty, Self.manipulatingTools.contains(configuration.tool),
       !configuration.selection.isEmpty,
@@ -1315,13 +1341,18 @@ extension DrawingView {
     }
     var sample = sample
     input.lastRaw = sample.point
-    // Stabilization trails the pen through an exponential filter; the true end point is
-    // restored in finish() so the stroke still lands where the tip lifted.
-    if configuration.tool == .pen, configuration.stabilization > 0, let last = samples.last {
-      let follow = 1 - 0.9 * configuration.stabilization
-      sample.point = Point(
-        last.point.x + (sample.point.x - last.point.x) * follow,
-        last.point.y + (sample.point.y - last.point.y) * follow)
+    // The pen path is steadied with a filter that trails the tip by a fraction of a point at the
+    // default setting; the true end point is restored in finish() so the stroke still lands where
+    // the tip lifted.
+    if configuration.tool == .pen {
+      if input.smoother == nil {
+        let viewScale =
+          configuration.viewport?.scale ?? bounds.width / configuration.page.dimensions.x
+        input.smoother = InkSmoother(
+          parameters: .init(stabilization: configuration.stabilization),
+          scale: viewScale * screenPointsPerViewPoint)
+      }
+      sample.point = input.smoother?.advance(sample.point, at: time) ?? sample.point
     }
     samples.append(sample)
     if configuration.tool == .pen, configuration.style == .fountain {
@@ -1698,8 +1729,8 @@ extension DrawingView {
         configuration.onStroke(shape)
         break
       }
-      if configuration.tool == .pen, configuration.stabilization > 0, let raw = input.lastRaw,
-        let last = samples.last, raw != last.point
+      if configuration.tool == .pen, let raw = input.lastRaw, let last = samples.last,
+        raw != last.point
       {
         samples.append(Sample(point: raw, pressure: last.pressure, altitude: last.altitude))
       }

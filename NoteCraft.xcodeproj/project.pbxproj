@@ -42,6 +42,7 @@
 		A0176F283F70DC3BC42778A7 /* PencilEstimates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3338F9FEC504B25F904A7165 /* PencilEstimates.swift */; };
 		A248374E0E106BE73B0A15EC /* ScreenshotTour.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F4C8BFD47E8EEBD9510B9FB /* ScreenshotTour.swift */; };
 		A43579F439E4E01D9F10DCE2 /* Shapes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B63B23C1154FDC27E76662B8 /* Shapes.swift */; };
+		A730C8D0B89E35777A03FFE6 /* InkSmoother.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6468239C62CD91E6D4D35465 /* InkSmoother.swift */; };
 		AF1CD09F689443B75C2D5CF7 /* VaultManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABB273F19C18B6124D82D232 /* VaultManagement.swift */; };
 		AFCA6FA4889F0886ED4ABB5F /* ImportEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7498B04DDA06141A375AD880 /* ImportEngine.swift */; };
 		BE09234502E9611C98BFD209 /* VaultUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C0B8D61A66A011E45218373 /* VaultUITests.swift */; };
@@ -59,6 +60,7 @@
 		EF83E3C1A207AD1450319206 /* ElementClip.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0F0A9A567741EBB11E3961 /* ElementClip.swift */; };
 		FC0ED3F795DE08F525C6E7F6 /* Scribble.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53FA053B01B52E525809AEF /* Scribble.swift */; };
 		FD1506422A08E3D54602A0FB /* VaultSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 032F7A0D798EAE1F763FE07D /* VaultSession.swift */; };
+		FF9BF0BD274B62FC407A5997 /* InkSmootherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 907A3C2D72335907F6C88AEF /* InkSmootherTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -134,12 +136,14 @@
 		508F352E349747AA65DE46CE /* WorkspaceCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceCommands.swift; sourceTree = "<group>"; };
 		59824A39DB8CA45EC1323726 /* PencilEstimatesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PencilEstimatesTests.swift; sourceTree = "<group>"; };
 		60AAD7C60FE3807BE65F423F /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
+		6468239C62CD91E6D4D35465 /* InkSmoother.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InkSmoother.swift; sourceTree = "<group>"; };
 		6961F7917F77CAD924567EC6 /* NativeCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCanvas.swift; sourceTree = "<group>"; };
 		6B24B3453C52225B874FE867 /* FountainTrackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FountainTrackTests.swift; sourceTree = "<group>"; };
 		7498B04DDA06141A375AD880 /* ImportEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportEngine.swift; sourceTree = "<group>"; };
 		86F0B54A3AD9D8FC001C136B /* SampleCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleCodec.swift; sourceTree = "<group>"; };
 		8C6CA8AE2045682013E613E6 /* ShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeTests.swift; sourceTree = "<group>"; };
 		8DFF298F863075A387BD1348 /* Editing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Editing.swift; sourceTree = "<group>"; };
+		907A3C2D72335907F6C88AEF /* InkSmootherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InkSmootherTests.swift; sourceTree = "<group>"; };
 		934B5242780CD4A297E839A1 /* MetalInk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalInk.swift; sourceTree = "<group>"; };
 		940A74F57C8C2CF21AC1D574 /* Library.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Library.swift; sourceTree = "<group>"; };
 		94C1C0961B9A833880D81FB8 /* NoteCraftCoreTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NoteCraftCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -195,6 +199,7 @@
 				3CB304711543F998B0B73322 /* EraseSession.swift */,
 				9B5E65BF43B80AFC81DD50F6 /* FountainInk.swift */,
 				7498B04DDA06141A375AD880 /* ImportEngine.swift */,
+				6468239C62CD91E6D4D35465 /* InkSmoother.swift */,
 				AAC464B97F48428A387BD481 /* Models.swift */,
 				3338F9FEC504B25F904A7165 /* PencilEstimates.swift */,
 				86F0B54A3AD9D8FC001C136B /* SampleCodec.swift */,
@@ -214,6 +219,7 @@
 			children = (
 				06224446505127FB574CE719 /* CoreTests.swift */,
 				6B24B3453C52225B874FE867 /* FountainTrackTests.swift */,
+				907A3C2D72335907F6C88AEF /* InkSmootherTests.swift */,
 				59824A39DB8CA45EC1323726 /* PencilEstimatesTests.swift */,
 				2BEFB5FFC666C8AD680794AD /* ScribblePerformanceTests.swift */,
 				8C6CA8AE2045682013E613E6 /* ShapeTests.swift */,
@@ -441,6 +447,7 @@
 			files = (
 				1B974C057F8DABA631C1EE8E /* CoreTests.swift in Sources */,
 				DE17859C82C578E9D38F702F /* FountainTrackTests.swift in Sources */,
+				FF9BF0BD274B62FC407A5997 /* InkSmootherTests.swift in Sources */,
 				4CCE5AF05E383D1CC1D9FEC4 /* PencilEstimatesTests.swift in Sources */,
 				C749B4E2D92EDC728A6FF056 /* ScribblePerformanceTests.swift in Sources */,
 				9669A46A095DCCDE46AB4F9A /* ShapeTests.swift in Sources */,
@@ -458,6 +465,7 @@
 				7EC54F90D9D3B6D387946D28 /* EraseSession.swift in Sources */,
 				95091443F52CEA62893DEBA9 /* FountainInk.swift in Sources */,
 				AFCA6FA4889F0886ED4ABB5F /* ImportEngine.swift in Sources */,
+				A730C8D0B89E35777A03FFE6 /* InkSmoother.swift in Sources */,
 				1847B6051A23D921B4FC3E07 /* Models.swift in Sources */,
 				A0176F283F70DC3BC42778A7 /* PencilEstimates.swift in Sources */,
 				9533363C14CA5DD2A9CD61DB /* SampleCodec.swift in Sources */,

@@ -298,7 +298,8 @@ import UniformTypeIdentifiers
     onTranslateSelection: { translation = $0 })
   for i in 0...48 {
     let angle = Double(i) / 48 * 2 * Double.pi
-    view.accept(Sample(point: Point(100 + 40 * cos(angle), 100 + 40 * sin(angle))))
+    view.accept(
+      Sample(point: Point(100 + 40 * cos(angle), 100 + 40 * sin(angle))), time: 100 + Double(i) / 240)
   }
   // The hold task runs on the main actor, which other tests keep busy for seconds at a time.
   let deadline = ContinuousClock.now.advanced(by: .seconds(15))
@@ -332,7 +333,8 @@ import UniformTypeIdentifiers
   view.configuration?.stabilization = 0.5
   for i in 0...48 {
     let angle = Double(i) / 48 * 2 * Double.pi
-    view.accept(Sample(point: Point(100 + 40 * cos(angle), 100 + 40 * sin(angle))))
+    view.accept(
+      Sample(point: Point(100 + 40 * cos(angle), 100 + 40 * sin(angle))), time: 100 + Double(i) / 240)
   }
   // The hold task runs on the main actor, which other tests keep busy for seconds at a time.
   let deadline = ContinuousClock.now.advanced(by: .seconds(15))
@@ -497,7 +499,9 @@ import UniformTypeIdentifiers
   view.resetInput()
   #expect(view.cachedPage === paper)
   for i in 0..<1000 {
-    view.accept(Sample(point: Point(30 + Double(i) * 0.4, 100 + sin(Double(i) * 0.05) * 20)))
+    view.accept(
+      Sample(point: Point(30 + Double(i) * 0.4, 100 + sin(Double(i) * 0.05) * 20)),
+      time: 100 + Double(i) / 240)
     view.paint(configuration, context)
   }
   #expect(view.cachedPage === paper)
@@ -517,7 +521,9 @@ import UniformTypeIdentifiers
   let corrected = try #require(context.makeImage()?.dataProvider?.data) as Data
   #expect(corrected == beforePrediction)
   view.finish()
-  #expect(view.input.pendingStroke?.samples.count == 1000)
+  // The stroke ends exactly where the pen lifted, which the smoothed path trails by a fraction of a
+  // point, so the lift point is appended to the 1000 samples that came in.
+  #expect(view.input.pendingStroke?.samples.count == 1001)
   #expect(view.cachedPage === paper)
   var saved = configuration
   saved.page.strokes = [try #require(view.input.pendingStroke)]
