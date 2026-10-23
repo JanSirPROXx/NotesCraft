@@ -16,6 +16,7 @@ struct WorkspaceActions {
   var previousPage: () -> Void
   var nextPage: () -> Void
   var addPage: () -> Void
+  var fitToWidth: () -> Void
   var canGoBack: Bool
   var canGoForward: Bool
 }
@@ -55,6 +56,10 @@ struct WorkspaceCommands: Commands {
       Button("Next Page") { actions?.nextPage() }
         .keyboardShortcut("]", modifiers: .command)
         .disabled(actions?.canGoForward != true)
+      Divider()
+      Button("Fit to Width") { actions?.fitToWidth() }
+        .keyboardShortcut("0", modifiers: .command)
+        .disabled(actions == nil)
       Divider()
       Button("Add Page") { actions?.addPage() }
         .keyboardShortcut("n", modifiers: [.command, .shift])

@@ -94,6 +94,8 @@
     var onCurrentPage: (Int) -> Void
     var onZoom: (Double) -> Void
     var onPull: (Double) -> Void
+    // Counts up when something outside asks for the notebook to be fitted to the width of the view.
+    var fitRequest = 0
     var onAppend: () -> Void
     var onTrailingReached: () -> Void
     var content: (Int, CGSize) -> AnyView
@@ -111,6 +113,8 @@
     // The zoomed surface: every page sits on it at fit size, and the scroll view scales it.
     private let surface = UIView()
     private let indicator = PageIndicator()
+    private let zoomIndicator = ZoomIndicator()
+    private let scrubber = PageScrubber()
     private var hosts: [UUID: UIHostingController<AnyView>] = [:]
     // What a page that is still being built shows in its place.
     private var placeholders: [UUID: UIView] = [:]
@@ -157,6 +161,19 @@
       scroll.addSubview(surface)
       view.addSubview(scroll)
       view.addSubview(indicator)
+      view.addSubview(scrubber)
+      view.addSubview(zoomIndicator)
+      zoomIndicator.onFit = { [weak self] in self?.fit(animated: true) }
+      scrubber.onScrub = { [weak self] fraction, finished in
+        self?.scrub(to: fraction, finished: finished)
+      }
+      scrubber.bubbleText = { [weak self] in self?.scrubberPageText() ?? "" }
+    }
+
+    override func viewDidLayoutSubviews() {
+      super.viewDidLayoutSubviews()
+      scrubber.frame = view.bounds
+      zoomIndicator.reposition()
     }
 
     // Only a finger moves or zooms the paper; Pencil draws. The canvas keeps the pan up to date while
@@ -191,6 +208,7 @@
       } else {
         refreshHosts()
       }
+      if let old, old.fitRequest != new.fitRequest { fit(animated: true) }
       // The page was chosen somewhere else (sidebar, page number, a new page): go there. A page
       // the scroll view itself reported is where it already is.
       if new.selectedIndex != lastSelected {
@@ -246,7 +264,8 @@
       scroll.decelerationRate = props.axis == .horizontal ? .fast : .normal
       scroll.alwaysBounceVertical = props.axis == .vertical
       scroll.alwaysBounceHorizontal = props.axis == .horizontal
-      scroll.showsVerticalScrollIndicator = props.axis == .vertical
+      // The handle of `PageScrubber` is the scroll bar.
+      scroll.showsVerticalScrollIndicator = false
       // The frame of the surface is only meaningful at a zoom of 1.
       scroll.setZoomScale(1, animated: false)
       surface.frame = CGRect(
@@ -486,6 +505,7 @@
       updateInsets()
       syncHosts()
       scroll.accessibilityValue = "Zoom \(Int((zoom * 100).rounded())) percent"
+      zoomIndicator.show(zoom: Double(zoom))
     }
 
     // Everything that has to redo work for the new zoom waits until the fingers have lifted: the
@@ -496,6 +516,7 @@
       syncHosts()
       place = currentPlace()
       settled()
+      zoomIndicator.show(zoom: Double(scale))
     }
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
@@ -520,6 +541,7 @@
       guard !restoring, laidOut, let props, layout.count == props.ids.count else { return }
       syncHosts()
       place = currentPlace()
+      updateScrubber(reveal: scrollView.isDragging || scrollView.isDecelerating)
       if animatingTo == nil {
         let index = layout.currentIndex(visibleIn: visibleRect())
         if index != reportedIndex { reportedIndex = index }
@@ -537,6 +559,67 @@
     func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
       animatingTo = nil
       settled()
+    }
+
+    // MARK: zoom indicator and scrubber
+
+    // Fits the notebook to the width of the view (the whole page in a row), about the middle of
+    // what is on screen.
+    func fit(animated: Bool) {
+      guard laidOut, props?.infinite != true else { return }
+      zoomIndicator.show(zoom: Double(zoom))
+      scroll.setZoomScale(1, animated: animated)
+    }
+
+    // What can be scrolled along the scroll axis: from the start of the content to the offset that
+    // shows its end.
+    private var scrollRange: ClosedRange<Double> {
+      let inset = scroll.contentInset
+      if columns {
+        let low = -Double(inset.top)
+        return low...max(low, Double(scroll.contentSize.height - scroll.bounds.height + inset.bottom))
+      }
+      let low = -Double(inset.left)
+      var high = max(low, Double(scroll.contentSize.width - scroll.bounds.width + inset.right))
+      // The blank page after the last one is not part of the notebook yet: running the handle to
+      // the end must stop at the last page, not make the blank one a page.
+      if let trailing = props?.trailingIndex, trailing > 0, layout.count >= trailing {
+        high = min(high, max(low, layout.offset(toShow: trailing - 1) * Double(zoom)))
+      }
+      return low...high
+    }
+
+    private func updateScrubber(reveal: Bool) {
+      let range = scrollRange
+      let offset = columns ? Double(scroll.contentOffset.y) : Double(scroll.contentOffset.x)
+      let visible = Double(columns ? scroll.bounds.height : scroll.bounds.width)
+      scrubber.isVertical = columns
+      scrubber.update(
+        fraction: Scrubber.fraction(offset: offset, in: range), visible: visible,
+        content: range.upperBound - range.lowerBound + visible, reveal: reveal)
+    }
+
+    // The handle was moved: the notebook goes to the same place in what can be scrolled.
+    private func scrub(to fraction: Double, finished: Bool) {
+      guard laidOut, let props, layout.count == props.ids.count else { return }
+      animatingTo = nil
+      if scroll.isDecelerating { scroll.setContentOffset(scroll.contentOffset, animated: false) }
+      let target = CGFloat(Scrubber.offset(fraction: fraction, in: scrollRange))
+      var offset = scroll.contentOffset
+      if columns { offset.y = target } else { offset.x = target }
+      if offset != scroll.contentOffset { scroll.setContentOffset(offset, animated: false) }
+      guard finished else { return }
+      if !columns, zoom < 1.02 {
+        // A row settles on one page at a time.
+        show(layout.currentIndex(visibleIn: visibleRect()), animated: true)
+      }
+      settled()
+    }
+
+    private func scrubberPageText() -> String {
+      let count = max(1, realPageCount)
+      let index = layout.currentIndex(visibleIn: visibleRect())
+      return "\(min(index, count - 1) + 1) / \(count)"
     }
 
     // The paper has come to rest: now the view above is told where it is.

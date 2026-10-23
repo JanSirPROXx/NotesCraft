@@ -654,6 +654,101 @@ final class VaultUITests: XCTestCase {
     choose(4, "vertical, page 5")
     choose(9, "vertical, page 10")
   }
+  // The percent that shows while the notebook is zoomed, and the button next to it that fits the
+  // notebook to the width again (also on ⌘0).
+  @MainActor func testZoomIndicatorShowsThePercentAndFitsTheNotebook() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input", "--ui-test-numbered-notebook"]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    let surface = try visibleZoomSurface(app)
+    XCTAssertTrue(waitForVisiblePage(app, "1 strokes"))
+    let indicator = app.buttons["zoomIndicator"]
+    XCTAssertFalse(indicator.exists, "Nothing floats over a notebook that is not being zoomed")
+
+    zoomIn(surface)
+    XCTAssertTrue(indicator.waitForExistence(timeout: 3))
+    let percent = Int((indicator.value as? String ?? "").filter(\.isNumber)) ?? 0
+    XCTAssertGreaterThan(percent, 100)
+    XCTAssertEqual(surface.value as? String, "Zoom \(percent) percent", "The label is the zoom")
+    capture(app, name: "Zoom indicator while zoomed in")
+
+    indicator.tap()
+    XCTAssertTrue(waitForZoom(surface, "Zoom 100 percent", timeout: 5), "The button fits the width")
+    XCTAssertTrue(indicator.waitForNonExistence(timeout: 8), "The indicator goes away again")
+
+    zoomIn(surface)
+    app.typeKey("0", modifierFlags: .command)
+    XCTAssertTrue(waitForZoom(surface, "Zoom 100 percent", timeout: 5), "⌘0 fits the width")
+  }
+  // The handle on the right edge runs through the notebook when it is held and dragged.
+  @MainActor func testThePageScrubberRunsThroughTheNotebook() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input", "--ui-test-numbered-notebook"]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    let scroll = app.scrollViews["notebookScrollView"]
+    XCTAssertTrue(scroll.waitForExistence(timeout: 10))
+    XCTAssertTrue(waitForVisiblePage(app, "1 strokes"))
+    let handle = app.descendants(matching: .any)["pageScrubber"].firstMatch
+    XCTAssertFalse(handle.exists, "The handle is only there while the notebook moves")
+
+    // Scrolling shows it; held and dragged to the bottom of the track it goes to the last page.
+    scroll.swipeUp(velocity: .slow)
+    XCTAssertTrue(handle.waitForExistence(timeout: 3))
+    handle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+      forDuration: 0.1,
+      thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.99)))
+    XCTAssertTrue(waitForVisiblePage(app, "12 strokes"), visiblePageStrokes(app) ?? "no page")
+    capture(app, name: "Page scrubber at the last page")
+
+    // And back to the top.
+    scroll.swipeDown(velocity: .slow)
+    XCTAssertTrue(handle.waitForExistence(timeout: 3))
+    handle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+      forDuration: 0.1,
+      thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.01)))
+    XCTAssertTrue(waitForVisiblePage(app, "1 strokes"), visiblePageStrokes(app) ?? "no page")
+  }
+  // In a row of pages the handle runs along the bottom and the row settles on the page it ends at.
+  @MainActor func testThePageScrubberRunsThroughARowOfPages() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = [
+      "--ui-test-reset-input", "--ui-test-numbered-notebook", "--ui-test-horizontal-pages",
+    ]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    let scroll = app.scrollViews["notebookScrollView"]
+    XCTAssertTrue(scroll.waitForExistence(timeout: 10))
+    XCTAssertTrue(waitForVisiblePage(app, "1 strokes"))
+    scroll.swipeLeft()
+    XCTAssertTrue(waitForVisiblePage(app, "2 strokes"))
+    let handle = app.descendants(matching: .any)["pageScrubber"].firstMatch
+    XCTAssertTrue(handle.waitForExistence(timeout: 3))
+    handle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+      forDuration: 0.1,
+      thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.97)))
+    XCTAssertTrue(waitForVisiblePage(app, "12 strokes"), visiblePageStrokes(app) ?? "no page")
+    capture(app, name: "Page scrubber on a row of pages")
+  }
   @MainActor func testLargeNotebookKeepsOnlyVisibleCanvasesLoaded() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     defer { XCUIDevice.shared.orientation = .portrait }
@@ -697,6 +792,13 @@ final class VaultUITests: XCTestCase {
     let surface = app.scrollViews["notebookScrollView"]
     XCTAssertTrue(surface.waitForExistence(timeout: 5))
     return surface
+  }
+  // A synthetic pinch does not always zoom, so it is repeated until the notebook is zoomed.
+  @MainActor private func zoomIn(_ surface: XCUIElement) {
+    for _ in 0..<4 where surface.value as? String == "Zoom 100 percent" {
+      surface.pinch(withScale: 3, velocity: 1.5)
+      RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+    }
   }
   // A synthetic pinch does not always reach the scale it was given, so it is repeated.
   @MainActor private func zoomToFit(_ surface: XCUIElement) {

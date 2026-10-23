@@ -147,6 +147,8 @@ struct Workspace: View {
   @State private var trailingPage: Page?
   // How far the paper is zoomed; the bars that float over a selection stay the same size on screen.
   @State private var documentZoom = 1.0
+  // Counts up to ask the notebook view to fit the pages to its width (⌘0).
+  @State private var fitRequest = 0
   @State private var zoom = 1.0
   @State private var zoomBase = 1.0
   @State private var customColor = Color.black
@@ -212,6 +214,7 @@ struct Workspace: View {
         },
         onZoom: { documentZoom = $0 },
         onPull: { pagePullProgress = $0 },
+        fitRequest: fitRequest,
         onAppend: {
           if let last = notebook.pages.last { appendPage(InkGestures.blankPage(matching: last)) }
         },
@@ -598,6 +601,7 @@ struct Workspace: View {
       previousPage: { activePage = max(0, activePage - 1) },
       nextPage: { activePage = min(notebook.pages.count - 1, activePage + 1) },
       addPage: { appendPage(InkGestures.blankPage(matching: page)) },
+      fitToWidth: { fitRequest += 1 },
       canGoBack: activePage > 0,
       canGoForward: activePage < notebook.pages.count - 1)
   }

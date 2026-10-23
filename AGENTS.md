@@ -39,6 +39,10 @@ Rules that keep latency low:
 - Do not rebuild `cachedPage` or the tiles, or run SwiftUI state changes per touch sample.
 - Config changes that do not affect pixels (color, width, pen style outside an active stroke) must not repaint.
 
+## Notebook scrolling and zoom
+
+The notebook is one `UIScrollView` (`NotebookDocumentController` in `NotebookDocumentView.swift`) that scrolls and zooms all pages together. `NotebookLayout` (Core, pure) works out where the pages sit at zoom 1, which are near the view and which one is current, and keeps the reader's place across a resize through anchors; only the pages near the view are built, one per pass, with a blank sheet in place of the others. The pages report their place and zoom to SwiftUI only when the paper has come to rest. Whatever floats over the document while it moves (`PageIndicator`, `ZoomIndicator`, `PageScrubber`) is UIKit, because a SwiftUI state change per frame of a scroll or pinch costs a pass over every page on screen; the maths of the scrubber handle is `Scrubber` in Core. Pencil never moves the paper and nothing floating over it takes a Pencil touch.
+
 ## Toolbar and tool state
 
 `Workspace.swift` owns tool state. `toolBar` (primary tools) and `contextualToolBar` (quick bar: undo/redo, pen style, colors, thickness presets) are SwiftUI. Every tappable control needs a minimum 44×44 pt hit area with an explicit `.contentShape`, because `.buttonStyle(.plain)` only hits drawn pixels.
