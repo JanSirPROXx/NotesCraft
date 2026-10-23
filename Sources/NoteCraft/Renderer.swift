@@ -410,12 +410,15 @@ private final class DecodedImages: @unchecked Sendable {
         last = (left, right)
       }
     }
+    // The quads run clockwise and CoreGraphics ellipses counter-clockwise; where a cap overlaps the
+    // ribbon the two would cancel under the nonzero rule and leave a bite out of both ends. Mirroring
+    // the ellipse turns it the same way as the quads.
     for cap in [rangeStart, rangeEnd] {
       guard let (center, width) = cap else { continue }
       let radius = width / 2
       path.addEllipse(
-        in: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
-      )
+        in: CGRect(x: -radius, y: -radius, width: radius * 2, height: radius * 2),
+        transform: CGAffineTransform(translationX: center.x, y: center.y).scaledBy(x: 1, y: -1))
     }
     c.addPath(path)
     c.fillPath()
