@@ -183,6 +183,16 @@ enum PencilAction {
     var screenPointsPerViewPoint: Double { 1 }
   }
 #else
+  // The pixel density a canvas is drawn at, which the document view works out from the zoom: the
+  // backing store of a page that is zoomed in grows with the square of it, far past what the page
+  // is drawn at, so it is capped.
+  private struct CanvasScaleKey: EnvironmentKey { static let defaultValue: CGFloat? = nil }
+  extension EnvironmentValues {
+    var canvasScale: CGFloat? {
+      get { self[CanvasScaleKey.self] }
+      set { self[CanvasScaleKey.self] = newValue }
+    }
+  }
   struct NativeCanvas: UIViewRepresentable {
     var configuration: CanvasConfiguration
     func makeUIView(context: Context) -> DrawingView {
@@ -204,6 +214,11 @@ enum PencilAction {
     }
     func updateUIView(_ view: DrawingView, context: Context) {
       view.configuration = configuration
+      if let scale = context.environment.canvasScale, abs(view.contentScaleFactor - scale) > 0.001 {
+        view.contentScaleFactor = scale
+        view.cachedPage = nil
+        view.setNeedsDisplay()
+      }
       view.isAccessibilityElement = true
       view.accessibilityLabel = "Drawing canvas"
       view.accessibilityIdentifier = "drawingCanvas"
@@ -627,42 +642,58 @@ enum PencilAction {
         fingerHold.delegate = self
         addGestureRecognizer(fingerHold)
       }
-      boardPan.minimumNumberOfTouches = configuration?.pencilOnly == true || pencilSeen ? 1 : 2
+      // Properties are only written when they change: a write while a finger is scrolling restarts
+      // the gesture, and this runs on every SwiftUI update.
+      let fingerTouches = configuration?.pencilOnly == true || pencilSeen ? 1 : 2
+      if boardPan.minimumNumberOfTouches != fingerTouches {
+        boardPan.minimumNumberOfTouches = fingerTouches
+      }
       let pencilActive = activeTouch?.type == .pencil || input.moveStart != nil
-      boardPan.isEnabled = board && !pencilActive
-      boardPinch.isEnabled = board && !pencilActive
+      if boardPan.isEnabled != (board && !pencilActive) { boardPan.isEnabled = board && !pencilActive }
+      if boardPinch.isEnabled != (board && !pencilActive) {
+        boardPinch.isEnabled = board && !pencilActive
+      }
+      let finger = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
       var ancestor = superview
       var paperIsZooming = false
       while let view = ancestor {
         if let scroll = view as? UIScrollView {
+          let surface = scroll as? ZoomingSurface
           // Scroll recognizers must never consume Pencil events or cancel an active Pencil stroke.
-          scroll.delaysContentTouches = false
-          scroll.panGestureRecognizer.allowedTouchTypes = [
-            NSNumber(value: UITouch.TouchType.direct.rawValue)
-          ]
-          scroll.panGestureRecognizer.minimumNumberOfTouches =
+          if scroll.delaysContentTouches { scroll.delaysContentTouches = false }
+          // The zoom surfaces set their own touch types.
+          if surface == nil, scroll.panGestureRecognizer.allowedTouchTypes != finger {
+            scroll.panGestureRecognizer.allowedTouchTypes = finger
+          }
+          let touches =
             configuration?.tool == .readOnly || configuration?.pencilOnly == true || pencilSeen
             ? 1 : 2
-          if let paper = scroll as? ZoomingSurface { paperIsZooming = paper.isZooming }
-          scroll.panGestureRecognizer.isEnabled =
-            !pencilActive
-            && (scroll is ZoomingSurface || !paperIsZooming)
-          if let paper = scroll as? ZoomingSurface {
-            paper.pinchGestureRecognizer?.isEnabled = paper.allowsZoom && !pencilActive
+          if scroll.panGestureRecognizer.minimumNumberOfTouches != touches {
+            scroll.panGestureRecognizer.minimumNumberOfTouches = touches
           }
-          if !(scroll is ZoomingSurface) {
+          if let surface { paperIsZooming = surface.isZooming }
+          let panEnabled = !pencilActive && (surface != nil || !paperIsZooming)
+          if scroll.panGestureRecognizer.isEnabled != panEnabled {
+            scroll.panGestureRecognizer.isEnabled = panEnabled
+          }
+          if let surface {
+            let pinchEnabled = surface.allowsZoom && !pencilActive
+            if surface.pinchGestureRecognizer?.isEnabled != pinchEnabled {
+              surface.pinchGestureRecognizer?.isEnabled = pinchEnabled
+            }
+          } else {
             // A page swipe should settle quickly onto the target page rather than glide, and a
             // mostly vertical drag must not slide the notebook sideways.
             scroll.isDirectionalLockEnabled = true
             scroll.decelerationRate = .fast
             scroll.alwaysBounceVertical = configuration?.horizontalPages != true
             scroll.alwaysBounceHorizontal = configuration?.horizontalPages == true
-          }
-          if !(scroll is ZoomingSurface), observedScroll !== scroll {
-            observedScroll?.panGestureRecognizer.removeTarget(
-              self, action: #selector(scrollGesture(_:)))
-            observedScroll = scroll
-            scroll.panGestureRecognizer.addTarget(self, action: #selector(scrollGesture(_:)))
+            if observedScroll !== scroll {
+              observedScroll?.panGestureRecognizer.removeTarget(
+                self, action: #selector(scrollGesture(_:)))
+              observedScroll = scroll
+              scroll.panGestureRecognizer.addTarget(self, action: #selector(scrollGesture(_:)))
+            }
           }
         }
         ancestor = view.superview

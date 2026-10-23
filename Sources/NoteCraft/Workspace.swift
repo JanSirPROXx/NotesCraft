@@ -142,9 +142,6 @@ struct Workspace: View {
   @AppStorage("infiniteScroll") private var infinite = false
   // Infinite scrolling is one continuous vertical sheet, so it overrides page-by-page layout.
   private var horizontal: Bool { horizontalSetting && !infinite }
-  @State private var pageHUD = false
-  @State private var lastHUDActivation = Date.distantPast
-  @State private var pageHUDTask: Task<Void, Never>?
   // A blank page after the last one: swiping onto it turns it into a real page, so adding a
   // page is part of the swipe instead of a separate pull-and-hold gesture.
   @State private var trailingPage: Page?
@@ -224,7 +221,6 @@ struct Workspace: View {
             appendPage(next)
           }
         },
-        onScrollActivity: { showPageIndicator() },
         content: { index, size in
           AnyView(
             pageView(
@@ -262,7 +258,7 @@ struct Workspace: View {
       toolBar
       if searchVisible { searchBar }
       HStack(spacing: 0) {
-        if thumbnails && !narrow { pageSidebar }
+        if thumbnails && !narrow { pageSidebar.ignoresSafeArea(.container, edges: .bottom) }
         GeometryReader { geometry in
           if notebook.kind == .whiteboard {
             pageView(
@@ -272,6 +268,9 @@ struct Workspace: View {
             notebookScroller(geometry)
           }
         }
+        // The page area reaches the bottom edge, under the home indicator, instead of stopping at
+        // the safe area and leaving a white strip of the window behind.
+        .ignoresSafeArea(.container, edges: .bottom)
       }
       .overlay(alignment: .top) {
         // In Split View or Slide Over the bar can be wider than the window: it then scrolls.
@@ -279,14 +278,6 @@ struct Workspace: View {
           contextualToolBar
           ScrollView(.horizontal, showsIndicators: false) { contextualToolBar.padding(.horizontal, 8) }
         }.padding(.top, 8)
-      }
-      .overlay(alignment: .bottomTrailing) {
-        if pageHUD && notebook.kind != .whiteboard {
-          Text("\(activePage + 1) / \(notebook.pages.count)")
-            .font(.system(size: 13, weight: .medium)).monospacedDigit()
-            .padding(10).background(.regularMaterial, in: Capsule()).padding(18)
-            .allowsHitTesting(false).accessibilityIdentifier("pageIndicator")
-        }
       }
       .overlay(alignment: .bottom) {
         if pagePullProgress > 0 {
@@ -312,11 +303,7 @@ struct Workspace: View {
   private var pageSyncedContent: some View {
     // Split into stages: one chained expression this long exceeds the type checker.
     editorContent
-    .onChange(of: activePage) { showPageIndicator() }
-    .onChange(of: notebook.pages.count) {
-      showPageIndicator()
-      refreshTrailingPage()
-    }
+    .onChange(of: notebook.pages.count) { refreshTrailingPage() }
     .onChange(of: horizontal) { refreshTrailingPage() }
     .onChange(of: notebook.pages.last?.paper) { refreshTrailingPage() }
     .onChange(of: lastPageHasContent) { ensureBlankTrailingPage() }
@@ -339,7 +326,6 @@ struct Workspace: View {
       inlineText = nil
       refreshTrailingPage()
     }
-    .onDisappear { pageHUDTask?.cancel() }
     .focusedSceneValue(\.workspaceActions, workspaceActions)
   }
   var body: some View {
@@ -1041,7 +1027,7 @@ struct Workspace: View {
             appendPage(next)
           } : nil,
         onPagePull: { pagePullProgress = $0 }, horizontalPages: horizontal,
-        onScrollActivity: { showPageIndicator() }, holdToShape: holdToShape,
+        holdToShape: holdToShape,
         scribblePreview: scratchToErase, gpuInk: gpuInk,
         eraserMode: eraserMode, highlighterOnly: highlighterOnly,
         searchHighlights: searchVisible
@@ -1393,17 +1379,6 @@ struct Workspace: View {
           documentSearch.update(document.package, query: search)
         }
       }
-  }
-  private func showPageIndicator() {
-    let now = Date()
-    guard !pageHUD || now.timeIntervalSince(lastHUDActivation) >= 0.5 else { return }
-    lastHUDActivation = now
-    pageHUDTask?.cancel()
-    pageHUD = true
-    pageHUDTask = Task { @MainActor in
-      try? await Task.sleep(for: .seconds(1.5))
-      if !Task.isCancelled { pageHUD = false }
-    }
   }
   // The Mac test host shows pages in a plain column; on iPad the document view lays them out.
   @ViewBuilder private func notebookPage(

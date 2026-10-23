@@ -23,6 +23,61 @@
     }
   }
 
+  // "3 / 12", shown in a corner while the notebook scrolls or changes page. It lives here, not in
+  // the SwiftUI view above, because every SwiftUI state change while a finger is scrolling costs
+  // a pass over every page that is on screen.
+  @MainActor private final class PageIndicator: UIView {
+    private let label = UILabel()
+    private var hideTask: Task<Void, Never>?
+    private var shownAt = 0.0
+
+    override init(frame: CGRect) {
+      super.init(frame: frame)
+      let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterial))
+      blur.frame = bounds
+      blur.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+      blur.isUserInteractionEnabled = false
+      addSubview(blur)
+      label.font = .monospacedDigitSystemFont(ofSize: 13, weight: .medium)
+      label.textColor = .label
+      label.textAlignment = .center
+      label.accessibilityIdentifier = "pageIndicator"
+      addSubview(label)
+      clipsToBounds = true
+      isUserInteractionEnabled = false
+      isHidden = true
+    }
+    required init?(coder: NSCoder) { fatalError("not supported") }
+
+    func show(page: Int, of count: Int, force: Bool = false) {
+      let now = ProcessInfo.processInfo.systemUptime
+      // Scrolling asks every frame; the timer only needs restarting now and then.
+      guard force || isHidden || now - shownAt > 0.4 else { return }
+      shownAt = now
+      label.text = "\(page) / \(count)"
+      label.sizeToFit()
+      let size = CGSize(width: label.bounds.width + 24, height: 34)
+      if let superview {
+        frame = CGRect(
+          x: superview.bounds.width - size.width - 18,
+          y: superview.bounds.height - size.height - 18 - superview.safeAreaInsets.bottom,
+          width: size.width, height: size.height)
+      }
+      layer.cornerRadius = size.height / 2
+      label.frame = bounds
+      isHidden = false
+      alpha = 1
+      hideTask?.cancel()
+      hideTask = Task { @MainActor [weak self] in
+        try? await Task.sleep(for: .milliseconds(1500))
+        guard !Task.isCancelled, let self else { return }
+        UIView.animate(withDuration: 0.25) { self.alpha = 0 } completion: { _ in
+          if self.alpha == 0 { self.isHidden = true }
+        }
+      }
+    }
+  }
+
   struct NotebookDocumentView: UIViewControllerRepresentable {
     var ids: [UUID]
     var sizes: [Point]
@@ -34,12 +89,13 @@
     var trailingIndex: Int?
     // Pulling past the end of a column adds a page.
     var canPull: Bool
+    // Reported when the paper has come to rest, not while it moves: a state change in the view
+    // above while a finger is scrolling makes every page on screen redo its work.
     var onCurrentPage: (Int) -> Void
     var onZoom: (Double) -> Void
     var onPull: (Double) -> Void
     var onAppend: () -> Void
     var onTrailingReached: () -> Void
-    var onScrollActivity: () -> Void
     var content: (Int, CGSize) -> AnyView
 
     func makeUIViewController(context: Context) -> NotebookDocumentController {
@@ -54,24 +110,33 @@
     private let scroll = DocumentScrollView()
     // The zoomed surface: every page sits on it at fit size, and the scroll view scales it.
     private let surface = UIView()
+    private let indicator = PageIndicator()
     private var hosts: [UUID: UIHostingController<AnyView>] = [:]
+    // What a page that is still being built shows in its place.
+    private var placeholders: [UUID: UIView] = [:]
+    // The pixel density each page was last given; see `NativeCanvas`.
+    private var scales: [UUID: CGFloat] = [:]
     private var props: NotebookDocumentView?
     private var layout = NotebookLayout(pageSizes: [], viewport: Point(0, 0), axis: .vertical)
     // The place the reader is at, as a page and how far through it, so a change of layout puts the
     // view back on the same part of the same page.
     private var place: (id: UUID, anchor: NotebookLayout.Anchor)?
     private var laidOut = false
+    // The page the paper is on, as far as scrolling is concerned, and the last one told to the
+    // view above.
     private var reportedIndex = -1
+    private var deliveredIndex = -1
     private var animatingTo: Int?
     private var restoring = false
+    private var syncScheduled = false
     private var dragStartOffset = 0.0
     private var pullStarted: TimeInterval?
     private var pullTriggered = false
-    private var lastZoomReport = 0.0
     private var lastSelected = -1
 
     private var zoom: CGFloat { scroll.zoomScale }
     private var columns: Bool { props?.axis != .horizontal }
+    private var realPageCount: Int { props?.trailingIndex ?? props?.ids.count ?? 0 }
 
     override func viewDidLoad() {
       super.viewDidLoad()
@@ -91,6 +156,7 @@
       scroll.onBoundsChange = { [weak self] in self?.applyLayout() }
       scroll.addSubview(surface)
       view.addSubview(scroll)
+      view.addSubview(indicator)
     }
 
     // Only a finger moves or zooms the paper; Pencil draws. The canvas keeps the pan up to date while
@@ -98,8 +164,12 @@
     // range is a range, so this is repeated whenever that changes.
     private func configureGestures() {
       let finger = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
-      scroll.panGestureRecognizer.allowedTouchTypes = finger
-      scroll.pinchGestureRecognizer?.allowedTouchTypes = finger
+      if scroll.panGestureRecognizer.allowedTouchTypes != finger {
+        scroll.panGestureRecognizer.allowedTouchTypes = finger
+      }
+      if let pinch = scroll.pinchGestureRecognizer, pinch.allowedTouchTypes != finger {
+        pinch.allowedTouchTypes = finger
+      }
     }
 
     // MARK: updates from SwiftUI
@@ -114,6 +184,7 @@
         // The notebook opens on the page that was current.
         lastSelected = new.selectedIndex
         reportedIndex = new.selectedIndex
+        deliveredIndex = new.selectedIndex
       }
       if structural {
         applyLayout()
@@ -124,9 +195,13 @@
       // the scroll view itself reported is where it already is.
       if new.selectedIndex != lastSelected {
         lastSelected = new.selectedIndex
+        deliveredIndex = new.selectedIndex
         if new.selectedIndex != reportedIndex, laidOut, new.ids.indices.contains(new.selectedIndex) {
           let distance = abs(new.selectedIndex - max(0, reportedIndex))
           show(new.selectedIndex, animated: distance <= 1 && reportedIndex >= 0)
+        }
+        if new.selectedIndex < realPageCount {
+          indicator.show(page: new.selectedIndex + 1, of: realPageCount, force: true)
         }
       }
     }
@@ -212,12 +287,28 @@
       place = currentPlace()
     }
 
+    // A column keeps the same margin between a page and the edge of the screen however far it is
+    // zoomed, as Goodnotes does: the margins grow with the zoom like everything else on the
+    // surface, so they are trimmed again, and the page edge is where panning ends. Zoomed out, a
+    // column that is narrower than the view is centred.
     private func updateInsets() {
+      let z = zoom
       let width = scroll.contentSize.width
       let height = scroll.contentSize.height
-      let x = max(0, (scroll.bounds.width - width) / 2)
-      let y = columns ? 0 : max(0, (scroll.bounds.height - height) / 2)
-      let inset = UIEdgeInsets(top: y, left: x, bottom: y, right: x)
+      var inset = UIEdgeInsets.zero
+      if columns, z > 1 {
+        // Never more than there is to scroll, so trimming cannot make the surface smaller than the view.
+        let spareX = max(0, (width - scroll.bounds.width) / 2)
+        let spareY = max(0, (height - scroll.bounds.height) / 2)
+        let side = min(CGFloat(NotebookLayout.sideMargin) * (z - 1), spareX)
+        let top = min(CGFloat(NotebookLayout.topInset) * (z - 1), spareY)
+        let bottom = min(CGFloat(NotebookLayout.bottomInset) * (z - 1), spareY)
+        inset = UIEdgeInsets(top: -top, left: -side, bottom: -bottom, right: -side)
+      } else {
+        let x = max(0, (scroll.bounds.width - width) / 2)
+        let y = columns ? 0 : max(0, (scroll.bounds.height - height) / 2)
+        inset = UIEdgeInsets(top: y, left: x, bottom: y, right: x)
+      }
       if scroll.contentInset != inset { scroll.contentInset = inset }
     }
 
@@ -232,26 +323,74 @@
 
     // MARK: pages
 
+    // The density a page is drawn at: the screen's, times the zoom, but never so much that its
+    // backing store passes the 4096 pixels the page is drawn at anyway.
+    private func canvasScale(for frame: CGRect) -> CGFloat {
+      let wanted = UIScreen.main.scale * min(4, max(0.25, zoom))
+      return max(1, min(wanted, 4096 / max(1, max(frame.width, frame.height))))
+    }
+
+    private func rootView(_ index: Int, _ id: UUID, _ size: CGSize) -> AnyView {
+      guard let props else { return AnyView(EmptyView()) }
+      return AnyView(props.content(index, size).environment(\.canvasScale, scales[id]))
+    }
+
+    // Builds the pages near the view. Building a page costs a good part of a frame, so a scroll that
+    // brings several into range builds one per frame and shows a blank sheet for the others: a
+    // stutter in the scroll is worse than a page that fills in a moment later.
     private func syncHosts() {
       guard let props, layout.count == props.ids.count else { return }
-      let range = layout.indexes(visibleIn: visibleRect(), margin: 1)
+      let rect = visibleRect()
+      let range = layout.indexes(visibleIn: rect, margin: 1)
       let wanted = Set(range.map { props.ids[$0] })
       for (id, host) in hosts where !wanted.contains(id) {
         host.willMove(toParent: nil)
         host.view.removeFromSuperview()
         host.removeFromParent()
         hosts[id] = nil
+        scales[id] = nil
       }
-      for index in range {
+      for (id, view) in placeholders where !wanted.contains(id) || hosts[id] != nil {
+        view.removeFromSuperview()
+        placeholders[id] = nil
+      }
+      // Pages on screen before the ones that are only close.
+      let centreY = rect.y + rect.height / 2
+      let centreX = rect.x + rect.width / 2
+      let across = columns
+      let frames = layout.frames
+      let ordered = range.sorted { a, b in
+        func distance(_ i: Int) -> Double {
+          let f = frames[i]
+          return across ? abs(f.y + f.height / 2 - centreY) : abs(f.x + f.width / 2 - centreX)
+        }
+        return distance(a) < distance(b)
+      }
+      var built = 0
+      var deferred = false
+      for index in ordered {
         let id = props.ids[index]
-        let frame = CGRect(
-          x: layout.frames[index].x, y: layout.frames[index].y, width: layout.frames[index].width,
-          height: layout.frames[index].height)
+        let f = layout.frames[index]
+        let frame = CGRect(x: f.x, y: f.y, width: f.width, height: f.height)
         if let host = hosts[id] {
           if host.view.frame != frame { host.view.frame = frame }
+          // A page that has come into view is drawn for the zoom it is seen at now.
+          let wantedScale = canvasScale(for: frame)
+          if scales[id] != wantedScale, !scroll.isZooming, intersectsVisible(f, rect) {
+            scales[id] = wantedScale
+            host.rootView = rootView(index, id, frame.size)
+          }
           continue
         }
-        let host = UIHostingController(rootView: props.content(index, frame.size))
+        if built >= 1 {
+          deferred = true
+          let placeholder = placeholders[id] ?? makePlaceholder(id)
+          placeholder.frame = frame
+          continue
+        }
+        built += 1
+        scales[id] = canvasScale(for: frame)
+        let host = UIHostingController(rootView: rootView(index, id, frame.size))
         host.safeAreaRegions = []
         host.view.backgroundColor = .clear
         host.view.frame = frame
@@ -259,11 +398,40 @@
         surface.addSubview(host.view)
         host.didMove(toParent: self)
         hosts[id] = host
-        // A page that appears while the paper is zoomed has to be drawn for that zoom.
-        if zoom > 1.01 {
-          host.view.layoutIfNeeded()
-          refreshResolution(host.view)
+        if let placeholder = placeholders[id] {
+          placeholder.removeFromSuperview()
+          placeholders[id] = nil
         }
+      }
+      if deferred { scheduleSync() }
+    }
+
+    private func intersectsVisible(_ frame: Rect, _ rect: Rect) -> Bool {
+      frame.x <= rect.x + rect.width && frame.x + frame.width >= rect.x
+        && frame.y <= rect.y + rect.height && frame.y + frame.height >= rect.y
+    }
+
+    private func makePlaceholder(_ id: UUID) -> UIView {
+      let sheet = UIView()
+      sheet.backgroundColor = .white
+      if props?.infinite != true {
+        sheet.layer.shadowColor = UIColor.black.cgColor
+        sheet.layer.shadowOpacity = 0.10
+        sheet.layer.shadowRadius = 6
+        sheet.layer.shadowOffset = CGSize(width: 0, height: 2)
+      }
+      surface.addSubview(sheet)
+      placeholders[id] = sheet
+      return sheet
+    }
+
+    private func scheduleSync() {
+      guard !syncScheduled else { return }
+      syncScheduled = true
+      DispatchQueue.main.async { [weak self] in
+        guard let self else { return }
+        self.syncScheduled = false
+        self.syncHosts()
       }
     }
 
@@ -271,19 +439,9 @@
       guard let props, layout.count == props.ids.count else { return }
       for (index, id) in props.ids.enumerated() {
         guard let host = hosts[id] else { continue }
-        host.rootView = props.content(index, host.view.frame.size)
+        host.rootView = rootView(index, id, host.view.frame.size)
       }
       syncHosts()
-    }
-
-    // The canvases draw at the resolution of the zoom they were last settled at.
-    private func refreshResolution(_ view: UIView) {
-      if let canvas = view as? DrawingView {
-        canvas.contentScaleFactor = UIScreen.main.scale * min(4, zoom)
-        canvas.cachedPage = nil
-        canvas.setNeedsDisplay()
-      }
-      for child in view.subviews { refreshResolution(child) }
     }
 
     // MARK: navigation
@@ -292,7 +450,12 @@
       guard let props, props.ids.indices.contains(index), layout.count == props.ids.count else {
         return
       }
-      let edge = CGFloat(layout.offset(toShow: index)) * zoom
+      // A column puts the page a fixed distance below the top of the view at any zoom; a row puts
+      // its cell at the left.
+      let edge =
+        columns
+        ? CGFloat(layout.frames[index].y) * zoom - CGFloat(NotebookLayout.topInset)
+        : CGFloat(layout.offset(toShow: index)) * zoom
       var target = scroll.contentOffset
       if columns { target.y = edge } else { target.x = edge }
       target = clamped(target)
@@ -318,18 +481,16 @@
       updateInsets()
       syncHosts()
       scroll.accessibilityValue = "Zoom \(Int((zoom * 100).rounded())) percent"
-      let now = ProcessInfo.processInfo.systemUptime
-      if now - lastZoomReport > 0.1 {
-        lastZoomReport = now
-        props?.onZoom(Double(zoom))
-      }
     }
 
+    // Everything that has to redo work for the new zoom waits until the fingers have lifted: the
+    // pinch itself is only a scale of what is already drawn.
     func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
       guard !restoring else { return }
       props?.onZoom(Double(scale))
-      for host in hosts.values { refreshResolution(host.view) }
+      syncHosts()
       place = currentPlace()
+      settled()
     }
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
@@ -353,15 +514,14 @@
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
       guard !restoring, laidOut, let props, layout.count == props.ids.count else { return }
       syncHosts()
+      place = currentPlace()
       if animatingTo == nil {
         let index = layout.currentIndex(visibleIn: visibleRect())
-        if index != reportedIndex {
-          reportedIndex = index
-          props.onCurrentPage(index)
+        if index != reportedIndex { reportedIndex = index }
+        if scrollView.isDragging || scrollView.isDecelerating, index < realPageCount {
+          indicator.show(page: index + 1, of: realPageCount)
         }
       }
-      place = currentPlace()
-      if scrollView.isDragging || scrollView.isDecelerating { props.onScrollActivity() }
       checkPull(scrollView)
     }
 
@@ -374,12 +534,17 @@
       settled()
     }
 
+    // The paper has come to rest: now the view above is told where it is.
     private func settled() {
       place = currentPlace()
-      guard let props, layout.count == props.ids.count, let trailing = props.trailingIndex else {
-        return
+      guard let props, layout.count == props.ids.count else { return }
+      let index = layout.currentIndex(visibleIn: visibleRect())
+      reportedIndex = index
+      if index != deliveredIndex {
+        deliveredIndex = index
+        props.onCurrentPage(index)
       }
-      if layout.currentIndex(visibleIn: visibleRect()) == trailing { props.onTrailingReached() }
+      if let trailing = props.trailingIndex, index == trailing { props.onTrailingReached() }
     }
 
     // Pulling past the end of a column and holding it adds a page.
