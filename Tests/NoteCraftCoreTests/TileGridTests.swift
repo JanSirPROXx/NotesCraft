@@ -102,3 +102,12 @@ private let page = Point(800, 1100)
   #expect(!grid.contains(.init(column: 4, row: 0)))
   #expect(!grid.contains(.init(column: 0, row: -1)))
 }
+
+@Test func aRectangleTouchingTheFarEdgeOfAnExactGridDoesNotCrash() {
+  // 512 pt tiles at density 1: a page of 1024 x 1536 is exactly 2 x 3 tiles.
+  let grid = TileGrid(pageSize: Point(1024, 1536), density: 1)
+  #expect(grid.columns == 2 && grid.rows == 3)
+  #expect(grid.ids(intersecting: Rect(x: 0, y: 1536, width: 100, height: 0)).count <= 2)
+  #expect(grid.ids(intersecting: Rect(x: 1024, y: 0, width: 0, height: 100)).count <= 3)
+  #expect(grid.ids(intersecting: Rect(x: 1024, y: 1536, width: 0, height: 0)).count <= 1)
+}

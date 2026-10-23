@@ -66,9 +66,16 @@ public struct TileGrid: Equatable, Sendable {
     guard rect.x <= pageSize.x, rect.y <= pageSize.y, rect.x + rect.width >= 0,
       rect.y + rect.height >= 0
     else { return [] }
+    // A rectangle that only touches the far edge of a page whose size is a whole number of tiles
+    // would start one tile past the last.
+    let firstRow = max(0, top)
+    let lastRow = min(rows - 1, bottom)
+    let firstColumn = max(0, first)
+    let lastColumn = min(columns - 1, last)
+    guard firstRow <= lastRow, firstColumn <= lastColumn else { return [] }
     var result: [ID] = []
-    for row in max(0, top)...min(rows - 1, bottom) {
-      for column in max(0, first)...min(columns - 1, last) {
+    for row in firstRow...lastRow {
+      for column in firstColumn...lastColumn {
         result.append(ID(column: column, row: row))
       }
     }
