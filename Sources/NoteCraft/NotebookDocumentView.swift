@@ -115,7 +115,7 @@
     // What a page that is still being built shows in its place.
     private var placeholders: [UUID: UIView] = [:]
     // The pixel density each page was last given; see `NativeCanvas`.
-    private var scales: [UUID: CGFloat] = [:]
+    private var scales: [UUID: CanvasDensity] = [:]
     private var props: NotebookDocumentView?
     private var layout = NotebookLayout(pageSizes: [], viewport: Point(0, 0), axis: .vertical)
     // The place the reader is at, as a page and how far through it, so a change of layout puts the
@@ -323,16 +323,21 @@
 
     // MARK: pages
 
-    // The density a page is drawn at: the screen's, times the zoom, but never so much that its
-    // backing store passes the 4096 pixels the page is drawn at anyway.
-    private func canvasScale(for frame: CGRect) -> CGFloat {
-      let wanted = UIScreen.main.scale * min(4, max(0.25, zoom))
-      return max(1, min(wanted, 4096 / max(1, max(frame.width, frame.height))))
+    // The densities a page is drawn at. The page itself is cut into tiles at exactly the density it
+    // is seen at, which is the screen's times the zoom. The views as large as the page above it
+    // are capped so that their backing store does not pass the 4096 pixels a page was drawn at
+    // before tiles.
+    private func canvasDensity(for frame: CGRect) -> CanvasDensity {
+      let screen = UIScreen.main.scale
+      let capped = screen * min(4, max(0.25, zoom))
+      return CanvasDensity(
+        overlay: max(1, min(capped, 4096 / max(1, max(frame.width, frame.height)))),
+        tiles: max(1, screen * zoom))
     }
 
     private func rootView(_ index: Int, _ id: UUID, _ size: CGSize) -> AnyView {
       guard let props else { return AnyView(EmptyView()) }
-      return AnyView(props.content(index, size).environment(\.canvasScale, scales[id]))
+      return AnyView(props.content(index, size).environment(\.canvasDensity, scales[id]))
     }
 
     // Builds the pages near the view. Building a page costs a good part of a frame, so a scroll that
@@ -375,7 +380,7 @@
         if let host = hosts[id] {
           if host.view.frame != frame { host.view.frame = frame }
           // A page that has come into view is drawn for the zoom it is seen at now.
-          let wantedScale = canvasScale(for: frame)
+          let wantedScale = canvasDensity(for: frame)
           if scales[id] != wantedScale, !scroll.isZooming, intersectsVisible(f, rect) {
             scales[id] = wantedScale
             host.rootView = rootView(index, id, frame.size)
@@ -389,7 +394,7 @@
           continue
         }
         built += 1
-        scales[id] = canvasScale(for: frame)
+        scales[id] = canvasDensity(for: frame)
         let host = UIHostingController(rootView: rootView(index, id, frame.size))
         host.safeAreaRegions = []
         host.view.backgroundColor = .clear

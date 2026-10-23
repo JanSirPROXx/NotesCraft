@@ -124,8 +124,9 @@ retains vector ink, text and the original PDF backgrounds. Search covers text bo
   transforms, spatial queries, selection, erasure, concurrent conflict-safe writes,
   original PDF dimensions, searchable vector text, import and PNG rendering.
 
-Coordinates are PDF points. Existing ink is cached in a CoreGraphics layer during input;
-active samples render directly in a native view. iPad input consumes coalesced Pencil
+Coordinates are PDF points. A page in the notebook is drawn as tiles at the density it is seen
+at, whiteboards cache existing ink in one CoreGraphics layer; active samples render directly in
+a native view. iPad input consumes coalesced Pencil
 samples with pressure and altitude. UI is main-actor isolated with Swift 6 concurrency
 checking. See [the format specification](docs/FORMAT.md).
 

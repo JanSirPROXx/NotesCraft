@@ -183,14 +183,21 @@ enum PencilAction {
     var screenPointsPerViewPoint: Double { 1 }
   }
 #else
-  // The pixel density a canvas is drawn at, which the document view works out from the zoom: the
-  // backing store of a page that is zoomed in grows with the square of it, far past what the page
-  // is drawn at, so it is capped.
-  private struct CanvasScaleKey: EnvironmentKey { static let defaultValue: CGFloat? = nil }
+  // The pixel densities a canvas is drawn at, which the document view works out from the zoom.
+  // The page itself is drawn in tiles at the full density it is seen at. The views as large as the
+  // page that go on top of it (the ink being written, the selection) have a backing store that
+  // grows with the square of the zoom, far past what is needed, so their density is capped.
+  struct CanvasDensity: Equatable {
+    var overlay: CGFloat
+    var tiles: CGFloat
+  }
+  private struct CanvasDensityKey: EnvironmentKey {
+    static let defaultValue: CanvasDensity? = nil
+  }
   extension EnvironmentValues {
-    var canvasScale: CGFloat? {
-      get { self[CanvasScaleKey.self] }
-      set { self[CanvasScaleKey.self] = newValue }
+    var canvasDensity: CanvasDensity? {
+      get { self[CanvasDensityKey.self] }
+      set { self[CanvasDensityKey.self] = newValue }
     }
   }
   struct NativeCanvas: UIViewRepresentable {
@@ -214,10 +221,8 @@ enum PencilAction {
     }
     func updateUIView(_ view: DrawingView, context: Context) {
       view.configuration = configuration
-      if let scale = context.environment.canvasScale, abs(view.contentScaleFactor - scale) > 0.001 {
-        view.contentScaleFactor = scale
-        view.cachedPage = nil
-        view.setNeedsDisplay()
+      if let density = context.environment.canvasDensity {
+        view.setTiling(density: density.tiles, overlayScale: density.overlay)
       }
       view.isAccessibilityElement = true
       view.accessibilityLabel = "Drawing canvas"
@@ -261,8 +266,90 @@ enum PencilAction {
     var samples: [Sample] = []
     var predictedSamples: [Sample] = []
     override func draw(_ rect: CGRect) {
-      guard let c = UIGraphicsGetCurrentContext(), let configuration else { return }
+      // A page in tiles is drawn by its tile views; this one only has to be there.
+      guard !tiled, let c = UIGraphicsGetCurrentContext(), let configuration else { return }
       paint(configuration, c, dirty: rect)
+    }
+    // The page drawn in tiles (see `PageTileView`), under everything else, while this view paints
+    // only what is not the page. Used where the page is shown by the document view.
+    private(set) var tileView: PageTileView?
+    // The density of the views above the tiles, and of the tiles themselves.
+    private var overlayScale: CGFloat = UIScreen.main.scale
+    private var tileDensity: CGFloat = UIScreen.main.scale
+    // Turns tiling on, and sets the densities the page and the overlay views are drawn at.
+    func setTiling(density: CGFloat, overlayScale scale: CGFloat) {
+      guard let page = configuration?.page, configuration?.viewport == nil else { return }
+      if tileView == nil {
+        let tiles = PageTileView(frame: bounds)
+        tiles.content = { [weak self] in self?.tileContent() }
+        tiles.drawsOnScreenAtOnce = { [weak self] in
+          guard let self, let configuration = self.configuration else { return true }
+          return !self.isHeavy(configuration.page)
+        }
+        insertSubview(tiles, at: 0)
+        tileView = tiles
+        // The view itself has nothing to draw: one pixel per point and no redraws on resize.
+        contentMode = .scaleToFill
+        isOpaque = false
+        super.contentScaleFactor = 1
+        cachedPage = nil
+        overlayScale = scale
+        syncOverlayScale()
+        setNeedsDisplay()
+      } else if abs(overlayScale - scale) > 0.001 {
+        overlayScale = scale
+        syncOverlayScale()
+        setNeedsDisplay()
+      }
+      tileDensity = density
+      tileView?.configure(
+        pageSize: CGSize(width: page.dimensions.x, height: page.dimensions.y), density: density)
+    }
+    private func syncOverlayScale() {
+      let scale = tiled ? overlayScale : contentScaleFactor
+      inkOverlay?.contentScaleFactor = scale
+      // On a page in tiles the GPU view is placed for each stroke (`placeGPUInkWindow`).
+      if !tiled { metalInk?.contentScaleFactor = scale }
+    }
+    // On a page in tiles the GPU ink covers only the part of the page that is on screen, at the
+    // density the page is seen at: a drawable as large as a page at 6x zoom would not fit in
+    // memory, and one that is capped to fit is soft. The screen is the same size of bitmap at any
+    // zoom. It is placed when a stroke starts and stays there until the next one: the page does
+    // not scroll under a Pencil that is down.
+    private func placeGPUInkWindow() {
+      guard let metalInk else { return }
+      guard tiled, let window = tileView?.visibleRect, !window.isNull, !window.isEmpty else {
+        metalInk.frame = bounds
+        metalInk.contentScaleFactor = tiled ? overlayScale : contentScaleFactor
+        return
+      }
+      let density = tileDensity
+      let origin = CGPoint(x: floor(window.minX * density) / density, y: floor(window.minY * density) / density)
+      let size = CGSize(
+        width: (window.maxX - origin.x) + 1 / density, height: (window.maxY - origin.y) + 1 / density)
+      metalInk.frame = CGRect(origin: origin, size: size).intersection(bounds)
+      metalInk.contentScaleFactor = density
+    }
+    // The page as the tiles should show it: without what is being moved, and with what the eraser
+    // has taken away so far, both of which are drawn or left out by the views above.
+    func tileContent() -> PageTileView.Content? {
+      guard let configuration else { return nil }
+      var page = configuration.page
+      if configuration.tool == .eraser, !samples.isEmpty, let session = input.eraseSession {
+        page.strokes = session.strokes
+      }
+      if input.moveStart != nil {
+        page.strokes.removeAll { configuration.selection.contains($0.id) }
+        page.images.removeAll { configuration.selection.contains($0.id) }
+        page.texts.removeAll { configuration.selection.contains($0.id) }
+      }
+      return .init(page: page, assets: configuration.assets)
+    }
+    override func setNeedsDisplay() {
+      if tiled { inkOverlay?.setNeedsDisplay() } else { super.setNeedsDisplay() }
+    }
+    override func setNeedsDisplay(_ rect: CGRect) {
+      if tiled { inkOverlay?.setNeedsDisplay(rect) } else { super.setNeedsDisplay(rect) }
     }
     // The stroke being written lives on its own transparent view. Each new sample then repaints
     // only a sliver of ink instead of re-blitting the cached page beneath it, and the compositor
@@ -272,15 +359,13 @@ enum PencilAction {
     private(set) var metalInk: MetalInkView?
     var drawsInkOnGPU: Bool { metalInk != nil && configuration?.gpuInk == true }
     override var contentScaleFactor: CGFloat {
-      didSet {
-        inkOverlay?.contentScaleFactor = contentScaleFactor
-        metalInk?.contentScaleFactor = contentScaleFactor
-      }
+      didSet { if !tiled { syncOverlayScale() } }
     }
     override func layoutSubviews() {
       super.layoutSubviews()
+      tileView?.frame = bounds
       inkOverlay?.frame = bounds
-      metalInk?.frame = bounds
+      if !tiled { metalInk?.frame = bounds }
     }
     private func installInkOverlay() {
       guard inkOverlay == nil else { return }
@@ -290,15 +375,14 @@ enum PencilAction {
       overlay.backgroundColor = .clear
       overlay.isUserInteractionEnabled = false
       overlay.clearsContextBeforeDrawing = true
-      overlay.contentScaleFactor = contentScaleFactor
       addSubview(overlay)
       inkOverlay = overlay
       // Above the overlay: the live stroke is the topmost thing on the page.
       if let gpu = MetalInkView.make(frame: bounds) {
-        gpu.contentScaleFactor = contentScaleFactor
         addSubview(gpu)
         metalInk = gpu
       }
+      syncOverlayScale()
     }
     func invalidateOverlay(_ rect: CGRect? = nil) {
       guard let inkOverlay else { return }
@@ -313,11 +397,19 @@ enum PencilAction {
         input.resizeStart == nil, !samples.isEmpty, bounds.width > 0
       else { return }
       input.gpuInkDirty = false
+      if !input.gpuWindowPlaced {
+        input.gpuWindowPlaced = true
+        placeGPUInkWindow()
+      }
       let lost = metalInk.fitDrawable()
       if lost { input.bakedThrough = 0 }
       let pixelScale = metalInk.pixelScale
       let docScale = configuration.viewport?.scale ?? bounds.width / configuration.page.dimensions.x
-      let offset = configuration.viewport?.offset ?? Point(0, 0)
+      var offset = configuration.viewport?.offset ?? Point(0, 0)
+      if tiled {
+        // The drawable starts where the window starts.
+        offset = Point(-Double(metalInk.frame.minX), -Double(metalInk.frame.minY))
+      }
       let count = samples.count
       let pencil = configuration.style == .pencil
       let uniforms = InkUniforms(
@@ -921,6 +1013,8 @@ enum PencilAction {
   // another stroke has started in the meantime.
   var gpuInkDirty = false
   var gpuClearGeneration = 0
+  // The GPU view has been placed for the stroke being written (see `placeGPUInkWindow`).
+  var gpuWindowPlaced = false
 }
 struct ReadyCache {
   let image: CGImage
@@ -974,6 +1068,9 @@ extension DrawingView {
       || !Self.sameAssets(old?.assets ?? [:], new?.assets ?? [:])
     else { return nil }
     defer { input.pendingStroke = nil }
+    #if os(iOS)
+      if let tileView { return updateTiles(tileView, from: old, to: new) }
+    #endif
     if let old, let new, let pending = input.pendingStroke,
       pending.tool == .pen || pending.tool == .shapes, Self.sameAssets(old.assets, new.assets),
       old.viewport == new.viewport, input.moveStart == nil,
@@ -990,6 +1087,53 @@ extension DrawingView {
     }
     cachedPage = nil
     return nil
+  }
+  #if os(iOS)
+    // The page changed: the tiles it touches are redrawn, and a stroke that was only added goes
+    // into them without redrawing. Returns the part of the view the new stroke covers.
+    private func updateTiles(
+      _ tiles: PageTileView, from old: CanvasConfiguration?, to new: CanvasConfiguration?
+    ) -> CGRect? {
+      guard let old, let new, Self.sameAssets(old.assets, new.assets) else {
+        tiles.invalidate()
+        return nil
+      }
+      if let pending = input.pendingStroke, pending.tool == .pen || pending.tool == .shapes,
+        input.moveStart == nil, new.page.strokes.last == pending
+      {
+        var previous = new.page
+        previous.strokes.removeLast()
+        if previous == old.page {
+          tiles.append(pending)
+          guard pending.tool == .pen, pending.shape == nil else { return nil }
+          return viewRect(of: pending.samples, width: pending.width, in: new)
+        }
+      }
+      switch PageDiff.change(from: old.page, to: new.page) {
+      case .none: break
+      case .area(let area):
+        tiles.invalidate(inPageRect: CGRect(x: area.x, y: area.y, width: area.width, height: area.height))
+      case .everything: tiles.invalidate()
+      }
+      return nil
+    }
+    // What moving or releasing the selection changes on the page: where the selected objects are.
+    private func selectionArea() -> CGRect? {
+      guard let configuration, !configuration.selection.isEmpty,
+        let box = InkGestures.selectionBounds(page: configuration.page, ids: configuration.selection)
+      else { return nil }
+      let pad = 12.0
+      return CGRect(
+        x: box.x - pad, y: box.y - pad, width: box.width + 2 * pad, height: box.height + 2 * pad)
+    }
+  #endif
+  // The cached page is out of date. A page in tiles redraws the tiles at `area` (page units), or
+  // all of them.
+  func dropPageCache(area: CGRect? = nil) {
+    cachedPage = nil
+    #if os(iOS)
+      tileView?.invalidate(inPageRect: area)
+    #endif
   }
   // The view area ink laid down along `samples` can touch. Brush tilt and pressure can widen a
   // segment to roughly 3.4x the nominal width.
@@ -1028,6 +1172,20 @@ extension DrawingView {
   // The eraser changes a small area at a time: redraw just that area of the cached page instead
   // of rebuilding the whole page for every sample.
   func patchCache(page area: Rect) {
+    #if os(iOS)
+      if let tileView {
+        guard let configuration, input.eraseSession != nil else {
+          dropPageCache()
+          return
+        }
+        // Mutated in place in `input`: a copy of the session would copy its whole index.
+        tileView.patch(
+          inPageRect: CGRect(x: area.x, y: area.y, width: area.width, height: area.height),
+          strokes: input.eraseSession?.strokes(reaching: area) ?? [], page: configuration.page,
+          assets: configuration.assets)
+        return
+      }
+    #endif
     guard let configuration, input.eraseSession != nil, let context = cachedPage?.context,
       cachedViewport == configuration.viewport
     else {
@@ -1150,7 +1308,17 @@ extension DrawingView {
   }
   func resetInput() {
     if input.moveStart != nil || (configuration?.tool == .eraser && !samples.isEmpty) {
-      cachedPage = nil
+      #if os(iOS)
+        // The tiles of a page already show an eraser's work; they only have to take the objects
+        // back that a move had lifted off the page.
+        if tiled {
+          if input.moveStart != nil { dropPageCache(area: selectionArea()) }
+        } else {
+          cachedPage = nil
+        }
+      #else
+        cachedPage = nil
+      #endif
     }
     // Before `samples` is emptied: a stroke that just ended leaves the GPU copy up for a moment,
     // a stroke that is about to start removes the previous one at once.
@@ -1180,6 +1348,7 @@ extension DrawingView {
     input.invalidatedSamples = 0
     input.lastInkRect = .null
     input.eraseSession = nil
+    input.gpuWindowPlaced = false
     input.cursor = nil
     input.eraseDirty = .null
     input.cursorRect = .null
@@ -1314,7 +1483,11 @@ extension DrawingView {
       input.frame = InkGestures.objectFrame(page: effective.page, ids: effective.selection)
       input.selectionTransform = SelectionTransform(
         center: hit.center, axis: input.frame?.rotation ?? 0)
-      cachedPage = nil
+      #if os(iOS)
+        dropPageCache(area: selectionArea())
+      #else
+        cachedPage = nil
+      #endif
     }
     if let start = input.moveStart, var transform = input.selectionTransform {
       let frame = input.frame
@@ -1521,6 +1694,10 @@ extension DrawingView {
   // The live pen stroke, drawn into the transparent overlay (iOS). Everything else about the page
   // is painted by `paint`.
   func paintOverlay(_ c: CGContext) {
+    if tiled {
+      paintPageOverlay(c)
+      return
+    }
     guard let configuration, configuration.tool == .pen, input.held == nil,
       input.moveStart == nil, !samples.isEmpty, bounds.width > 0, bounds.height > 0
     else {
@@ -1545,12 +1722,40 @@ extension DrawingView {
           tip: configuration.tip), in: c)
     }
   }
+  // Whether the page is drawn in tiles instead of one bitmap.
+  var tiled: Bool {
+    #if os(iOS)
+      tileView != nil
+    #else
+      false
+    #endif
+  }
+  // The overlay of a page in tiles carries everything but the page, in one pass.
+  private func paintPageOverlay(_ c: CGContext) {
+    guard var configuration, bounds.width > 0, bounds.height > 0 else { return }
+    if let transform = input.selectionTransform {
+      configuration.page = InkGestures.transform(
+        configuration.page, ids: configuration.selection, by: transform)
+    }
+    input.overlayInked =
+      input.pendingStroke != nil || !configuration.searchHighlights.isEmpty
+      || !configuration.selection.isEmpty || !samples.isEmpty || !input.scratchPreview.isEmpty
+      || input.moveStart != nil || (configuration.tool == .eraser && input.cursor != nil)
+    guard input.overlayInked else { return }
+    c.saveGState()
+    let (cacheRect, resolution) = canvasSpace(c, configuration)
+    paintDynamic(configuration, c, cacheRect: cacheRect, resolution: resolution)
+    c.restoreGState()
+  }
   func buildsCacheInBackground(_ configuration: CanvasConfiguration) -> Bool {
     // A running gesture needs the cache now (the eraser patches it per sample).
     guard samples.isEmpty, input.moveStart == nil, input.selectionTransform == nil,
       configuration.tool != .eraser
     else { return false }
-    let page = configuration.page
+    return isHeavy(configuration.page)
+  }
+  // A page that takes long enough to draw that it is drawn in the background.
+  func isHeavy(_ page: Page) -> Bool {
     var weight = page.images.count * 30_000 + page.texts.count * 500
     if page.backgroundPDF != nil { weight += 40_000 }
     for stroke in page.strokes {
@@ -1658,6 +1863,15 @@ extension DrawingView {
       cachedViewport = configuration.viewport
     }
     if let cachedPage { c.draw(cachedPage, in: cacheRect) }
+    paintDynamic(configuration, c, cacheRect: cacheRect, resolution: resolution)
+    c.restoreGState()
+  }
+  // Everything on a page that is not the page itself: the stroke that has just been lifted, search
+  // hits, objects being moved, the live stroke, the eraser's reach and the selection. The page
+  // context is already in page units. On a page drawn in tiles this is all the view draws.
+  func paintDynamic(
+    _ configuration: CanvasConfiguration, _ c: CGContext, cacheRect: CGRect, resolution: Double
+  ) {
     if let pending = input.pendingStroke {
       if configuration.page.strokes.contains(where: { $0.id == pending.id }) {
         input.pendingStroke = nil
@@ -1676,7 +1890,7 @@ extension DrawingView {
       moving.texts.removeAll { !configuration.selection.contains($0.id) }
       PageRenderer.render(moving, assets: configuration.assets, in: c, includeBackground: false)
     }
-    if !drawsInkInOverlay { drawScratchPreview(c) }
+    if tiled || !drawsInkInOverlay { drawScratchPreview(c) }
     if !samples.isEmpty {
       if configuration.tool == .lasso && input.moveStart == nil {
         c.setStrokeColor(PageRenderer.color(.blue))
@@ -1698,7 +1912,7 @@ extension DrawingView {
         if configuration.tool == .pen, let held = input.heldResized ?? input.held {
           // Preview the committed shape itself so nothing shifts when the pen lifts.
           PageRenderer.stroke(held, in: c)
-        } else if configuration.tool == .pen, input.held == nil, drawsInkInOverlay {
+        } else if configuration.tool == .pen, input.held == nil, liveInkIsInAnotherView {
           // The overlay view shows the live stroke.
         } else if configuration.tool == .pen, input.held == nil, samples.count > 5 {
           paintLiveInk(configuration, in: c, rect: cacheRect, resolution: resolution)
@@ -1779,7 +1993,15 @@ extension DrawingView {
         ] { dot(point, 10) }
       }
     }
-    c.restoreGState()
+  }
+  // Whether the pen's live stroke is drawn by another view than the one being painted: the GPU
+  // view above a page in tiles, the ink overlay above a page that is one bitmap.
+  private var liveInkIsInAnotherView: Bool {
+    #if os(iOS)
+      tiled ? drawsInkOnGPU : drawsInkInOverlay
+    #else
+      false
+    #endif
   }
   func finish() {
     guard let configuration, let first = samples.first else {

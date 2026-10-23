@@ -720,6 +720,35 @@ actor PageCacheWorker {
     }
   }
 
+  // One tile of a page: `pixelWidth` by `pixelHeight` pixels, starting at `origin` in page units and
+  // drawn at `resolution` pixels per page unit. Only the strokes that reach the tile are drawn.
+  func renderTile(
+    _ page: Page, assets: [String: Data], origin: CGPoint, resolution: Double, pixelWidth: Int,
+    pixelHeight: Int
+  ) -> RenderedPage? {
+    autoreleasepool {
+      guard !Task.isCancelled, pixelWidth > 0, pixelHeight > 0, pixelWidth <= 16384,
+        pixelHeight <= 16384,
+        let c = CGContext(
+          data: nil, width: pixelWidth, height: pixelHeight, bitsPerComponent: 8, bytesPerRow: 0,
+          space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
+          bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
+            | CGBitmapInfo.byteOrder32Little.rawValue)
+      else { return nil }
+      c.translateBy(x: 0, y: Double(pixelHeight))
+      c.scaleBy(x: resolution, y: -resolution)
+      c.translateBy(x: -origin.x, y: -origin.y)
+      let area = CGRect(
+        x: origin.x, y: origin.y, width: Double(pixelWidth) / resolution,
+        height: Double(pixelHeight) / resolution)
+      PageRenderer.renderContent(
+        page, assets: assets, in: c,
+        backgroundDocument: page.backgroundPDF.flatMap { assets[$0] }.flatMap { document($0) },
+        cull: area)
+      return c.makeImage().map(RenderedPage.init)
+    }
+  }
+
   private func document(_ data: Data) -> PDFDocument? {
     if let cached = pdfs.first(where: { $0.0.count == data.count && $0.0 == data }) {
       return cached.1

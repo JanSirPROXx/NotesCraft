@@ -71,8 +71,11 @@ Not built yet, in the order they matter for writing:
 - A switch for Adjust Thickness by Speed (the fountain pen always does it).
 - Highlighter ink is a raw polyline: it does not go through the pen's smoothing yet.
 - New Quick Record (audio), Study Set, QuickNote and Text Document from the File menu.
-- The page is one bitmap that is rebuilt when a pinch ends, so a zoomed page stays soft until it
-  has been redrawn; tiled rendering would remove the wait.
+- A zoomed page is drawn again as tiles when a pinch ends, and stays soft only until the tiles on
+  screen have arrived. The selection handles and the live highlighter are still drawn into a
+  full-page overlay whose density is capped, so they are soft past about 3.5x zoom.
+- The pencil grain is laid out in page coordinates at two texels per point and sampled without
+  smoothing, so it shows as small squares at high zoom.
 
 Handwriting recognition, spell check of handwriting and math assist depend on a recognition model
 and stay out of scope together with the items below.

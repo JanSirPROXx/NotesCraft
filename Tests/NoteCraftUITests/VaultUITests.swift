@@ -396,6 +396,80 @@ final class VaultUITests: XCTestCase {
     point(100, 650).press(forDuration: 0.05, thenDragTo: point(300, 700))
     XCTAssertEqual(canvas.value as? String, "3 strokes")
   }
+  // A page that is zoomed in is drawn again at the density it is seen at, tile by tile, so a thin
+  // line stays a thin line instead of a magnified blur. The screenshots are for looking at.
+  @MainActor func testZoomedInPageIsDrawnSharpInTiles() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input", "--ui-test-ring-notebook"]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    let surface = try visibleZoomSurface(app)
+    XCTAssertTrue(app.descendants(matching: .any)["drawingCanvas"].firstMatch.waitForExistence(timeout: 10))
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    capture(app, name: "Tiles at fit zoom")
+    for _ in 0..<3 where Int((surface.value as? String ?? "").filter(\.isNumber)) ?? 0 < 500 {
+      surface.pinch(withScale: 3, velocity: 2)
+    }
+    RunLoop.current.run(until: Date().addingTimeInterval(1.5))
+    capture(app, name: "Tiles zoomed in")
+    surface.swipeDown(velocity: .slow)
+    RunLoop.current.run(until: Date().addingTimeInterval(1.5))
+    capture(app, name: "Tiles after panning")
+    // Ink written at this zoom is drawn by the GPU at the density the page is seen at, and
+    // joins the tiles when the pen lifts.
+    XCTAssertEqual(visiblePageStrokes(app), "3 strokes")
+    // The simulator only has fingers: let one ink, like a Pencil would.
+    app.buttons["More"].tap()
+    let pencilOnly = app.descendants(matching: .any)["Apple Pencil only"].firstMatch
+    XCTAssertTrue(pencilOnly.waitForExistence(timeout: 5))
+    pencilOnly.tap()
+    let start = surface.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.25))
+    // A slow drag, with a screenshot taken while the stroke is still being written.
+    let live = LiveShot()
+    DispatchQueue.global().asyncAfter(deadline: .now() + 2.2) {
+      live.image = XCUIScreen.main.screenshot()
+    }
+    start.press(
+      forDuration: 0.05,
+      thenDragTo: surface.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.35)),
+      withVelocity: .slow, thenHoldForDuration: 0.1)
+    if let image = live.image {
+      let attachment = XCTAttachment(screenshot: image)
+      attachment.name = "Tiles with a stroke being written while zoomed in"
+      attachment.lifetime = .keepAlways
+      add(attachment)
+    }
+    XCTAssertTrue(waitForVisiblePage(app, "4 strokes"), "The stroke is part of the page")
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    capture(app, name: "Tiles with a stroke written while zoomed in")
+    // Erasing and undoing change the tiles in place.
+    app.buttons["Eraser"].tap()
+    surface.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.18)).press(
+      forDuration: 0.05,
+      thenDragTo: surface.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)))
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    capture(app, name: "Tiles after erasing across the stroke")
+    app.buttons["Undo"].tap()
+    XCTAssertTrue(waitForVisiblePage(app, "4 strokes"), "Undo brings the stroke back")
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    capture(app, name: "Tiles after undoing the erase")
+    // The precision eraser cuts a piece out of the ring: only the tiles it reaches are patched.
+    app.buttons["Precision"].tap()
+    surface.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.82)).press(
+      forDuration: 0.05,
+      thenDragTo: surface.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.84)))
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    capture(app, name: "Tiles after cutting the ring with the precision eraser")
+    surface.pinch(withScale: 0.3, velocity: -2)
+    RunLoop.current.run(until: Date().addingTimeInterval(1.5))
+    capture(app, name: "Tiles zoomed out again")
+  }
   @MainActor func testPencilStyleInksThroughTheLivePath() throws {
     continueAfterFailure = false
     let app = XCUIApplication()
@@ -647,4 +721,9 @@ final class VaultUITests: XCTestCase {
     image.lifetime = .keepAlways
     add(image)
   }
+}
+
+// A screenshot taken from another thread while a gesture is running.
+private final class LiveShot: @unchecked Sendable {
+  var image: XCUIScreenshot?
 }
