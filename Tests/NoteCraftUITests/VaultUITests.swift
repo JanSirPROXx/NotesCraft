@@ -424,6 +424,79 @@ final class VaultUITests: XCTestCase {
     point(0.2, 0.4).press(forDuration: 0.05, thenDragTo: point(0.7, 0.45))
     XCTAssertEqual(canvas.value as? String, "2 strokes")
   }
+  // The page that fills most of the notebook view, told apart by how many strokes it holds.
+  @MainActor private func visiblePageStrokes(_ app: XCUIApplication) -> String? {
+    let viewport = app.scrollViews["notebookScrollView"].frame
+    let canvases = app.descendants(matching: .any).matching(identifier: "drawingCanvas")
+      .allElementsBoundByIndex
+    func area(_ element: XCUIElement) -> CGFloat {
+      let visible = element.frame.intersection(viewport)
+      return visible.isNull ? 0 : visible.width * visible.height
+    }
+    return canvases.max { area($0) < area($1) }?.value as? String
+  }
+  @MainActor private func waitForVisiblePage(
+    _ app: XCUIApplication, _ expected: String, timeout: TimeInterval = 6
+  ) -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+      if visiblePageStrokes(app) == expected { return true }
+      RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+    }
+    return false
+  }
+  @MainActor func testClosingThePageSidebarKeepsThePageThatWasChosen() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input", "--ui-test-numbered-notebook"]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    XCTAssertTrue(app.scrollViews["notebookScrollView"].waitForExistence(timeout: 10))
+    XCTAssertTrue(waitForVisiblePage(app, "1 strokes"), visiblePageStrokes(app) ?? "no page")
+
+    // Choose a page from the sidebar, close the sidebar, open it again: the chosen page has to stay
+    // the current one all along, not just stay on screen.
+    func choose(_ index: Int, _ label: String) {
+      app.buttons["Pages"].tap()
+      let thumbnail = app.buttons["pageThumbnail-\(index)"]
+      XCTAssertTrue(thumbnail.waitForExistence(timeout: 5))
+      var swipes = 0
+      while !thumbnail.isHittable && swipes < 8 {
+        app.scrollViews["pageSidebar"].swipeUp()
+        swipes += 1
+      }
+      thumbnail.tap()
+      XCTAssertTrue(waitForVisiblePage(app, "\(index + 1) strokes"), "\(label): \(visiblePageStrokes(app) ?? "no page")")
+      XCTAssertTrue(app.buttons["pageThumbnail-\(index)"].isSelected, "\(label): chosen")
+      app.buttons["Pages"].tap()
+      RunLoop.current.run(until: Date().addingTimeInterval(2))
+      XCTAssertEqual(visiblePageStrokes(app), "\(index + 1) strokes", "\(label): after closing")
+      app.buttons["Pages"].tap()
+      XCTAssertTrue(app.buttons["pageThumbnail-\(index)"].waitForExistence(timeout: 5))
+      RunLoop.current.run(until: Date().addingTimeInterval(1))
+      XCTAssertTrue(
+        app.buttons["pageThumbnail-\(index)"].isSelected, "\(label): the sidebar jumped to another page")
+      XCTAssertEqual(visiblePageStrokes(app), "\(index + 1) strokes", "\(label): after reopening")
+      app.buttons["Pages"].tap()
+      RunLoop.current.run(until: Date().addingTimeInterval(1))
+    }
+    choose(2, "horizontal, page 3")
+    choose(7, "horizontal, page 8")
+
+    // The same in the vertical layout.
+    app.buttons["More"].tap()
+    let horizontal = app.descendants(matching: .any)["Horizontal pages"].firstMatch
+    XCTAssertTrue(horizontal.waitForExistence(timeout: 5))
+    horizontal.tap()
+    RunLoop.current.run(until: Date().addingTimeInterval(1.5))
+    choose(4, "vertical, page 5")
+    choose(9, "vertical, page 10")
+  }
   @MainActor func testLargeNotebookKeepsOnlyVisibleCanvasesLoaded() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     defer { XCUIDevice.shared.orientation = .portrait }

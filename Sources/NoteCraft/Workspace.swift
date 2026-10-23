@@ -81,6 +81,10 @@ struct Workspace: View {
   @State private var pagePullProgress = 0.0
   @State private var settings = false
   @State private var thumbnails = false
+  // The page area is being resized (sidebar, rotation, Split View); until it settles, where the
+  // scroll view says it is must not be taken for the reader turning a page.
+  @State private var resizing = false
+  @State private var resizeTask: Task<Void, Never>?
   @State private var navigator = false
   @State private var pdfForms = false
   @State private var templateSheet = false
@@ -245,6 +249,7 @@ struct Workspace: View {
           // A distant jump should not build/render every page along an animation.
           if abs(current - previous) > 1 { move() } else { withAnimation { move() } }
         }.onChange(of: horizontalPageID) {
+          guard !resizing else { return }
           if let id = horizontalPageID, let next = trailingPage, id == next.id {
             pageChangedByScroll = true
             trailingPage = nil
@@ -259,6 +264,8 @@ struct Workspace: View {
               activePage = index
             }
           }
+        }.onChange(of: geometry.size) {
+          keepPageWhileResizing(proxy)
         }.task(id: horizontal) {
           let targetID = page.id
           // Changing axes rebuilds the page layout. Reapply the position even when
@@ -267,6 +274,23 @@ struct Workspace: View {
           proxy.scrollTo(targetID, anchor: .topLeading)
           horizontalPageID = targetID
         }
+    }
+  }
+  // The pages are laid out at the width of the page area, but the scroll view keeps its offset in
+  // points: after the sidebar closes, an offset worked out for the narrow strip lands on an earlier
+  // page, and reporting that page would send the reader back. The current page is scrolled to again
+  // once the size has stopped changing, and nothing the scroll view reports in between counts.
+  private func keepPageWhileResizing(_ proxy: ScrollViewProxy) {
+    resizing = true
+    resizeTask?.cancel()
+    resizeTask = Task { @MainActor in
+      try? await Task.sleep(for: .milliseconds(150))
+      guard !Task.isCancelled else { return }
+      let id = page.id
+      proxy.scrollTo(id, anchor: horizontal ? .topLeading : .top)
+      horizontalPageID = id
+      try? await Task.sleep(for: .milliseconds(120))
+      if !Task.isCancelled { resizing = false }
     }
   }
   private var notebook: Notebook { document.package.notebook }
@@ -519,6 +543,8 @@ struct Workspace: View {
   private var documentActions: some View {
     HStack(spacing: 0) {
       Button {
+        // Before the layout changes, so the first position report of the new layout is ignored.
+        resizing = true
         thumbnails.toggle()
       } label: {
         Image(systemName: "sidebar.left").font(.system(size: 20)).hitTarget()
@@ -847,6 +873,7 @@ struct Workspace: View {
               }.font(.caption)
             }
           }.buttonStyle(.plain).accessibilityLabel("Page \(index + 1)")
+            .accessibilityAddTraits(index == activePage ? .isSelected : [])
             .accessibilityIdentifier("pageThumbnail-\(index)").contextMenu {
               Button("Insert page after") {
                 edit { $0.notebook.pages.insert(InkGestures.blankPage(matching: p), at: index + 1) }
@@ -875,6 +902,7 @@ struct Workspace: View {
         }
       }.padding(20)
     }.frame(width: 160).background(Color(red: 0.96, green: 0.97, blue: 0.98))
+      .accessibilityIdentifier("pageSidebar")
   }
   // Kept out of `pageView`: one expression holding every canvas callback is too big for the type checker.
   private func canvasConfiguration(

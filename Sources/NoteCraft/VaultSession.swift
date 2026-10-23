@@ -446,6 +446,17 @@ struct WorkspaceTab: Identifiable {
       if !whiteboard && CommandLine.arguments.contains("--ui-test-large-notebook") {
         notebook.pages = (0..<300).map { _ in Page(paper: paper) }
       }
+      // Page n holds n dots, so a test can tell which page is on screen from its stroke count.
+      if !whiteboard && CommandLine.arguments.contains("--ui-test-numbered-notebook") {
+        notebook.pages = (1...12).map { number in
+          var page = Page(paper: paper)
+          page.strokes = (0..<number).map { index in
+            Stroke(
+              samples: [Sample(point: Point(60 + Double(index) * 16, 60))], width: 6)
+          }
+          return page
+        }
+      }
       // A short word with a ring drawn around it, for the Circle to Lasso flow.
       if !whiteboard && CommandLine.arguments.contains("--ui-test-ring-notebook") {
         func stroke(_ a: Point, _ b: Point) -> Stroke {
