@@ -64,7 +64,7 @@ struct PDFFormsSheet: View {
       Form {
         if fields.isEmpty {
           ContentUnavailableView(
-            "No editable fields on this page", systemImage: "doc.text",
+            "No editable fields on this page", systemImage: Icon.name("doc.text"),
             description: Text(
               "Text fields, choices and checkboxes are supported. Signature and radio fields need another PDF editor."
             ))
@@ -101,7 +101,7 @@ struct PDFFormsSheet: View {
             }.disabled(fields.isEmpty)
           }
         }
-    }.frame(minWidth: 380, minHeight: 420).preferredColorScheme(.light)
+    }.frame(minWidth: 380, minHeight: 420).themedSheet()
       .onAppear {
         if let name = page.backgroundPDF, let data = package.assets[name] {
           fields = PDFForms.fields(data, pageIndex: page.backgroundPage ?? 0)

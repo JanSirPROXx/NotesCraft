@@ -18,7 +18,7 @@ struct VaultCover: View {
           RoundedRectangle(cornerRadius: 8).fill(Color(red: 0.22, green: 0.76, blue: 0.89))
           Rectangle().fill(Color.black.opacity(0.13)).frame(width: 12).padding(.leading, 18)
           VStack {
-            Text(entry.title).font(.system(size: 13, weight: .medium)).lineLimit(3).foregroundStyle(
+            Text(entry.title).font(.theme(13, .medium)).lineLimit(3).foregroundStyle(
               Color(red: 0.04, green: 0.28, blue: 0.35))
             Spacer()
           }.padding(.top, 28).padding(.leading, 44).padding(.trailing, 14)
@@ -33,7 +33,7 @@ struct VaultCover: View {
               systemName: entry.kind == .whiteboard
                 ? "rectangle.and.pencil.and.ellipsis"
                 : entry.kind == .image ? "photo" : "doc.richtext"
-            ).font(.system(size: 36, weight: .light)).foregroundStyle(Color(white: 0.45))
+            ).font(.theme(36, .light)).foregroundStyle(Color(white: 0.45))
           }
         }.aspectRatio(entry.kind == .whiteboard ? 1.3 : 0.73, contentMode: .fit).overlay(
           alignment: .bottom
@@ -45,11 +45,11 @@ struct VaultCover: View {
       case .markdown:
         ZStack {
           RoundedRectangle(cornerRadius: 6).fill(Color(white: 0.92))
-          Image(systemName: "doc.text").font(.system(size: 60, weight: .ultraLight))
+          Symbol("doc.text").font(.theme(60, .ultraLight))
             .foregroundStyle(Color(white: 0.35))
         }.aspectRatio(0.73, contentMode: .fit).padding(.horizontal, 24)
       case .other:
-        Image(systemName: "doc").font(.system(size: 72, weight: .thin)).foregroundStyle(
+        Symbol("doc").font(.theme(72, .thin)).foregroundStyle(
           Color(white: 0.65))
       }
     }.task(id: entry.modified) { await thumbnail() }

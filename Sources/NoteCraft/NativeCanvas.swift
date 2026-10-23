@@ -1893,7 +1893,7 @@ extension DrawingView {
     if tiled || !drawsInkInOverlay { drawScratchPreview(c) }
     if !samples.isEmpty {
       if configuration.tool == .lasso && input.moveStart == nil {
-        c.setStrokeColor(PageRenderer.color(.blue))
+        c.setStrokeColor(ThemeStore.shared.cgColor(.accent))
         c.setLineWidth(1)
         c.setLineDash(phase: 0, lengths: [5, 4])
         c.addLines(between: samples.map { CGPoint(x: $0.point.x, y: $0.point.y) })
@@ -1938,7 +1938,7 @@ extension DrawingView {
       c.strokeEllipse(in: ring)
     }
     c.setLineDash(phase: 0, lengths: [4, 3])
-    c.setStrokeColor(PageRenderer.color(.blue))
+    c.setStrokeColor(ThemeStore.shared.cgColor(.accent))
     c.setLineWidth(1)
     if !configuration.selection.isEmpty {
       let scale = configuration.viewport?.scale ?? bounds.width / configuration.page.dimensions.x

@@ -8,14 +8,14 @@ struct LibraryRenameSheet: View {
   @Environment(\.dismiss) private var dismiss
   var body: some View {
     VStack(alignment: .leading, spacing: 20) {
-      Text("Rename").font(.title2.bold())
+      Text("Rename").font(.theme(.title2).bold())
       TextField("Name", text: $name).textFieldStyle(.roundedBorder).accessibilityIdentifier(
         "renameField")
       if entry.kind != .folder {
-        Text("The .\(entry.url.pathExtension) extension is kept automatically.").font(.caption)
+        Text("The .\(entry.url.pathExtension) extension is kept automatically.").font(.theme(.caption))
           .foregroundStyle(.secondary)
       }
-      if let error = vault.error { Text(error).font(.caption).foregroundStyle(.red) }
+      if let error = vault.error { Text(error).font(.theme(.caption)).foregroundStyle(.red) }
       HStack {
         Button("Cancel") { dismiss() }
         Spacer()
@@ -25,10 +25,10 @@ struct LibraryRenameSheet: View {
             await vault.rename(entry, to: name)
             if vault.error == nil { dismiss() }
           }
-        }.buttonStyle(.borderedProminent).disabled(
+        }.buttonStyle(.themedProminent).disabled(
           name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || vault.busy)
       }
-    }.padding(28).frame(minWidth: 340).onAppear { name = entry.title }.preferredColorScheme(.light)
+    }.padding(28).frame(minWidth: 340).onAppear { name = entry.title }.themedSheet()
   }
 }
 
@@ -42,16 +42,16 @@ struct LibraryMoveSheet: View {
   var body: some View {
     NavigationStack {
       VStack(alignment: .leading, spacing: 16) {
-        Text("Move “\(entry.title)”").font(.headline)
+        Text("Move “\(entry.title)”").font(.theme(.headline))
         HStack {
           if let folder, folder.vaultPath != vault.root?.vaultPath {
             Button {
               self.folder = folder.deletingLastPathComponent()
             } label: {
-              Label("Up", systemImage: "chevron.left")
+              Label("Up", systemImage: Icon.name("chevron.left"))
             }
           }
-          Text(folder?.lastPathComponent ?? "Storage folder").font(.subheadline).foregroundStyle(
+          Text(folder?.lastPathComponent ?? "Storage folder").font(.theme(.subheadline)).foregroundStyle(
             .secondary)
         }
         if let message = loadError ?? vault.error { Text(message).foregroundStyle(.red) }
@@ -59,7 +59,7 @@ struct LibraryMoveSheet: View {
           Button {
             folder = child.url
           } label: {
-            Label(child.title, systemImage: "folder")
+            Label(child.title, systemImage: Icon.name("folder"))
           }
         }.overlay {
           if folders.isEmpty && loadError == nil {
@@ -97,7 +97,7 @@ struct LibraryMoveSheet: View {
             loadError = nil
           } catch { loadError = error.localizedDescription }
         }
-    }.frame(minWidth: 380, minHeight: 420).preferredColorScheme(.light)
+    }.frame(minWidth: 380, minHeight: 420).themedSheet()
   }
 }
 
@@ -111,28 +111,28 @@ struct TrashLibrary: View {
       Text(
         "Restore items to their original folder. Items stay here until you delete them permanently."
       )
-      .font(.subheadline).foregroundStyle(.secondary)
+      .font(.theme(.subheadline)).foregroundStyle(.secondary)
       if !vault.trashItems.isEmpty {
         Button("Empty Trash", role: .destructive) { emptyTrash = true }.foregroundStyle(.red)
           .disabled(vault.busy)
       }
       if vault.trashItems.isEmpty {
         ContentUnavailableView(
-          "Trash is empty", systemImage: "trash",
+          "Trash is empty", systemImage: Icon.name("trash"),
           description: Text("Deleted documents and folders will appear here."))
       }
       if !vault.trashItems.isEmpty && items.isEmpty {
         ContentUnavailableView(
-          "No matching deleted items", systemImage: "magnifyingglass",
+          "No matching deleted items", systemImage: Icon.name("magnifyingglass"),
           description: Text("Try another search."))
       }
       ForEach(items) { item in
         HStack(spacing: 16) {
-          Image(systemName: "doc").font(.title2)
+          Symbol("doc").font(.theme(.title2))
           VStack(alignment: .leading, spacing: 5) {
-            Text(item.name).font(.headline)
-            Text(item.originalPath).font(.caption).foregroundStyle(.secondary)
-            Text(item.deleted.formatted(date: .abbreviated, time: .shortened)).font(.caption)
+            Text(item.name).font(.theme(.headline))
+            Text(item.originalPath).font(.theme(.caption)).foregroundStyle(.secondary)
+            Text(item.deleted.formatted(date: .abbreviated, time: .shortened)).font(.theme(.caption))
               .foregroundStyle(.secondary)
           }
           Spacer()
@@ -141,10 +141,10 @@ struct TrashLibrary: View {
           Button {
             deletion = item
           } label: {
-            Image(systemName: "trash")
+            Symbol("trash")
           }.foregroundStyle(.red).accessibilityLabel("Delete permanently \(item.name)").disabled(
             vault.busy)
-        }.padding(18).background(Color(white: 0.10), in: RoundedRectangle(cornerRadius: 16))
+        }.padding(18).background(Color.theme(.surface), in: RoundedRectangle(cornerRadius: .corner(16)))
       }
     }.confirmationDialog(
       "Delete permanently?",
@@ -191,8 +191,8 @@ struct PDFUnlockSheet: View {
   @Environment(\.dismiss) private var dismiss
   var body: some View {
     VStack(alignment: .leading, spacing: 20) {
-      Label("Password-protected PDF", systemImage: "lock.doc").font(.title2.bold())
-      Text(entry.title).font(.headline)
+      Label("Password-protected PDF", systemImage: Icon.name("lock.doc")).font(.theme(.title2).bold())
+      Text(entry.title).font(.theme(.headline))
       Text(
         "Enter the password to create an unlocked PDF copy in the same folder. Your encrypted original stays unchanged."
       ).foregroundStyle(.secondary)
@@ -215,8 +215,8 @@ struct PDFUnlockSheet: View {
             } catch { self.error = error.localizedDescription }
             working = false
           }
-        }.buttonStyle(.borderedProminent).disabled(password.isEmpty || working)
+        }.buttonStyle(.themedProminent).disabled(password.isEmpty || working)
       }
-    }.padding(28).frame(minWidth: 360, idealWidth: 440).preferredColorScheme(.light)
+    }.padding(28).frame(minWidth: 360, idealWidth: 440).themedSheet()
   }
 }

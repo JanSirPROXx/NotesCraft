@@ -63,10 +63,10 @@ struct ElementPicker: View {
   @State private var title = ""
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      Text("Stickers").font(.headline)
+      Text("Stickers").font(.theme(.headline))
       Text("Choose a sticker, then tap the page. You can move, resize, rotate and recolor it.")
-        .font(.caption).foregroundStyle(.secondary)
-      if let error = library.loadError { Text(error).font(.caption).foregroundStyle(.red) }
+        .font(.theme(.caption)).foregroundStyle(.secondary)
+      if let error = library.loadError { Text(error).font(.theme(.caption)).foregroundStyle(.red) }
       ScrollView {
         VStack(alignment: .leading, spacing: 14) {
           LazyVGrid(columns: [GridItem(.adaptive(minimum: 64))], spacing: 10) {
@@ -80,19 +80,19 @@ struct ElementPicker: View {
               }.accessibilityLabel(kind.title)
             }
           }
-          Text("Emoji").font(.subheadline.bold())
+          Text("Emoji").font(.theme(.subheadline).bold())
           LazyVGrid(columns: [GridItem(.adaptive(minimum: 48))], spacing: 6) {
             ForEach(StickerCatalog.emoji, id: \.self) { symbol in
               Button {
                 onSelect(.emoji(symbol))
               } label: {
-                Text(symbol).font(.system(size: 30)).frame(width: 48, height: 48)
+                Text(symbol).font(.theme(30)).frame(width: 48, height: 48)
                   .contentShape(Rectangle())
               }.accessibilityLabel("Emoji \(symbol)")
             }
           }
           if !library.clips.isEmpty {
-            Text("My elements").font(.subheadline.bold())
+            Text("My elements").font(.theme(.subheadline).bold())
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 16) {
               ForEach(library.clips) { clip in
                 Button {
@@ -111,7 +111,7 @@ struct ElementPicker: View {
                         PageRenderer.render(clip.content, assets: clip.assets, in: c)
                       }
                     }.frame(height: 74).background(.white, in: RoundedRectangle(cornerRadius: 6))
-                    Text(clip.title).font(.caption).lineLimit(1)
+                    Text(clip.title).font(.theme(.caption)).lineLimit(1)
                   }
                 }.contextMenu {
                   Button("Rename") {
@@ -125,7 +125,7 @@ struct ElementPicker: View {
               }
             }
           } else {
-            Text("Save a lasso selection (… menu) to build your own collection.").font(.caption)
+            Text("Save a lasso selection (… menu) to build your own collection.").font(.theme(.caption))
               .foregroundStyle(.secondary)
           }
         }.padding(2)

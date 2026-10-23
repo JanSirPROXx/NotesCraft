@@ -43,12 +43,12 @@ struct ShapePalette: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      Text("Shapes").font(.headline)
+      Text("Shapes").font(.theme(.headline))
       Button {
         selection = nil
         onPick()
       } label: {
-        Label("Freehand (snaps to exact shapes)", systemImage: "scribble")
+        Label("Freehand (snaps to exact shapes)", systemImage: Icon.name("scribble"))
           .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
           .padding(.horizontal, 10)
           .background(
@@ -74,8 +74,8 @@ struct ShapePalette: View {
         }
       }
       Text("Tap the page to place a shape, or drag to size it. Then drag, stretch or rotate it.")
-        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        .font(.theme(.caption)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
     }
-    .padding(16).frame(width: 290).preferredColorScheme(.dark)
+    .padding(16).frame(width: 290)
   }
 }

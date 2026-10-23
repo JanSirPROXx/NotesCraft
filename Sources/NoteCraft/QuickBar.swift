@@ -70,9 +70,9 @@ struct QuickColorRow: View {
         if selected { paletteOpen = true } else { color = ink }
       } label: {
         Circle().fill(ink.swiftUI).frame(width: 22, height: 22)
-          .overlay(Circle().stroke(Color.white.opacity(0.35), lineWidth: 0.5))
+          .overlay(Circle().stroke(Color.theme(.quickBarText).opacity(0.35), lineWidth: 0.5))
           .padding(4)
-          .overlay(Circle().stroke(selected ? Color.white : .clear, lineWidth: 2))
+          .overlay(Circle().stroke(selected ? Color.theme(.quickBarText) : .clear, lineWidth: 2))
           .hitTarget(width: 40)
       }
       .accessibilityLabel("Ink color \(ink.hex)")
@@ -99,7 +99,7 @@ struct ColorPalette: View {
             Circle().fill(ink.swiftUI).frame(width: 30, height: 30)
               .overlay(Circle().stroke(Color.gray.opacity(0.5), lineWidth: 0.5))
               .overlay(
-                Circle().stroke(Color.white, lineWidth: ink.hex == color.hex ? 2.5 : 0).padding(-3)
+                Circle().stroke(Color.primary, lineWidth: ink.hex == color.hex ? 2.5 : 0).padding(-3)
               )
               .hitTarget(width: 40, height: 40)
           }
@@ -114,7 +114,7 @@ struct ColorPalette: View {
         #endif
         .onSubmit { if let parsed = InkColor(hex: hex) { color = parsed } }
     }
-    .padding(18).adaptiveWidth(322).preferredColorScheme(.dark)
+    .padding(18).adaptiveWidth(322)
     .onAppear {
       hex = color.hex
       custom = color.swiftUI
@@ -141,10 +141,11 @@ struct QuickWidthRow: View {
       Button {
         if selected { editing = index } else { width = value }
       } label: {
-        Circle().fill(Color.white).frame(width: diameter(value), height: diameter(value))
+        Circle().fill(Color.theme(.quickBarText)).frame(width: diameter(value), height: diameter(value))
           .hitTarget(width: 38)
           .background(
-            selected ? Color.white.opacity(0.22) : .clear, in: RoundedRectangle(cornerRadius: 8))
+            selected ? Color.theme(.quickBarText).opacity(0.22) : .clear,
+            in: RoundedRectangle(cornerRadius: .corner(8)))
       }
       .help("\(value.pointLabel) pt")
       .accessibilityLabel("Thickness \(value.pointLabel) points")
@@ -175,7 +176,7 @@ struct WidthEditor: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
       HStack {
-        Text("Thickness").font(.headline)
+        Text("Thickness").font(.theme(.headline))
         Spacer()
         Text("\(draft.pointLabel) pt").monospacedDigit()
       }
@@ -196,7 +197,7 @@ struct WidthEditor: View {
       }
       .accessibilityLabel("Thickness")
     }
-    .padding(18).adaptiveWidth(300).preferredColorScheme(.dark)
+    .padding(18).adaptiveWidth(300)
     .onAppear { draft = value }
     .onDisappear { value = draft.tenths }
   }
@@ -213,9 +214,9 @@ struct DraftSlider: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
       HStack {
-        Text(title.uppercased()).font(.caption).foregroundStyle(.secondary)
+        Text(title.uppercased()).font(.theme(.caption)).foregroundStyle(.secondary)
         Spacer()
-        Text(display(draft)).font(.caption).monospacedDigit()
+        Text(display(draft)).font(.theme(.caption)).monospacedDigit()
       }
       Slider(value: $draft, in: 0...1) { editing in
         if !editing { value = draft }

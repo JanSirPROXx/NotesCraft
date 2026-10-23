@@ -150,7 +150,7 @@
 
     override func viewDidLoad() {
       super.viewDidLoad()
-      view.backgroundColor = UIColor(red: 0.105, green: 0.11, blue: 0.115, alpha: 1)
+      view.backgroundColor = UIColor.theme(.editorSurround)
       scroll.frame = view.bounds
       scroll.autoresizingMask = [.flexibleWidth, .flexibleHeight]
       scroll.delegate = self
@@ -200,6 +200,7 @@
     func update(_ new: NotebookDocumentView) {
       let old = props
       props = new
+      view.backgroundColor = UIColor.theme(.editorSurround)
       let structural =
         old == nil || old?.ids != new.ids || old?.sizes != new.sizes || old?.axis != new.axis
         || old?.infinite != new.infinite

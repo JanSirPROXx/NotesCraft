@@ -31,11 +31,11 @@ struct InlineTextEditor: View {
     HStack(spacing: 2) {
       Button {
         draft.size = max(8, draft.size - 2)
-      } label: { Image(systemName: "textformat.size.smaller").hitTarget(width: 40, height: 40) }
+      } label: { Symbol("textformat.size.smaller").hitTarget(width: 40, height: 40) }
         .accessibilityLabel("Smaller text")
       Button {
         draft.size = min(120, draft.size + 2)
-      } label: { Image(systemName: "textformat.size.larger").hitTarget(width: 40, height: 40) }
+      } label: { Symbol("textformat.size.larger").hitTarget(width: 40, height: 40) }
         .accessibilityLabel("Larger text")
       Button {
         palette = true
@@ -49,18 +49,18 @@ struct InlineTextEditor: View {
         ColorPalette(color: $draft.color).presentationCompactAdaptation(.popover)
       }
       Button(action: onMore) {
-        Image(systemName: "slider.horizontal.3").hitTarget(width: 40, height: 40)
+        Symbol("slider.horizontal.3").hitTarget(width: 40, height: 40)
       }.accessibilityLabel("More text options")
       Button(role: .destructive, action: onDelete) {
-        Image(systemName: "trash").hitTarget(width: 40, height: 40)
+        Symbol("trash").hitTarget(width: 40, height: 40)
       }.accessibilityLabel("Delete text")
       Button(action: onDone) {
-        Image(systemName: "checkmark").fontWeight(.semibold).hitTarget(width: 40, height: 40)
+        Symbol("checkmark").fontWeight(.semibold).hitTarget(width: 40, height: 40)
       }.accessibilityLabel("Done editing text")
     }
-    .font(.system(size: 17)).buttonStyle(.plain).foregroundStyle(.white)
+    .font(.theme(17)).buttonStyle(.plain).foregroundStyle(Color.theme(.quickBarText))
     .padding(.horizontal, 6)
-    .background(Color(red: 0.16, green: 0.17, blue: 0.18), in: Capsule())
+    .background(Color.theme(.quickBar), in: Capsule())
     .fixedSize()
   }
 

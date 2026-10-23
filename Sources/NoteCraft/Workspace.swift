@@ -171,7 +171,7 @@ struct Workspace: View {
       document.package.notebook.revision += 1
     }
   }
-  private let accent = Color(red: 0.17, green: 0.36, blue: 0.72)
+  private var accent: Color { Color.theme(.accent) }
   private var color: InkColor {
     get { InkColor(hex: colorHex) ?? .ink }
     nonmutating set { colorHex = newValue.hex }
@@ -251,7 +251,7 @@ struct Workspace: View {
           }
         }.frame(maxWidth: .infinity)
       }.frame(width: geometry.size.width, height: geometry.size.height)
-        .background(Color(red: 0.105, green: 0.11, blue: 0.115))
+        .background(Color.theme(.editorSurround))
     #endif
   }
   private var pagesWithTrailing: [Page] {
@@ -297,7 +297,7 @@ struct Workspace: View {
         if pagePullProgress > 0 {
           HStack(spacing: 10) {
             ProgressView(value: pagePullProgress).frame(width: 60)
-            Text("Keep pulling to add a page").font(.system(size: 12))
+            Text("Keep pulling to add a page").font(.theme(12))
           }.padding(10).background(.regularMaterial, in: Capsule()).padding(18)
             .allowsHitTesting(false).accessibilityIdentifier("pagePullProgress")
         }
@@ -305,8 +305,7 @@ struct Workspace: View {
       .overlay(alignment: .bottom) { scribbleHintBar }
       if importing { ProgressView("Importing…").padding(8) }
     }
-    .background(Color.white).foregroundStyle(Color(red: 0.12, green: 0.16, blue: 0.22)).tint(accent)
-    .environment(\.colorScheme, .light).preferredColorScheme(.dark)
+    .background(Color.theme(.background)).foregroundStyle(Color.theme(.textPrimary)).tint(accent)
     .frame(minHeight: 500)
   }
   private var syncedContent: some View {
@@ -381,7 +380,7 @@ struct Workspace: View {
     .sheet(isPresented: $textSheet) { textEditor }
     .sheet(isPresented: $saveElementSheet) {
       VStack(alignment: .leading, spacing: 20) {
-        Text("Save element").font(.title2.bold())
+        Text("Save element").font(.theme(.title2).bold())
         TextField("Name", text: $elementName).textFieldStyle(.roundedBorder)
         HStack {
           Button("Cancel") { saveElementSheet = false }
@@ -444,16 +443,16 @@ struct Workspace: View {
   }
   private var documentMenu: some View {
     Menu {
-      Button("Rename notebook", systemImage: "pencil") {
+      Button("Rename notebook", systemImage: Icon.name("pencil")) {
         titleDraft = notebook.title
         renameSheet = true
       }
-      Button("Navigate document", systemImage: "list.bullet") { navigator = true }
+      Button("Navigate document", systemImage: Icon.name("list.bullet")) { navigator = true }
         .accessibilityIdentifier("documentNavigatorMenu")
-      Button("Fill PDF forms", systemImage: "rectangle.and.pencil.and.ellipsis") {
+      Button("Fill PDF forms", systemImage: Icon.name("rectangle.and.pencil.and.ellipsis")) {
         pdfForms = true
       }.disabled(page.backgroundPDF == nil)
-      Button("Export current page", systemImage: "square.and.arrow.up") {
+      Button("Export current page", systemImage: Icon.name("square.and.arrow.up")) {
         do {
           var single = document.package
           single.notebook.pages = [page]
@@ -463,22 +462,22 @@ struct Workspace: View {
         } catch { errorMessage = error.localizedDescription }
       }
       Divider()
-      Button("Import PDF", systemImage: "doc") {
+      Button("Import PDF", systemImage: Icon.name("doc")) {
         importType = .pdf
         importer = true
       }
-      Button("Photo library", systemImage: "photo.on.rectangle") { photoLibrary = true }
+      Button("Photo library", systemImage: Icon.name("photo.on.rectangle")) { photoLibrary = true }
       #if os(iOS)
-        Button("Scan documents", systemImage: "doc.viewfinder") { scanner = true }.disabled(
+        Button("Scan documents", systemImage: Icon.name("doc.viewfinder")) { scanner = true }.disabled(
           !VNDocumentCameraViewController.isSupported)
       #endif
-      Button("Paper background", systemImage: "square.grid.3x3") { paperSheet = true }
+      Button("Paper background", systemImage: Icon.name("square.grid.3x3")) { paperSheet = true }
         .disabled(page.backgroundPDF != nil)
-      Button("Add page", systemImage: "plus") { templateSheet = true }
-      Button("Paste ink", systemImage: "doc.on.clipboard") { paste() }.disabled(
+      Button("Add page", systemImage: Icon.name("plus")) { templateSheet = true }
+      Button("Paste ink", systemImage: Icon.name("doc.on.clipboard")) { paste() }.disabled(
         clipboard.isEmpty && clipboardImages.isEmpty && clipboardTexts.isEmpty)
       Divider()
-      Button("Settings", systemImage: "gearshape") { appSettings = true }
+      Button("Settings", systemImage: Icon.name("gearshape")) { appSettings = true }
       Button("Delete current page", role: .destructive) {
         if notebook.pages.count > 1 {
           edit { $0.notebook.pages.remove(at: activePage) }
@@ -486,7 +485,7 @@ struct Workspace: View {
         }
       }.disabled(notebook.pages.count == 1)
     } label: {
-      Image(systemName: "ellipsis").font(.system(size: 20)).hitTarget()
+      Symbol("ellipsis").font(.theme(20)).hitTarget()
     }
     .accessibilityLabel("More")
   }
@@ -495,19 +494,19 @@ struct Workspace: View {
       Button {
         thumbnails.toggle()
       } label: {
-        Image(systemName: "sidebar.left").font(.system(size: 20)).hitTarget()
+        Symbol("sidebar.left").font(.theme(20)).hitTarget()
       }
       .accessibilityLabel("Pages")
       Button {
         searchVisible.toggle()
       } label: {
-        Image(systemName: "magnifyingglass").font(.system(size: 20)).hitTarget()
+        Symbol("magnifyingglass").font(.theme(20)).hitTarget()
       }
       .accessibilityLabel("Search text")
       Button {
         edit { $0.notebook.pages[activePage].bookmarked.toggle() }
       } label: {
-        Image(systemName: page.bookmarked ? "bookmark.fill" : "bookmark").font(.system(size: 20))
+        Symbol(page.bookmarked ? "bookmark.fill" : "bookmark").font(.theme(20))
           .hitTarget()
       }.accessibilityLabel("Bookmark page")
     }
@@ -520,7 +519,7 @@ struct Workspace: View {
         exporter = true
       } catch { errorMessage = error.localizedDescription }
     } label: {
-      Image(systemName: "square.and.arrow.up").font(.system(size: 20)).hitTarget()
+      Symbol("square.and.arrow.up").font(.theme(20)).hitTarget()
     }
     .accessibilityLabel("Export PDF")
   }
@@ -530,7 +529,7 @@ struct Workspace: View {
       Button {
         if let onBack { onBack() } else { dismiss() }
       } label: {
-        Image(systemName: "house").font(.system(size: 17)).frame(width: 56, height: 40)
+        Symbol("house").font(.theme(17)).frame(width: 56, height: 40)
           .contentShape(Rectangle())
       }
       .buttonStyle(.plain).accessibilityLabel("Documents")
@@ -542,11 +541,11 @@ struct Workspace: View {
             Button {
               onSelectTab?(tab.id)
             } label: {
-              Label(tab.selected ? notebook.title : tab.title, systemImage: "book.closed")
+              Label(tab.selected ? notebook.title : tab.title, systemImage: Icon.name("book.closed"))
                 .lineLimit(1).padding(.horizontal, 18)
                 .frame(height: 40).contentShape(Rectangle())
                 .background(
-                  tab.selected ? Color.white.opacity(0.2) : .clear, ignoresSafeAreaEdges: []
+                  tab.selected ? Color.theme(.toolBarText).opacity(0.2) : .clear, ignoresSafeAreaEdges: []
                 )
                 .clipShape(UnevenRoundedRectangle(topLeadingRadius: 9, topTrailingRadius: 9))
             }.buttonStyle(.plain)
@@ -557,13 +556,13 @@ struct Workspace: View {
         Button {
           templateSheet = true
         } label: {
-          Image(systemName: "plus").font(.system(size: 17)).frame(width: 52, height: 40)
+          Symbol("plus").font(.theme(17)).frame(width: 52, height: 40)
             .contentShape(Rectangle())
         }.buttonStyle(.plain).accessibilityLabel("Add page").accessibilityIdentifier(
           "newPageButton")
       }
-    }.font(.system(size: 13, weight: .medium)).foregroundStyle(Color.white).background(
-      Color(red: 0.12, green: 0.20, blue: 0.36))
+    }.font(.theme(13, .medium)).foregroundStyle(Color.theme(.toolBarText)).background(
+      Color.theme(.tabBar))
   }
   // A selection made by Circle to Lasso hands the page back to the pen once it is dismissed.
   private func returnFromCircleLasso() {
@@ -621,18 +620,20 @@ struct Workspace: View {
                 switchTool(to: item)
               }
             } label: {
-              Image(systemName: icon(item)).font(.system(size: 21)).hitTarget(width: 44)
-                .foregroundStyle(tool == item ? Color(red: 0.12, green: 0.20, blue: 0.36) : .white)
+              Symbol(icon(item)).font(.theme(21)).hitTarget(width: 44)
+                .foregroundStyle(
+                  tool == item ? Color.theme(.toolSelectionText) : Color.theme(.toolBarText)
+                )
                 .background(
-                  tool == item ? Color.white.opacity(0.85) : .clear,
-                  in: RoundedRectangle(cornerRadius: 7))
+                  tool == item ? Color.theme(.toolSelection) : .clear,
+                  in: RoundedRectangle(cornerRadius: .corner(7)))
             }
             .help(label(item)).accessibilityLabel(label(item))
             .popover(
               isPresented: Binding(get: { settings && tool == item }, set: { settings = $0 })
             ) {
               ScrollView { toolSettings.padding(22) }
-                .adaptiveWidth(320).frame(maxHeight: 640).preferredColorScheme(.dark)
+                .adaptiveWidth(320).frame(maxHeight: 640)
             }
           }
           Spacer(minLength: 8)
@@ -642,21 +643,21 @@ struct Workspace: View {
           .horizontal, 16
         ).frame(height: 44)
       }
-    }.frame(height: 44).foregroundStyle(.white).background(
-      Color(red: 0.17, green: 0.29, blue: 0.47))
+    }.frame(height: 44).foregroundStyle(Color.theme(.toolBarText)).background(
+      Color.theme(.toolBar))
   }
   private var undoRedoButtons: some View {
     HStack(spacing: 12) {
       Button {
         undo()
       } label: {
-        Image(systemName: "arrow.uturn.backward").font(.system(size: 19)).hitTarget(width: 42)
+        Symbol("arrow.uturn.backward").font(.theme(19)).hitTarget(width: 42)
       }.disabled(undoStack.isEmpty).help("Undo").accessibilityLabel("Undo").keyboardShortcut(
         "z", modifiers: .command)
       Button {
         redo()
       } label: {
-        Image(systemName: "arrow.uturn.forward").font(.system(size: 19)).hitTarget(width: 42)
+        Symbol("arrow.uturn.forward").font(.theme(19)).hitTarget(width: 42)
       }.disabled(redoStack.isEmpty).help("Redo").accessibilityLabel("Redo").keyboardShortcut(
         "z", modifiers: [.command, .shift])
     }
@@ -675,10 +676,10 @@ struct Workspace: View {
               if let shapeKind {
                 ShapeIcon(kind: shapeKind)
               } else {
-                Image(systemName: "scribble").font(.system(size: 18))
+                Symbol("scribble").font(.theme(18))
               }
             }.frame(width: 26, height: 26).hitTarget(width: 46)
-              .background(Color.white.opacity(0.2), in: RoundedRectangle(cornerRadius: 7))
+              .background(Color.theme(.quickBarText).opacity(0.2), in: RoundedRectangle(cornerRadius: .corner(7)))
           }
           .accessibilityLabel("Shape: \(shapeKind?.title ?? "Freehand")")
           .popover(isPresented: $shapesPalette) {
@@ -688,7 +689,7 @@ struct Workspace: View {
           Button {
             fillShapes.toggle()
           } label: {
-            Image(systemName: fillShapes ? "square.fill" : "square").font(.system(size: 18))
+            Symbol(fillShapes ? "square.fill" : "square").font(.theme(18))
               .hitTarget(width: 38)
           }.accessibilityLabel(fillShapes ? "Fill on" : "Fill off")
         }
@@ -697,11 +698,11 @@ struct Workspace: View {
             Button {
               penStyle = style
             } label: {
-              Image(systemName: Self.icon(for: style))
-              .font(.system(size: 18)).hitTarget(width: 38)
+              Symbol(Self.icon(for: style))
+              .font(.theme(18)).hitTarget(width: 38)
               .background(
-                penStyle == style ? Color.cyan.opacity(0.35) : .clear,
-                in: RoundedRectangle(cornerRadius: 7))
+                penStyle == style ? Color.theme(.secondaryAccent).opacity(0.35) : .clear,
+                in: RoundedRectangle(cornerRadius: .corner(7)))
             }.accessibilityLabel(style == .pencil ? "Pencil" : style.rawValue.capitalized + " pen")
           }
         }
@@ -719,7 +720,8 @@ struct Workspace: View {
           } label: {
             Text(mode.rawValue.capitalized).padding(.horizontal, 10).frame(height: 44)
               .contentShape(Rectangle())
-          }.foregroundStyle(eraserMode == mode ? Color.cyan : Color.white)
+          }.foregroundStyle(
+            eraserMode == mode ? Color.theme(.secondaryAccent) : Color.theme(.quickBarText))
         }
       } else if tool == .lasso {
         Toggle("Ink", isOn: $selectInk)
@@ -732,15 +734,15 @@ struct Workspace: View {
         }
         undoRedoButtons
       }
-    }.buttonStyle(.plain).font(.system(size: 16)).foregroundStyle(.white)
+    }.buttonStyle(.plain).font(.theme(16)).foregroundStyle(Color.theme(.quickBarText))
       .padding(.horizontal, 14).frame(height: 44)
-      .background(Color(red: 0.16, green: 0.17, blue: 0.18), in: Capsule())
-      .overlay(Capsule().stroke(Color.white.opacity(0.18)))
+      .background(Color.theme(.quickBar), in: Capsule())
+      .overlay(Capsule().stroke(Color.theme(.quickBarOutline)))
       .fixedSize(horizontal: true, vertical: false)
   }
   @ViewBuilder private var toolSettings: some View {
     VStack(alignment: .leading, spacing: 16) {
-      if tool != .elements { Text(label(tool)).font(.headline) }
+      if tool != .elements { Text(label(tool)).font(.theme(.headline)) }
       switch tool {
       case .pen:
         Picker("Pen style", selection: $penStyle) {
@@ -783,9 +785,9 @@ struct Workspace: View {
         Toggle("Handwriting", isOn: $selectInk)
         Toggle("Images", isOn: $selectImages)
         Toggle("Text boxes", isOn: $selectTexts)
-        Text("Circle content to select it, then use the selection menu.").font(.callout)
+        Text("Circle content to select it, then use the selection menu.").font(.theme(.callout))
       case .image:
-        Text("Insert image from").font(.headline)
+        Text("Insert image from").font(.theme(.headline))
         Button("Files") {
           settings = false
           importType = .image
@@ -829,8 +831,8 @@ struct Workspace: View {
                     lineWidth: index == activePage ? 2 : 1))
               HStack {
                 Text("\(index + 1)")
-                if p.bookmarked { Image(systemName: "bookmark.fill") }
-              }.font(.caption)
+                if p.bookmarked { Symbol("bookmark.fill") }
+              }.font(.theme(.caption))
             }
           }.buttonStyle(.plain).accessibilityLabel("Page \(index + 1)")
             .accessibilityAddTraits(index == activePage ? .isSelected : [])
@@ -861,7 +863,7 @@ struct Workspace: View {
             }
         }
       }.padding(20)
-    }.frame(width: 160).background(Color(red: 0.96, green: 0.97, blue: 0.98))
+    }.frame(width: 160).background(Color.theme(.surface))
       .accessibilityIdentifier("pageSidebar")
   }
   // Kept out of `pageView`: one expression holding every canvas callback is too big for the type checker.
@@ -1141,7 +1143,7 @@ struct Workspace: View {
     Button(role: role) {
       action()
     } label: {
-      Label(title, systemImage: symbol).frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+      Label { Text(title) } icon: { Symbol(symbol) }.frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
         .contentShape(Rectangle())
     }.buttonStyle(.plain).disabled(disabled).opacity(disabled ? 0.4 : 1)
   }
@@ -1176,7 +1178,7 @@ struct Workspace: View {
   private var selectionActions: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 2) {
-        Text("\(selection.count) selected").font(.caption).foregroundStyle(.secondary)
+        Text("\(selection.count) selected").font(.theme(.caption)).foregroundStyle(.secondary)
           .padding(.bottom, 4)
         if selectedStrokes.contains(where: { $0.shape != nil }) {
           PointSlider(title: "Line width", value: selectionWidthBinding, range: 0.5...20)
@@ -1241,7 +1243,7 @@ struct Workspace: View {
       }
     }
     .padding(14).adaptiveWidth(270).frame(maxHeight: 520)
-    .foregroundStyle(.primary).preferredColorScheme(.dark)
+    .foregroundStyle(.primary)
     .onChange(of: selection) { if selection.isEmpty { selectionMenuPresented = false } }
   }
   @ViewBuilder private func selectionBar(
@@ -1260,18 +1262,18 @@ struct Workspace: View {
           copySelection()
           deleteSelection()
         } label: {
-          Image(systemName: "scissors").hitTarget(width: 44, height: 44)
+          Symbol("scissors").hitTarget(width: 44, height: 44)
         }.accessibilityLabel("Cut selection")
         Button {
           copySelection()
         } label: {
-          Image(systemName: "doc.on.doc").hitTarget(width: 44, height: 44)
+          Symbol("doc.on.doc").hitTarget(width: 44, height: 44)
         }.accessibilityLabel("Copy selection")
         Button {
           selectionPalette.toggle()
         } label: {
           Circle().fill(selectionColor.swiftUI).frame(width: 22, height: 22)
-            .overlay(Circle().stroke(Color.white.opacity(0.7), lineWidth: 1.5))
+            .overlay(Circle().stroke(Color.theme(.quickBarText).opacity(0.7), lineWidth: 1.5))
             .hitTarget(width: 44, height: 44)
         }
         .accessibilityLabel("Change color")
@@ -1281,21 +1283,21 @@ struct Workspace: View {
         Button {
           deleteSelection()
         } label: {
-          Image(systemName: "trash").hitTarget(width: 44, height: 44)
-        }.foregroundStyle(.red).accessibilityLabel("Delete selection")
+          Symbol("trash").hitTarget(width: 44, height: 44)
+        }.foregroundStyle(Color.theme(.danger)).accessibilityLabel("Delete selection")
         Button {
           selectionMenuPresented.toggle()
         } label: {
-          Image(systemName: "ellipsis.circle").hitTarget(width: 44, height: 44)
+          Symbol("ellipsis.circle").hitTarget(width: 44, height: 44)
         }
         .accessibilityLabel("Selection actions")
         .popover(isPresented: $selectionMenuPresented) {
           selectionActions.presentationCompactAdaptation(.popover)
         }
       }
-      .font(.system(size: 18)).padding(.horizontal, 6)
-      .buttonStyle(.plain).foregroundStyle(.white)
-      .background(Color(red: 0.16, green: 0.17, blue: 0.18), in: Capsule())
+      .font(.theme(18)).padding(.horizontal, 6)
+      .buttonStyle(.plain).foregroundStyle(Color.theme(.quickBarText))
+      .background(Color.theme(.quickBar), in: Capsule())
       .fixedSize()
       .scaleEffect(1 / zoomed)
       .position(
@@ -1317,12 +1319,14 @@ struct Workspace: View {
         paste(at: spot.point)
         pasteSpot = nil
       } label: {
-        Label("Paste", systemImage: "doc.on.clipboard").font(.system(size: 17, weight: .medium))
+        Label("Paste", systemImage: Icon.name("doc.on.clipboard")).font(.theme(17, .medium))
           .padding(.horizontal, 16).frame(minHeight: 44).contentShape(Capsule())
       }
-      .buttonStyle(.plain).foregroundStyle(empty ? Color.white.opacity(0.4) : .white)
+      .buttonStyle(.plain).foregroundStyle(
+        empty ? Color.theme(.quickBarText).opacity(0.4) : Color.theme(.quickBarText)
+      )
       .disabled(empty)
-      .background(Color(red: 0.16, green: 0.17, blue: 0.18), in: Capsule())
+      .background(Color.theme(.quickBar), in: Capsule())
       .fixedSize().scaleEffect(1 / zoomed).accessibilityIdentifier("pasteBar")
       .position(
         x: min(w - 60 / zoomed, max(60 / zoomed, spot.point.x * scale + offset.x)),
@@ -1334,12 +1338,12 @@ struct Workspace: View {
       Button {
         keepScribbleAsInk(hint)
       } label: {
-        Label("Erased  ·  Keep as ink", systemImage: "arrow.uturn.backward")
-          .font(.system(size: 15, weight: .medium))
+        Label("Erased  ·  Keep as ink", systemImage: Icon.name("arrow.uturn.backward"))
+          .font(.theme(15, .medium))
           .padding(.horizontal, 16).frame(minHeight: 44).contentShape(Capsule())
       }
-      .buttonStyle(.plain).foregroundStyle(.white)
-      .background(Color(red: 0.16, green: 0.17, blue: 0.18), in: Capsule())
+      .buttonStyle(.plain).foregroundStyle(Color.theme(.quickBarText))
+      .background(Color.theme(.quickBar), in: Capsule())
       .padding(18).accessibilityIdentifier("scribbleHint")
       .task(id: hint.id) {
         try? await Task.sleep(for: .seconds(3))
@@ -1358,7 +1362,7 @@ struct Workspace: View {
   private var searchBar: some View {
     VStack(alignment: .leading, spacing: 10) {
       HStack {
-        Image(systemName: "magnifyingglass")
+        Symbol("magnifyingglass")
         TextField("Search PDF text and text boxes", text: $search)
           .accessibilityIdentifier("documentSearchField")
           .onChange(of: search) { documentSearch.update(document.package, query: search) }
@@ -1371,7 +1375,7 @@ struct Workspace: View {
       }
       if !search.isEmpty {
         if !documentSearch.isSearching && documentSearch.results.isEmpty {
-          Text("No matches in searchable text").font(.caption).foregroundStyle(.secondary)
+          Text("No matches in searchable text").font(.theme(.caption)).foregroundStyle(.secondary)
         }
         ScrollView(.horizontal, showsIndicators: false) {
           HStack(spacing: 16) {
@@ -1382,8 +1386,8 @@ struct Workspace: View {
                 }
               } label: {
                 VStack(alignment: .leading, spacing: 3) {
-                  Text("Page \(result.pageNumber)").font(.caption.bold())
-                  Text(result.snippet).font(.caption).lineLimit(2)
+                  Text("Page \(result.pageNumber)").font(.theme(.caption).bold())
+                  Text(result.snippet).font(.theme(.caption)).lineLimit(2)
                 }.frame(width: 190, alignment: .leading)
               }.buttonStyle(.plain).accessibilityLabel("Search result page \(result.pageNumber)")
             }
@@ -1411,7 +1415,7 @@ struct Workspace: View {
   }
   private var textEditor: some View {
     VStack(alignment: .leading, spacing: 18) {
-      Text(editingTextID == nil ? "Add text" : "Edit text").font(.title2.bold())
+      Text(editingTextID == nil ? "Add text" : "Edit text").font(.theme(.title2).bold())
       TextEditor(text: $text).font(.system(size: textSize)).frame(height: 180).border(
         .gray.opacity(0.2))
       HStack {
@@ -1468,7 +1472,7 @@ struct Workspace: View {
             }
           }
           textSheet = false
-        }.buttonStyle(.borderedProminent).disabled(text.isEmpty)
+        }.buttonStyle(.themedProminent).disabled(text.isEmpty)
       }
     }.padding(28).adaptiveWidth(440)
   }
@@ -1876,7 +1880,7 @@ struct TemplatePicker: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 22) {
       HStack {
-        Text("New page").font(.title2.bold())
+        Text("New page").font(.theme(.title2).bold())
         Spacer()
         Button("Cancel") { dismiss() }
       }
@@ -1889,7 +1893,7 @@ struct TemplatePicker: View {
       Button("Add page") {
         onCreate(Paper(size: size, pattern: pattern, landscape: landscape, color: color))
         dismiss()
-      }.buttonStyle(.borderedProminent).frame(maxWidth: .infinity, alignment: .trailing)
+      }.buttonStyle(.themedProminent).frame(maxWidth: .infinity, alignment: .trailing)
         .accessibilityIdentifier("confirmAddPage")
     }.padding(28).adaptiveWidth(450)
   }
@@ -1920,7 +1924,7 @@ struct PaperPatternPicker: View {
                 RoundedRectangle(cornerRadius: 6).stroke(
                   pattern == option ? Color.blue : Color.gray.opacity(0.35),
                   lineWidth: pattern == option ? 2 : 1))
-            Text(option.title).font(.caption).foregroundStyle(.primary)
+            Text(option.title).font(.theme(.caption)).foregroundStyle(.primary)
           }
         }.buttonStyle(.plain).accessibilityLabel(option.title)
           .accessibilityAddTraits(pattern == option ? .isSelected : [])
@@ -1971,13 +1975,13 @@ private struct PaperBackgroundSheet: View {
   }
   var body: some View {
     VStack(alignment: .leading, spacing: 22) {
-      Text("Paper background").font(.title2.bold())
+      Text("Paper background").font(.theme(.title2).bold())
       if isPDFPage && !allPages {
         Text("This page is a PDF, so its own background stays. Turn on “Apply to all non-PDF pages” to change the others.")
-          .font(.callout).foregroundStyle(.secondary)
+          .font(.theme(.callout)).foregroundStyle(.secondary)
       }
       PaperPatternPicker(pattern: $pattern, whiteboard: whiteboard, color: color)
-      Text("Paper color").font(.headline)
+      Text("Paper color").font(.theme(.headline))
       PaperColorRow(color: $color)
       if !whiteboard { Toggle("Apply to all non-PDF pages", isOn: $allPages) }
       HStack {
@@ -1986,9 +1990,9 @@ private struct PaperBackgroundSheet: View {
         Button("Apply") {
           onApply(pattern, color, allPages)
           dismiss()
-        }.buttonStyle(.borderedProminent).disabled(isPDFPage && !allPages)
+        }.buttonStyle(.themedProminent).disabled(isPDFPage && !allPages)
       }
-    }.padding(28).frame(minWidth: 340, idealWidth: 440).preferredColorScheme(.light)
+    }.padding(28).frame(minWidth: 340, idealWidth: 440).themedSheet()
   }
 }
 

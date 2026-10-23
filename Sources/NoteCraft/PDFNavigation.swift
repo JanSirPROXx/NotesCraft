@@ -98,9 +98,9 @@ struct DocumentNavigator: View {
                   select(page.id)
                 } label: {
                   HStack {
-                    Label("Page \(i + 1)", systemImage: page.bookmarked ? "bookmark.fill" : "doc")
+                    Label("Page \(i + 1)", systemImage: Icon.name(page.bookmarked ? "bookmark.fill" : "doc"))
                     Spacer()
-                    if i == currentPage { Image(systemName: "checkmark") }
+                    if i == currentPage { Symbol("checkmark") }
                   }
                 }
               }
@@ -112,7 +112,7 @@ struct DocumentNavigator: View {
         }
       }.padding(.top, 16).navigationTitle("Navigate document")
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-    }.frame(minWidth: 380, minHeight: 450).preferredColorScheme(.light)
+    }.frame(minWidth: 380, minHeight: 450).themedSheet()
       .onAppear {
         number = String(currentPage + 1)
         chapters = PDFNavigation.chapters(package)

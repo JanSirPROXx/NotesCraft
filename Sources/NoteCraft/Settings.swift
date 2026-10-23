@@ -78,6 +78,7 @@ struct SettingsView: View {
         pencilSection
         gestureSection
         toolbarSection
+        appearanceSection
         if let storage { storageSection(storage) }
         aboutSection
       }
@@ -165,6 +166,46 @@ struct SettingsView: View {
     }
   }
 
+  private var appearanceSection: some View {
+    let store = ThemeStore.shared
+    return Section {
+      Picker(
+        "Appearance",
+        selection: Binding(get: { store.mode }, set: { store.setMode($0) })
+      ) {
+        ForEach(AppearanceMode.allCases, id: \.self) { Text($0.title).tag($0) }
+      }.pickerStyle(.segmented)
+      NavigationLink {
+        ThemeGallery()
+      } label: {
+        LabeledContent("Theme", value: store.current.name)
+      }
+      ColorPicker(
+        "Accent color",
+        selection: Binding(
+          get: { Color.theme(.accent) },
+          set: { store.setAccent(InkColor($0).hex) }), supportsOpacity: false)
+      ColorPicker(
+        "Second color",
+        selection: Binding(
+          get: { Color.theme(.secondaryAccent) },
+          set: { store.setSecondary(InkColor($0).hex) }), supportsOpacity: false)
+      if store.accentHex != nil || store.secondaryHex != nil {
+        Button("Use the theme's colors") {
+          store.setAccent(nil)
+          store.setSecondary(nil)
+        }
+      }
+    } header: {
+      Text("Appearance")
+    } footer: {
+      Text(
+        store.mode == .system
+          ? "Light or dark as the iPad is set. A theme that is only light or only dark keeps its own."
+          : "Themes change the colors, type and icons of the app, never what it does.")
+    }
+  }
+
   private func storageSection(_ storage: SettingsStorage) -> some View {
     Section {
       LabeledContent("Storage folder", value: storage.activeName)
@@ -223,7 +264,7 @@ struct ToolbarSettings: View {
                 save(changed)
               })
           ) {
-            Label(tool.title, systemImage: tool.symbol)
+            Label { Text(tool.title) } icon: { Symbol(tool.symbol) }
           }
           .disabled(layout.isVisible(tool) && !layout.canHide(tool))
         }
@@ -245,5 +286,113 @@ struct ToolbarSettings: View {
       .navigationBarTitleDisplayMode(.inline)
       .environment(\.editMode, .constant(.active))
     #endif
+  }
+}
+
+// The themes to choose from, and a way to add one.
+struct ThemeGallery: View {
+  @State private var importing = false
+  @State private var message: String?
+
+  var body: some View {
+    let store = ThemeStore.shared
+    List {
+      Section {
+        ForEach(store.themes) { theme in
+          Button {
+            store.select(theme.id)
+          } label: {
+            HStack(spacing: 14) {
+              ThemePreview(theme: theme)
+              VStack(alignment: .leading, spacing: 2) {
+                Text(theme.name).font(.theme(.body)).foregroundStyle(.primary)
+                Text(Self.detail(theme)).font(.theme(.caption)).foregroundStyle(.secondary)
+              }
+              Spacer(minLength: 0)
+              if store.selectedID == theme.id {
+                Symbol("checkmark").foregroundStyle(Color.accentColor)
+              }
+            }.contentShape(Rectangle())
+          }
+          .accessibilityIdentifier("theme-" + theme.id)
+          .accessibilityAddTraits(store.selectedID == theme.id ? .isSelected : [])
+          .swipeActions {
+            if !theme.isBuiltIn {
+              Button("Remove", role: .destructive) { store.remove(theme.id) }
+            }
+          }
+        }
+      } footer: {
+        Text(
+          "A theme is a folder ending in .notecrafttheme with a theme.json, and the fonts and icons "
+            + "it names. Swipe an added theme to remove it.")
+      }
+      Section {
+        Button("Add a theme…") { importing = true }.accessibilityIdentifier("addTheme")
+      }
+    }
+    .navigationTitle("Theme")
+    #if os(iOS)
+      .navigationBarTitleDisplayMode(.inline)
+    #endif
+    .fileImporter(isPresented: $importing, allowedContentTypes: [.noteCraftTheme, .folder]) { result in
+      do {
+        let theme = try ThemeStore.shared.install(from: try result.get())
+        ThemeStore.shared.select(theme.id)
+      } catch { message = error.localizedDescription }
+    }
+    .alert(
+      "This theme could not be added",
+      isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })
+    ) {
+      Button("OK") { message = nil }
+    } message: {
+      Text(message ?? "")
+    }
+  }
+
+  private static func detail(_ theme: Theme) -> String {
+    var parts: [String] = []
+    if !theme.author.isEmpty { parts.append(theme.author) }
+    switch theme.schemes.count {
+    case 2: parts.append("Light and dark")
+    default: parts.append(theme.schemes.contains(.dark) ? "Dark" : "Light")
+    }
+    return parts.joined(separator: " · ")
+  }
+}
+
+// A small picture of a theme: its background, bar, accent and text.
+struct ThemePreview: View {
+  let theme: Theme
+
+  var body: some View {
+    let store = ThemeStore.shared
+    let preferred: ThemeScheme =
+      switch store.mode {
+      case .light: .light
+      case .dark: .dark
+      case .system: store.systemScheme
+      }
+    let palette = theme.palette(for: theme.scheme(preferring: preferred), base: .standard)
+    func fill(_ token: ThemeColorToken) -> Color {
+      guard let c = palette[token] else { return .clear }
+      return Color(.sRGB, red: c.red, green: c.green, blue: c.blue, opacity: c.alpha)
+    }
+    return ZStack(alignment: .topLeading) {
+      RoundedRectangle(cornerRadius: 10).fill(fill(.background))
+      VStack(alignment: .leading, spacing: 5) {
+        RoundedRectangle(cornerRadius: 3).fill(fill(.toolBar)).frame(height: 10)
+        HStack(spacing: 4) {
+          Circle().fill(fill(.accent)).frame(width: 9, height: 9)
+          Circle().fill(fill(.secondaryAccent)).frame(width: 9, height: 9)
+          Circle().fill(fill(.favorite)).frame(width: 9, height: 9)
+        }
+        RoundedRectangle(cornerRadius: 2).fill(fill(.textPrimary)).frame(width: 36, height: 4)
+        RoundedRectangle(cornerRadius: 2).fill(fill(.textSecondary)).frame(width: 24, height: 4)
+      }.padding(7)
+    }
+    .frame(width: 64, height: 52)
+    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.35), lineWidth: 0.5))
   }
 }

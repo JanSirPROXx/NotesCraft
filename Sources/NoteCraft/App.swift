@@ -28,6 +28,7 @@ struct NoteDocument: FileDocument {
           Preferences.horizontalPages, Preferences.infiniteScroll, Preferences.stabilization,
           Preferences.pullToAddPage, Preferences.showPageIndicator, Preferences.showZoomIndicator,
           Preferences.undoRedoPosition, Preferences.toolbarOrder, Preferences.toolbarHidden,
+          "appearanceTheme", "appearanceMode", "appearanceAccent", "appearanceSecondary",
           "savedStorages", "activeStorageID", "vaultBookmark", "readingPositions",
         ] {
           UserDefaults.standard.removeObject(forKey: key)
@@ -40,7 +41,7 @@ struct NoteDocument: FileDocument {
     #endif
   }
   var body: some Scene {
-    WindowGroup("NotesCraft") { VaultRoot() }
+    WindowGroup("NotesCraft") { ThemedRoot { VaultRoot() } }
       .commands { WorkspaceCommands() }
   }
 }

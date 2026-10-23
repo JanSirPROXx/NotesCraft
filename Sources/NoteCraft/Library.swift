@@ -45,7 +45,14 @@ struct VaultRoot: View {
       restoringStorage = false
     }
     .sheet(item: $vault.lockedPDF) { entry in PDFUnlockSheet(vault: vault, entry: entry) }
-    .preferredColorScheme(.dark)
+    .onOpenURL { url in
+      // A theme opened from Files or shared to the app is added and used.
+      guard url.pathExtension == "notecrafttheme" else { return }
+      do {
+        let theme = try ThemeStore.shared.install(from: url)
+        ThemeStore.shared.select(theme.id)
+      } catch { vault.error = error.localizedDescription }
+    }
     .fileImporter(isPresented: $folderPicker, allowedContentTypes: [.folder]) { result in
       do {
         let url = try result.get()
@@ -82,29 +89,27 @@ struct VaultRoot: View {
   }
   private var welcome: some View {
     VStack(spacing: 24) {
-      Image(systemName: "folder.badge.plus").font(.system(size: 62, weight: .light))
-        .foregroundStyle(Color.cyan)
-      Text("Your notes. Your folder.").font(.system(size: 34, weight: .semibold))
+      Symbol("folder.badge.plus").font(.theme(62, .light))
+        .foregroundStyle(Color.theme(.secondaryAccent))
+      Text("Your notes. Your folder.").font(.theme(34, .semibold))
       Text(
         "Choose a folder on this device or a connected drive.\nExisting PDFs, Markdown notes and folders appear alongside your notebooks."
       )
-      .font(.system(size: 17)).foregroundStyle(Color(white: 0.72)).multilineTextAlignment(.center)
+      .font(.theme(17)).foregroundStyle(Color.theme(.textSecondary)).multilineTextAlignment(.center)
       .lineSpacing(5)
       Button {
         folderPicker = true
       } label: {
-        Label("Choose storage folder", systemImage: "folder").font(.headline).padding(
-          .horizontal, 24
-        ).padding(.vertical, 14)
+        Label("Choose storage folder", systemImage: Icon.name("folder")).font(.theme(.headline))
       }
-      .buttonStyle(.borderedProminent).tint(Color(red: 0.02, green: 0.46, blue: 0.76))
+      .buttonStyle(.themedProminent(horizontal: 24, vertical: 14))
       .accessibilityIdentifier("chooseStorageFolder")
       ForEach(vault.storages) { storage in
         Button("Open \(storage.name)") { Task { await vault.selectStorage(storage) } }
-          .foregroundStyle(Color(white: 0.8))
+          .foregroundStyle(Color.theme(.textSecondary))
       }
-    }.padding(40).frame(maxWidth: .infinity, maxHeight: .infinity).foregroundStyle(Color.white)
-      .background(Color(white: 0.035))
+    }.padding(40).frame(maxWidth: .infinity, maxHeight: .infinity)
+      .foregroundStyle(Color.theme(.textPrimary)).background(Color.theme(.background))
   }
 }
 
@@ -124,9 +129,9 @@ struct Library: View {
   @State private var renameEntry: VaultEntry?
   @State private var moveEntry: VaultEntry?
   @State private var lastTrashed: TrashItem?
-  private let background = Color(white: 0.025)
-  private let secondary = Color(white: 0.63)
-  private let blue = Color(red: 0.02, green: 0.48, blue: 0.78)
+  private var background: Color { Color.theme(.background) }
+  private var secondary: Color { Color.theme(.textSecondary) }
+  private var blue: Color { Color.theme(.accent) }
   enum CreationKind: String, Identifiable {
     case notebook, whiteboard, markdown, folder
     var id: String { rawValue }
@@ -152,7 +157,7 @@ struct Library: View {
         VStack(alignment: .leading, spacing: 28) {
           header
           controls
-          if vault.busy { ProgressView("Working…").tint(.white) }
+          if vault.busy { ProgressView("Working…").tint(Color.theme(.textPrimary)) }
           if !trashVisible && !favoritesOnly { breadcrumbs }
           ScrollView {
             if trashVisible {
@@ -160,7 +165,7 @@ struct Library: View {
             } else if filtered.isEmpty {
               ContentUnavailableView(
                 search.isEmpty ? "No documents here yet" : "No matching files",
-                systemImage: "folder",
+                systemImage: Icon.name("folder"),
                 description: Text(
                   search.isEmpty
                     ? "Create a notebook, whiteboard or text document with New."
@@ -169,7 +174,7 @@ struct Library: View {
               LazyVStack(spacing: 0) {
                 ForEach(filtered) { entry in
                   row(entry)
-                  Divider().overlay(Color(white: 0.18))
+                  Divider().overlay(Color.theme(.separator))
                 }
               }
             } else {
@@ -186,15 +191,15 @@ struct Library: View {
             Spacer()
             Text(vault.folder?.lastPathComponent ?? "")
             Button("Add storage", action: chooseFolder)
-          }.font(.system(size: 12)).foregroundStyle(secondary)
+          }.font(.theme(12)).foregroundStyle(secondary)
         }.padding(.horizontal, geometry.size.width > 700 ? 30 : 20).padding(.top, 28).padding(
           .bottom, 16)
-      }.background(background).foregroundStyle(Color.white)
+      }.background(background).foregroundStyle(Color.theme(.textPrimary))
     }
     .overlay(alignment: .bottom) {
       if let item = lastTrashed, vault.trashItems.contains(where: { $0.id == item.id }) {
         HStack {
-          Label("Moved to Trash", systemImage: "trash")
+          Label("Moved to Trash", systemImage: Icon.name("trash"))
           Button("Undo") {
             Task {
               await vault.restore(item)
@@ -204,7 +209,7 @@ struct Library: View {
           Button {
             lastTrashed = nil
           } label: {
-            Image(systemName: "xmark")
+            Symbol("xmark")
           }.accessibilityLabel("Dismiss")
         }.padding(14).background(.regularMaterial, in: Capsule()).padding(.bottom, 45)
       }
@@ -237,12 +242,12 @@ struct Library: View {
   private var navigation: some View {
     VStack(alignment: .leading, spacing: 14) {
       HStack {
-        Text("NotesCraft").font(.system(size: 17, weight: .semibold))
+        Text("NotesCraft").font(.theme(17, .semibold))
         Spacer()
         Button {
           sidebar = false
         } label: {
-          Image(systemName: "sidebar.left")
+          Symbol("sidebar.left")
         }
       }.padding(.bottom, 24)
       navigationItem("Documents", symbol: "folder.fill", selected: !favoritesOnly && !trashVisible)
@@ -262,7 +267,7 @@ struct Library: View {
         Task { await vault.refresh() }
       }
       Divider().padding(.vertical, 12)
-      Text("STORAGE FOLDERS").font(.system(size: 11, weight: .medium)).foregroundStyle(secondary)
+      Text("STORAGE FOLDERS").font(.theme(11, .medium)).foregroundStyle(secondary)
       ForEach(vault.storages) { storage in
         Button {
           favoritesOnly = false
@@ -272,48 +277,48 @@ struct Library: View {
           Task { await vault.selectStorage(storage) }
         } label: {
           HStack(spacing: 10) {
-            Image(systemName: "externaldrive")
+            Symbol("externaldrive")
             Text(storage.name).lineLimit(2)
             Spacer(minLength: 0)
-            if storage.id == vault.activeStorageID { Image(systemName: "checkmark").font(.caption) }
-          }.font(.system(size: 14)).padding(10)
+            if storage.id == vault.activeStorageID { Symbol("checkmark").font(.theme(.caption)) }
+          }.font(.theme(14)).padding(10)
             .background(
-              storage.id == vault.activeStorageID ? Color(white: 0.18) : .clear,
+              storage.id == vault.activeStorageID ? Color.theme(.surfaceRaised) : .clear,
               in: RoundedRectangle(cornerRadius: 10))
         }.accessibilityIdentifier("storage-" + storage.id.uuidString)
           .disabled(vault.busy)
       }
-      Button(action: chooseFolder) { Label("Add storage folder", systemImage: "plus") }
-        .font(.system(size: 13)).foregroundStyle(secondary).accessibilityIdentifier(
+      Button(action: chooseFolder) { Label("Add storage folder", systemImage: Icon.name("plus")) }
+        .font(.theme(13)).foregroundStyle(secondary).accessibilityIdentifier(
           "addStorageFolder")
       Spacer()
       if !vault.sessions.isEmpty {
-        Text("OPEN DOCUMENTS").font(.system(size: 11, weight: .medium)).foregroundStyle(secondary)
+        Text("OPEN DOCUMENTS").font(.theme(11, .medium)).foregroundStyle(secondary)
         ForEach(vault.sessions) { session in
           Button {
             Task { await vault.selectTab(session.id) }
           } label: {
             Label(
               session.title,
-              systemImage: session.entryKind == .markdown ? "doc.text" : "book.closed"
-            ).lineLimit(1).font(.system(size: 13))
+              systemImage: Icon.name(session.entryKind == .markdown ? "doc.text" : "book.closed")
+            ).lineLimit(1).font(.theme(13))
           }.padding(.vertical, 4)
         }
       }
     }.buttonStyle(.plain).padding(22).frame(maxHeight: .infinity).background(
-      Color(white: 0.055), in: RoundedRectangle(cornerRadius: 24)
-    ).overlay(RoundedRectangle(cornerRadius: 24).stroke(Color(white: 0.16), lineWidth: 1))
+      Color.theme(.surface), in: RoundedRectangle(cornerRadius: .corner(24))
+    ).overlay(RoundedRectangle(cornerRadius: .corner(24)).stroke(Color.theme(.separator), lineWidth: 1))
   }
   private func navigationItem(
     _ text: String, symbol: String, selected: Bool, action: @escaping () -> Void
   ) -> some View {
     Button(action: action) {
-      Label(text, systemImage: symbol).font(
+      Label { Text(text) } icon: { Symbol(symbol) }.font(
         .system(size: 17, weight: selected ? .semibold : .regular)
       ).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 17).padding(
         .vertical, 16
-      ).background(selected ? Color(white: 0.18) : .clear, in: Capsule())
-    }.foregroundStyle(Color.white)
+      ).background(selected ? Color.theme(.surfaceRaised) : .clear, in: Capsule())
+    }.foregroundStyle(Color.theme(.textPrimary))
   }
   private var header: some View {
     HStack {
@@ -321,25 +326,25 @@ struct Library: View {
         Button {
           sidebar = true
         } label: {
-          Image(systemName: "sidebar.left")
+          Symbol("sidebar.left")
         }.buttonStyle(.plain)
       }
       Menu {
-        Button("Documents", systemImage: "folder") {
+        Button("Documents", systemImage: Icon.name("folder")) {
           trashVisible = false
           favoritesOnly = false
           if let root = vault.root { Task { await vault.navigate(root) } }
         }.accessibilityIdentifier("showDocuments")
-        Button("Favorites", systemImage: "star") {
+        Button("Favorites", systemImage: Icon.name("star")) {
           trashVisible = false
           favoritesOnly = true
         }
-        Button("Trash", systemImage: "trash") {
+        Button("Trash", systemImage: Icon.name("trash")) {
           trashVisible = true
           favoritesOnly = false
         }.accessibilityIdentifier("showTrash")
       } label: {
-        Image(systemName: "folder.badge.gearshape")
+        Symbol("folder.badge.gearshape")
       }
       .accessibilityLabel("Library locations")
       if !trashVisible && !favoritesOnly && vault.folder?.vaultPath != vault.root?.vaultPath {
@@ -348,8 +353,8 @@ struct Library: View {
             Task { await vault.navigate(folder.deletingLastPathComponent()) }
           }
         } label: {
-          Image(systemName: "chevron.left").font(.system(size: 19)).frame(width: 42, height: 42)
-            .background(Color(white: 0.12), in: Circle())
+          Symbol("chevron.left").font(.theme(19)).frame(width: 42, height: 42)
+            .background(Color.theme(.field), in: Circle())
         }.buttonStyle(.plain)
       }
       Text(
@@ -359,20 +364,20 @@ struct Library: View {
             ? "Favorites"
             : vault.folder?.vaultPath == vault.root?.vaultPath
               ? "Documents" : vault.folder?.lastPathComponent ?? "Documents"
-      ).font(.system(size: 32, weight: .semibold)).lineLimit(1)
+      ).font(.theme(32, .semibold)).lineLimit(1)
       Spacer()
       HStack(spacing: 10) {
-        Image(systemName: "magnifyingglass")
+        Symbol("magnifyingglass")
         TextField("Search", text: $search).frame(maxWidth: 180).accessibilityLabel("Search library")
         if !search.isEmpty {
           Button {
             search = ""
           } label: {
-            Image(systemName: "xmark.circle.fill")
+            Symbol("xmark.circle.fill")
           }.buttonStyle(.plain).accessibilityLabel("Clear search")
         }
-      }.padding(12).background(Color(white: 0.11), in: Capsule()).overlay(
-        Capsule().stroke(Color(white: 0.2)))
+      }.padding(12).background(Color.theme(.field), in: Capsule()).overlay(
+        Capsule().stroke(Color.theme(.separator)))
     }
   }
   private var controls: some View {
@@ -384,7 +389,7 @@ struct Library: View {
           Button("Name") { sortNewest = false }
           Button("Last modified") { sortNewest = true }
         } label: {
-          Label(sortNewest ? "Last modified" : "Name", systemImage: "line.3.horizontal.decrease")
+          Label(sortNewest ? "Last modified" : "Name", systemImage: Icon.name("line.3.horizontal.decrease"))
         }.foregroundStyle(secondary)
       }
       Spacer()
@@ -392,7 +397,7 @@ struct Library: View {
         Button {
           newPopover.toggle()
         } label: {
-          Label("New", systemImage: "plus").font(.system(size: 17)).padding(.horizontal, 20)
+          Label("New", systemImage: Icon.name("plus")).font(.theme(17)).padding(.horizontal, 20)
             .padding(
               .vertical, 12
             ).background(blue, in: Capsule())
@@ -405,18 +410,18 @@ struct Library: View {
         Button {
           list.toggle()
         } label: {
-          Image(systemName: list ? "list.bullet" : "square.grid.2x2").font(.system(size: 22))
+          Symbol(list ? "list.bullet" : "square.grid.2x2").font(.theme(22))
         }.buttonStyle(.plain).accessibilityLabel("Toggle grid or list")
       }
       Button {
         Task { await vault.refresh() }
       } label: {
-        Image(systemName: "arrow.clockwise").font(.system(size: 20))
+        Symbol("arrow.clockwise").font(.theme(20))
       }.buttonStyle(.plain).accessibilityLabel("Refresh folder")
       Button {
         settingsSheet = true
       } label: {
-        Image(systemName: "gearshape").font(.system(size: 21))
+        Symbol("gearshape").font(.theme(21))
       }.buttonStyle(.plain).accessibilityLabel("Settings")
     }
   }
@@ -431,17 +436,18 @@ struct Library: View {
         newPopover = false
         pdfImport = true
       } label: {
-        Label("Import", systemImage: "square.and.arrow.down").frame(
+        Label("Import", systemImage: Icon.name("square.and.arrow.down")).frame(
           maxWidth: .infinity, alignment: .leading
-        ).padding(16).background(Color(white: 0.16), in: RoundedRectangle(cornerRadius: 16))
+        ).padding(16).background(Color.theme(.surfaceRaised), in: RoundedRectangle(cornerRadius: .corner(16)))
       }
       Button {
         begin(.folder)
       } label: {
-        Label("Folder", systemImage: "folder").frame(maxWidth: .infinity, alignment: .leading)
-          .padding(16).background(Color(white: 0.16), in: RoundedRectangle(cornerRadius: 16))
+        Label("Folder", systemImage: Icon.name("folder")).frame(maxWidth: .infinity, alignment: .leading)
+          .padding(16).background(Color.theme(.surfaceRaised), in: RoundedRectangle(cornerRadius: .corner(16)))
       }
-    }.buttonStyle(.plain).foregroundStyle(Color.white).padding(20).background(Color(white: 0.10))
+    }.buttonStyle(.plain).foregroundStyle(Color.theme(.textPrimary)).padding(20)
+      .background(Color.theme(.surface))
       .adaptiveWidth(420)
   }
   private func newTile(_ title: String, _ symbol: String, _ kind: CreationKind) -> some View {
@@ -449,10 +455,10 @@ struct Library: View {
       begin(kind)
     } label: {
       VStack(spacing: 16) {
-        Image(systemName: symbol).font(.system(size: 27, weight: .light))
-        Text(title).font(.system(size: 14))
+        Symbol(symbol).font(.theme(27, .light))
+        Text(title).font(.theme(14))
       }.frame(maxWidth: .infinity).frame(height: 112).background(
-        Color(white: 0.16), in: RoundedRectangle(cornerRadius: 18))
+        Color.theme(.surfaceRaised), in: RoundedRectangle(cornerRadius: .corner(18)))
     }
   }
   private func begin(_ kind: CreationKind) {
@@ -470,11 +476,11 @@ struct Library: View {
         Button {
           vault.favorite(entry)
         } label: {
-          Image(systemName: vault.favorites.contains(entry.url.vaultPath) ? "star.fill" : "star")
+          Symbol(vault.favorites.contains(entry.url.vaultPath) ? "star.fill" : "star")
             .font(
               .system(size: 22)
             ).foregroundStyle(
-              vault.favorites.contains(entry.url.vaultPath) ? Color.yellow : Color(white: 0.55)
+              vault.favorites.contains(entry.url.vaultPath) ? Color.theme(.favorite) : Color.theme(.textTertiary)
             ).padding(8)
         }.buttonStyle(.plain).accessibilityLabel(
           vault.favorites.contains(entry.url.vaultPath)
@@ -483,7 +489,7 @@ struct Library: View {
       Button {
         Task { await vault.open(entry) }
       } label: {
-        Text(entry.title).font(.system(size: 15)).multilineTextAlignment(.center).lineLimit(2)
+        Text(entry.title).font(.theme(15)).multilineTextAlignment(.center).lineLimit(2)
           .frame(maxWidth: .infinity)
       }.buttonStyle(.plain)
       HStack(spacing: 6) {
@@ -492,7 +498,7 @@ struct Library: View {
         ).foregroundStyle(secondary)
         entryMenu(entry)
       }
-      Text(entry.modified.formatted(date: .abbreviated, time: .shortened)).font(.system(size: 11))
+      Text(entry.modified.formatted(date: .abbreviated, time: .shortened)).font(.theme(11))
         .foregroundStyle(secondary)
     }.accessibilityElement(children: .contain).contextMenu { entryActions(entry) }
   }
@@ -504,19 +510,19 @@ struct Library: View {
         HStack(spacing: 18) {
           VaultCover(entry: entry).frame(width: 48, height: 54)
           VStack(alignment: .leading, spacing: 5) {
-            Text(entry.title).font(.system(size: 16))
-            Text(entry.kind.rawValue.capitalized).font(.caption).foregroundStyle(secondary)
+            Text(entry.title).font(.theme(16))
+            Text(entry.kind.rawValue.capitalized).font(.theme(.caption)).foregroundStyle(secondary)
           }
           Spacer()
-          Text(entry.modified.formatted(date: .abbreviated, time: .shortened)).font(.caption)
+          Text(entry.modified.formatted(date: .abbreviated, time: .shortened)).font(.theme(.caption))
             .foregroundStyle(secondary)
         }
       }.buttonStyle(.plain)
       Button {
         vault.favorite(entry)
       } label: {
-        Image(systemName: vault.favorites.contains(entry.url.vaultPath) ? "star.fill" : "star")
-      }.buttonStyle(.plain).foregroundStyle(.yellow)
+        Symbol(vault.favorites.contains(entry.url.vaultPath) ? "star.fill" : "star")
+      }.buttonStyle(.plain).foregroundStyle(Color.theme(.favorite))
       entryMenu(entry)
     }.padding(.vertical, 14).contextMenu { entryActions(entry) }
   }
@@ -526,11 +532,11 @@ struct Library: View {
         if let root = vault.root, let folder = vault.folder {
           Button(root.lastPathComponent) { Task { await vault.navigate(root) } }
           ForEach(pathComponents(root: root, folder: folder), id: \.self) { url in
-            Image(systemName: "chevron.right").font(.system(size: 9))
+            Symbol("chevron.right").font(.theme(9))
             Button(url.lastPathComponent) { Task { await vault.navigate(url) } }
           }
         }
-      }.buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(secondary)
+      }.buttonStyle(.plain).font(.theme(12)).foregroundStyle(secondary)
     }
   }
   private func pathComponents(root: URL, folder: URL) -> [URL] {
@@ -546,20 +552,20 @@ struct Library: View {
     Menu {
       entryActions(entry)
     } label: {
-      Image(systemName: "ellipsis").frame(width: 44, height: 44).contentShape(Rectangle())
+      Symbol("ellipsis").frame(width: 44, height: 44).contentShape(Rectangle())
     }.accessibilityLabel("Actions for \(entry.title)").disabled(vault.busy)
   }
   @ViewBuilder private func entryActions(_ entry: VaultEntry) -> some View {
-    Button("Open", systemImage: "arrow.up.forward.square") { Task { await vault.open(entry) } }
-    Button("Rename", systemImage: "pencil") { renameEntry = entry }
-    Button("Move", systemImage: "folder") { moveEntry = entry }
-    Button("Duplicate", systemImage: "doc.on.doc") { Task { await vault.duplicate(entry) } }
+    Button("Open", systemImage: Icon.name("arrow.up.forward.square")) { Task { await vault.open(entry) } }
+    Button("Rename", systemImage: Icon.name("pencil")) { renameEntry = entry }
+    Button("Move", systemImage: Icon.name("folder")) { moveEntry = entry }
+    Button("Duplicate", systemImage: Icon.name("doc.on.doc")) { Task { await vault.duplicate(entry) } }
     Button(
       vault.favorites.contains(entry.url.vaultPath) ? "Remove favorite" : "Favorite",
-      systemImage: "star"
+      systemImage: Icon.name("star")
     ) { vault.favorite(entry) }
     Divider()
-    Button("Move to Trash", systemImage: "trash", role: .destructive) {
+    Button("Move to Trash", systemImage: Icon.name("trash"), role: .destructive) {
       Task {
         await vault.trash(entry)
         lastTrashed = vault.trashItems.first
@@ -610,10 +616,10 @@ struct MarkdownWorkspace: View {
         Button {
           Task { await vault.library() }
         } label: {
-          Label("Documents", systemImage: "chevron.left")
+          Label("Documents", systemImage: Icon.name("chevron.left"))
         }
         Spacer()
-        Text(session.title).font(.headline)
+        Text(session.title).font(.theme(.headline))
         Spacer()
         Button(preview ? "Edit" : "Preview") { preview.toggle() }
         Button("Save") { Task { await vault.save(session) } }
@@ -644,8 +650,8 @@ struct MarkdownWorkspace: View {
         Text(session.url.lastPathComponent)
         Spacer()
         Text(session.status)
-      }.font(.caption).foregroundStyle(Color(white: 0.4)).padding(12)
-    }.foregroundStyle(Color(white: 0.12)).background(Color.white).environment(\.colorScheme, .light)
+      }.font(.theme(.caption)).foregroundStyle(Color.theme(.sheetSecondaryText)).padding(12)
+    }.foregroundStyle(Color.theme(.sheetText)).background(Color.theme(.sheet))
   }
 }
 
@@ -667,7 +673,7 @@ private struct VaultCreationSheet: View {
   }
   var body: some View {
     VStack(alignment: .leading, spacing: 22) {
-      Text("New \(kind.rawValue.capitalized)").font(.title2.bold())
+      Text("New \(kind.rawValue.capitalized)").font(.theme(.title2).bold())
       TextField("Name", text: $title).textFieldStyle(.roundedBorder)
       // The name field stays outside the scroll view: with the keyboard up the sheet shrinks and
       // only the options scroll, so what is typed never moves out of sight.
@@ -692,11 +698,11 @@ private struct VaultCreationSheet: View {
         Spacer()
         Button("Create") {
           onCreate(title, paper)
-        }.buttonStyle(.borderedProminent).disabled(
+        }.buttonStyle(.themedProminent).disabled(
           title.trimmingCharacters(in: .whitespaces).isEmpty)
       }
-    }.padding(28).frame(minWidth: 340, idealWidth: 440).preferredColorScheme(.light)
-      .foregroundStyle(Color.black)
+    }.padding(28).frame(minWidth: 340, idealWidth: 440)
+      .foregroundStyle(Color.theme(.sheetText)).background(Color.theme(.sheet))
   }
 }
 
@@ -718,15 +724,15 @@ private struct ImageFilePreview: View {
         Button {
           Task { await vault.library() }
         } label: {
-          Label("Documents", systemImage: "chevron.left")
+          Label("Documents", systemImage: Icon.name("chevron.left"))
         }
         Spacer()
         VStack(spacing: 3) {
-          Text(session.title).font(.headline).lineLimit(1)
-          Label("Read only", systemImage: "lock").font(.caption).foregroundStyle(.secondary)
+          Text(session.title).font(.theme(.headline)).lineLimit(1)
+          Label("Read only", systemImage: Icon.name("lock")).font(.theme(.caption)).foregroundStyle(.secondary)
         }
         Spacer()
-        Button("Import into notebook", systemImage: "square.and.arrow.down") {
+        Button("Import into notebook", systemImage: Icon.name("square.and.arrow.down")) {
           Task { await vault.importImageNotebook(session) }
         }.disabled(vault.busy).accessibilityIdentifier("importImageNotebook")
       }.padding(16).background(.bar)
@@ -757,9 +763,9 @@ private struct ImageFilePreview: View {
               }.onEnded { _ in zoomBase = zoom })
           #endif
         } else {
-          ContentUnavailableView("Unable to display image", systemImage: "photo")
+          ContentUnavailableView("Unable to display image", systemImage: Icon.name("photo"))
         }
       }.accessibilityIdentifier("readOnlyImagePreview")
-    }.background(Color(white: 0.94)).preferredColorScheme(.light)
+    }.background(Color.theme(.sheet))
   }
 }

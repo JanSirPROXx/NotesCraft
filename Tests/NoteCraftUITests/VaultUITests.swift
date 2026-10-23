@@ -864,6 +864,67 @@ final class VaultUITests: XCTestCase {
     XCTAssertTrue(waitForVisiblePage(app, "1 strokes"), visiblePageStrokes(app) ?? "no page")
     XCTAssertEqual(surface.value as? String, zoom)
   }
+  // Opens Settings (the gear in the library, or the ⋯ menu of a notebook) and picks the appearance
+  // and the theme, then closes it again.
+  @MainActor private func setAppearance(
+    _ app: XCUIApplication, mode: String? = nil, theme: String? = nil, inNotebook: Bool = false
+  ) {
+    if inNotebook { app.buttons["More"].tap() }
+    app.buttons["Settings"].tap()
+    let appearance = app.cells.containing(.staticText, identifier: "Theme").firstMatch
+    scrollSheet(app, to: appearance)
+    if let mode {
+      let segment = app.buttons[mode]
+      XCTAssertTrue(segment.waitForExistence(timeout: 5), mode)
+      segment.tap()
+    }
+    if let theme {
+      appearance.tap()
+      let row = app.buttons["theme-" + theme]
+      XCTAssertTrue(row.waitForExistence(timeout: 5), theme)
+      row.tap()
+      XCTAssertTrue(row.isSelected, "\(theme) is chosen")
+      app.navigationBars.buttons.element(boundBy: 0).tap()
+    }
+    app.buttons["Done"].tap()
+  }
+
+  // The look of the app follows the theme and the appearance, in the library and in a notebook.
+  @MainActor func testThemesRestyleTheLibraryAndTheNotebook() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input"]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    capture(app, name: "Library, Classic dark")
+    setAppearance(app, mode: "Light")
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    capture(app, name: "Library, Classic light")
+    setAppearance(app, theme: "app.notecraft.sepia")
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    capture(app, name: "Library, Sepia light")
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    capture(app, name: "New notebook sheet, Sepia light")
+    app.buttons["Create"].tap()
+    XCTAssertTrue(app.descendants(matching: .any)["drawingCanvas"].firstMatch.waitForExistence(timeout: 10))
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    capture(app, name: "Notebook, Sepia light")
+    setAppearance(app, mode: "Dark", inNotebook: true)
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    capture(app, name: "Notebook, Sepia dark")
+    setAppearance(app, theme: "app.notecraft.mono", inNotebook: true)
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    capture(app, name: "Notebook, Mono dark")
+    setAppearance(app, mode: "Light", inNotebook: true)
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    capture(app, name: "Notebook, Mono light")
+    setAppearance(app, mode: "Dark", theme: "app.notecraft.classic", inNotebook: true)
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    capture(app, name: "Notebook, Classic dark")
+  }
   @MainActor func testLargeNotebookKeepsOnlyVisibleCanvasesLoaded() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     defer { XCUIDevice.shared.orientation = .portrait }

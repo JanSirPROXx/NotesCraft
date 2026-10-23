@@ -66,12 +66,22 @@ targets:
             LSHandlerRank: Owner
             LSTypeIsPackage: YES
             LSItemContentTypes: [app.notecraft.notebook]
+          - CFBundleTypeName: NotesCraft Theme
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Owner
+            LSTypeIsPackage: YES
+            LSItemContentTypes: [app.notecraft.theme]
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: app.notecraft.notebook
             UTTypeDescription: NotesCraft Notebook
             UTTypeConformsTo: [com.apple.package]
             UTTypeTagSpecification:
               public.filename-extension: [notecraft]
+          - UTTypeIdentifier: app.notecraft.theme
+            UTTypeDescription: NotesCraft Theme
+            UTTypeConformsTo: [com.apple.package]
+            UTTypeTagSpecification:
+              public.filename-extension: [notecrafttheme]
 
   NoteCraftCoreTests:
     type: bundle.unit-test
