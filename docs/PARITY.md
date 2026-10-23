@@ -18,7 +18,7 @@ has not been established.
   Empty Trash; PDF sidecars and open sessions follow file operations.
 - Visible file actions, folder breadcrumbs, persistent view/sort settings and trash undo.
 - The notebook is one scroll view: whole-document finger pinch zoom (50 % to 600 %) and panning.
-- Vertical scrolling is the persistent default, as in Goodnotes; the editor menu can switch to
+- Vertical scrolling is the persistent default, as in Goodnotes; Settings can switch to
   horizontal paging. Pulling beyond the last page appends matching paper in either direction.
 - Image tool immediately offers Files/Photos, selects inserted images, and provides direct
   move, corner resize, pinch resize and rotation gestures with undo.

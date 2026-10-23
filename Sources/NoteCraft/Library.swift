@@ -116,6 +116,7 @@ struct Library: View {
   @State private var favoritesOnly = false
   @State private var sidebar = true
   @State private var newPopover = false
+  @State private var settingsSheet = false
   @State private var creation: CreationKind?
   @State private var pdfImport = false
   @AppStorage("librarySortNewest") private var sortNewest = false
@@ -207,6 +208,12 @@ struct Library: View {
           }.accessibilityLabel("Dismiss")
         }.padding(14).background(.regularMaterial, in: Capsule()).padding(.bottom, 45)
       }
+    }
+    .sheet(isPresented: $settingsSheet) {
+      SettingsView(
+        storage: SettingsStorage(
+          activeName: vault.storages.first { $0.id == vault.activeStorageID }?.name ?? "None",
+          addFolder: chooseFolder))
     }
     .sheet(item: $renameEntry) { entry in LibraryRenameSheet(vault: vault, entry: entry) }
     .sheet(item: $moveEntry) { entry in LibraryMoveSheet(vault: vault, entry: entry) }
@@ -406,6 +413,11 @@ struct Library: View {
       } label: {
         Image(systemName: "arrow.clockwise").font(.system(size: 20))
       }.buttonStyle(.plain).accessibilityLabel("Refresh folder")
+      Button {
+        settingsSheet = true
+      } label: {
+        Image(systemName: "gearshape").font(.system(size: 21))
+      }.buttonStyle(.plain).accessibilityLabel("Settings")
     }
   }
   private var newMenu: some View {

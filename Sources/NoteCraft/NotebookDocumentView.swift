@@ -89,6 +89,8 @@
     var trailingIndex: Int?
     // Pulling past the end of a column adds a page.
     var canPull: Bool
+    var showsPageIndicator = true
+    var showsZoomIndicator = true
     // Reported when the paper has come to rest, not while it moves: a state change in the view
     // above while a finger is scrolling makes every page on screen redo its work.
     var onCurrentPage: (Int) -> Void
@@ -218,7 +220,7 @@
           let distance = abs(new.selectedIndex - max(0, reportedIndex))
           show(new.selectedIndex, animated: distance <= 1 && reportedIndex >= 0)
         }
-        if new.selectedIndex < realPageCount {
+        if new.showsPageIndicator, new.selectedIndex < realPageCount {
           indicator.show(page: new.selectedIndex + 1, of: realPageCount, force: true)
         }
       }
@@ -505,7 +507,7 @@
       updateInsets()
       syncHosts()
       scroll.accessibilityValue = "Zoom \(Int((zoom * 100).rounded())) percent"
-      zoomIndicator.show(zoom: Double(zoom))
+      if props?.showsZoomIndicator != false { zoomIndicator.show(zoom: Double(zoom)) }
     }
 
     // Everything that has to redo work for the new zoom waits until the fingers have lifted: the
@@ -516,7 +518,7 @@
       syncHosts()
       place = currentPlace()
       settled()
-      zoomIndicator.show(zoom: Double(scale))
+      if props?.showsZoomIndicator != false { zoomIndicator.show(zoom: Double(scale)) }
     }
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
@@ -545,7 +547,9 @@
       if animatingTo == nil {
         let index = layout.currentIndex(visibleIn: visibleRect())
         if index != reportedIndex { reportedIndex = index }
-        if scrollView.isDragging || scrollView.isDecelerating, index < realPageCount {
+        if props.showsPageIndicator, scrollView.isDragging || scrollView.isDecelerating,
+          index < realPageCount
+        {
           indicator.show(page: index + 1, of: realPageCount)
         }
       }

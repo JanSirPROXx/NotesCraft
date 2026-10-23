@@ -20,11 +20,16 @@ struct NoteDocument: FileDocument {
   init() {
     #if DEBUG
       if CommandLine.arguments.contains("--ui-test-reset-input") {
-        UserDefaults.standard.removeObject(forKey: "pencilOnlyDrawing")
-        UserDefaults.standard.removeObject(forKey: "horizontalNotebookPages")
         UserDefaults.standard.removeObject(forKey: "keepZoomOnNewPage")
-        UserDefaults.standard.removeObject(forKey: "infiniteScroll")
-        for key in ["savedStorages", "activeStorageID", "vaultBookmark", "readingPositions"] {
+        // Everything a test can change in Settings starts from its default again.
+        for key in [
+          Preferences.pencilOnly, Preferences.holdToShape, Preferences.scratchToErase,
+          Preferences.circleToLasso, Preferences.gpuInk, Preferences.scribbleHint,
+          Preferences.horizontalPages, Preferences.infiniteScroll, Preferences.stabilization,
+          Preferences.pullToAddPage, Preferences.showPageIndicator, Preferences.showZoomIndicator,
+          Preferences.undoRedoPosition, Preferences.toolbarOrder, Preferences.toolbarHidden,
+          "savedStorages", "activeStorageID", "vaultBookmark", "readingPositions",
+        ] {
           UserDefaults.standard.removeObject(forKey: key)
         }
       }

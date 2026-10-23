@@ -40,10 +40,10 @@ renderer, rather than Obsidian-specific plugins. Opening an image creates a sepa
 editable notebook, preserving the image file.
 
 By default only Apple Pencil draws; one finger scrolls notebooks or pans whiteboards.
-Fingers still operate everything else: tap tools and objects, and drag an existing lasso selection (or its resize/rotate handles). Finger drawing can be enabled explicitly in the overflow menu. The first Pencil contact
+Fingers still operate everything else: tap tools and objects, and drag an existing lasso selection (or its resize/rotate handles). Finger drawing can be enabled explicitly in Settings. The first Pencil contact
 restores Pencil-only ink; fingers then navigate. Pencil owns its active stroke, other contacts cannot replace it,
 and scrolling/pinch gestures are suspended while the Pencil is down. Broad direct
-contacts are filtered. Disable Apple Pencil only in the overflow menu to draw with fingers. Without Pencil-only mode, two fingers scroll while drawing; one finger scrolls in
+contacts are filtered. Disable Apple Pencil only in Settings to draw with fingers. Without Pencil-only mode, two fingers scroll while drawing; one finger scrolls in
 read-only mode. Double-tap a supported Pencil to switch between the eraser and the previous
 tool.
 
@@ -61,14 +61,14 @@ least 80 % of its length inside the zone goes, and so does a longer line (a wire
 that was scribbled over on several sweeps. The ink that will go turns
 red while you scribble. A loose scribble across nothing but long lines stays ink, so a symbol
 drawn over a wire is not mistaken for an eraser gesture. After an uncertain case a "Keep as ink"
-button appears for a few seconds; the overflow menu sets the hint to Off, When unsure or Always.
-Both gestures can be disabled in the overflow menu. Circle to lasso: draw a loop around ink with the pen as usual, lift, then hold the pen still on the loop for about half a second; the loop turns into a lasso selection of what it encloses and touches (the loop itself leaves the page), and the pen returns once the selection is dismissed. A circle around a word stays a circle unless it is held; the overflow menu switches the gesture off. The eraser shows its reach as a ring that follows the pencil (and hovers with it on
+button appears for a few seconds; Settings sets the hint to Off, When unsure or Always.
+Both gestures can be disabled in Settings. Circle to lasso: draw a loop around ink with the pen as usual, lift, then hold the pen still on the loop for about half a second; the loop turns into a lasso selection of what it encloses and touches (the loop itself leaves the page), and the pen returns once the selection is dismissed. A circle around a word stays a circle unless it is held; Settings switches the gesture off. The eraser shows its reach as a ring that follows the pencil (and hovers with it on
 supported iPads), and it sweeps the path between samples so a quick swipe leaves nothing
 behind. Lasso handwriting, images and text, then drag inside the selection to
 move the group with a live preview; release commits one undoable change.
 
 Notebooks scroll vertically by default, like Goodnotes, and pinching zooms the whole document
-(50 % to 600 %) around your fingers, so every page is at the same zoom. The editor menu switches to
+(50 % to 600 %) around your fingers, so every page is at the same zoom. Settings switches to
 horizontal pages: a swipe then settles on exactly one page, and swiping past the last page turns the
 blank page waiting there into a real one with the previous page's paper, orientation and
 dimensions; undo removes it. At the bottom of a vertical notebook, pull upward beyond the end and
@@ -94,13 +94,13 @@ library. Elements preserve handwriting, images and rotated text across notebooks
 size, alignment, width, border and background; with the text tool, touch a box to select it and drag it to move it; its handles widen, scale and rotate it, a tap on the selected box edits it, and a tap beside it lets go. Images can
 be imported from Files or Photos, dropped as file URLs, moved, pinched and rotated.
 
-Infinite scrolling (overflow menu, off by default) turns a notebook into one continuous vertical
+Infinite scrolling (Settings, off by default) turns a notebook into one continuous vertical
 sheet: pages join without gaps, and a blank page is quietly appended below as soon as the last
 page holds anything, so writing never runs out of room. Page zoom is disabled in this mode.
 
 The thumbnail button reveals pages and bookmarks; its context menu inserts, duplicates,
 reorders and deletes pages. Horizontal navigation snaps to one page. The plus button opens paper templates.
-Use the overflow menu for page direction, import, scan, paste, PDF forms and input settings.
+Use the overflow menu for import, scan, paste, PDF forms, paper and page actions, and Settings. Settings (also the gear in the library) holds the preferences in one sheet: scrolling direction, infinite scrolling, adding pages by pulling past the last one, the page number and zoom indicators, Apple Pencil only, fast GPU ink, the pen gestures, stroke stabilization, which tools the toolbar shows and in what order, where undo and redo sit, the storage folder and the version.
 Navigate document opens a page-number jump, bookmarks and a PDF table of contents.
 PDF export retains outlines and remaps internal links after page reordering; links to
 removed pages are disabled. Export current page creates a separate one-page PDF.

@@ -49,10 +49,7 @@ final class VaultUITests: XCTestCase {
       forDuration: 0.05,
       thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.35)))
     XCTAssertEqual(canvas.value as? String, "0 strokes", "Finger input must navigate by default")
-    app.buttons["More"].tap()
-    let pencilOnly = app.descendants(matching: .any)["Apple Pencil only"].firstMatch
-    XCTAssertTrue(pencilOnly.waitForExistence(timeout: 5))
-    pencilOnly.tap()
+    changeSetting(app, "Apple Pencil only")
     canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.25)).press(
       forDuration: 0.05,
       thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.35)))
@@ -106,8 +103,7 @@ final class VaultUITests: XCTestCase {
     app.buttons["Duplicate page"].tap()
     XCTAssertTrue(app.buttons["pageThumbnail-2"].waitForExistence(timeout: 5))
     app.buttons["Pages"].tap()
-    app.buttons["More"].tap()
-    app.descendants(matching: .any)["Horizontal pages"].firstMatch.tap()
+    changeSetting(app, "Vertical")
     app.buttons["Pages"].tap()
     app.buttons["pageThumbnail-2"].tap()
     app.buttons["Pages"].tap()
@@ -203,8 +199,7 @@ final class VaultUITests: XCTestCase {
     XCTAssertEqual(pageNumber.value as? String, "3", "Resume the notebook after app relaunch")
     capture(app, name: "Last storage and notebook page restored after relaunch")
     app.buttons["Done"].tap()
-    app.buttons["More"].tap()
-    app.descendants(matching: .any)["Horizontal pages"].firstMatch.tap()
+    changeSetting(app, "Horizontal")
     let currentZoom = try visibleZoomSurface(app)
     currentZoom.pinch(withScale: 3, velocity: 0.5)
     let inheritedZoom = currentZoom.value as? String
@@ -251,14 +246,8 @@ final class VaultUITests: XCTestCase {
     app.buttons["Create"].tap()
     let canvas = app.descendants(matching: .any)["drawingCanvas"].firstMatch
     XCTAssertTrue(canvas.waitForExistence(timeout: 10))
-    app.buttons["More"].tap()
-    let infinite = app.descendants(matching: .any)["Infinite scrolling"].firstMatch
-    XCTAssertTrue(infinite.waitForExistence(timeout: 5))
-    infinite.tap()
-    app.buttons["More"].tap()
-    let pencilOnly = app.descendants(matching: .any)["Apple Pencil only"].firstMatch
-    XCTAssertTrue(pencilOnly.waitForExistence(timeout: 5))
-    pencilOnly.tap()
+    changeSetting(app, "Infinite scrolling")
+    changeSetting(app, "Apple Pencil only")
     app.buttons["Pages"].tap()
     XCTAssertTrue(app.buttons["pageThumbnail-0"].waitForExistence(timeout: 5))
     XCTAssertFalse(app.buttons["pageThumbnail-1"].exists, "A blank last page needs no successor")
@@ -318,10 +307,7 @@ final class VaultUITests: XCTestCase {
     app.buttons["Create"].tap()
     let canvas = app.descendants(matching: .any)["drawingCanvas"].firstMatch
     XCTAssertTrue(canvas.waitForExistence(timeout: 10))
-    app.buttons["More"].tap()
-    let pencilOnly = app.descendants(matching: .any)["Apple Pencil only"].firstMatch
-    XCTAssertTrue(pencilOnly.waitForExistence(timeout: 5))
-    pencilOnly.tap()
+    changeSetting(app, "Apple Pencil only")
 
     // Insert a rectangle by dragging, then stretch it by its right edge.
     app.buttons["Shapes"].tap()
@@ -378,10 +364,7 @@ final class VaultUITests: XCTestCase {
     XCTAssertTrue(canvas.waitForExistence(timeout: 10))
     XCTAssertEqual(canvas.value as? String, "3 strokes")
     // The simulator only has fingers: let one ink, like a Pencil would.
-    app.buttons["More"].tap()
-    let pencilOnly = app.descendants(matching: .any)["Apple Pencil only"].firstMatch
-    XCTAssertTrue(pencilOnly.waitForExistence(timeout: 5))
-    pencilOnly.tap()
+    changeSetting(app, "Apple Pencil only")
     func point(_ x: Double, _ y: Double) -> XCUICoordinate {
       canvas.coordinate(withNormalizedOffset: CGVector(dx: x / 595, dy: y / 842))
     }
@@ -425,10 +408,7 @@ final class VaultUITests: XCTestCase {
     // joins the tiles when the pen lifts.
     XCTAssertEqual(visiblePageStrokes(app), "3 strokes")
     // The simulator only has fingers: let one ink, like a Pencil would.
-    app.buttons["More"].tap()
-    let pencilOnly = app.descendants(matching: .any)["Apple Pencil only"].firstMatch
-    XCTAssertTrue(pencilOnly.waitForExistence(timeout: 5))
-    pencilOnly.tap()
+    changeSetting(app, "Apple Pencil only")
     let start = surface.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.25))
     // A slow drag, with a screenshot taken while the stroke is still being written.
     let live = LiveShot()
@@ -483,10 +463,7 @@ final class VaultUITests: XCTestCase {
     app.buttons["Create"].tap()
     let canvas = app.descendants(matching: .any)["drawingCanvas"].firstMatch
     XCTAssertTrue(canvas.waitForExistence(timeout: 10))
-    app.buttons["More"].tap()
-    let pencilOnly = app.descendants(matching: .any)["Apple Pencil only"].firstMatch
-    XCTAssertTrue(pencilOnly.waitForExistence(timeout: 5))
-    pencilOnly.tap()
+    changeSetting(app, "Apple Pencil only")
     // The pen's quick bar lists the pen styles; the pencil is one of them.
     XCTAssertTrue(app.buttons["Pencil"].waitForExistence(timeout: 5), app.debugDescription)
     app.buttons["Pencil"].tap()
@@ -512,10 +489,7 @@ final class VaultUITests: XCTestCase {
     app.buttons["Create"].tap()
     let canvas = app.descendants(matching: .any)["drawingCanvas"].firstMatch
     XCTAssertTrue(canvas.waitForExistence(timeout: 10))
-    app.buttons["More"].tap()
-    let pencilOnly = app.descendants(matching: .any)["Apple Pencil only"].firstMatch
-    XCTAssertTrue(pencilOnly.waitForExistence(timeout: 5))
-    pencilOnly.tap()
+    changeSetting(app, "Apple Pencil only")
     // Page points, so the positions do not depend on how the page is scaled on screen.
     func point(_ x: Double, _ y: Double) -> XCUICoordinate {
       canvas.coordinate(withNormalizedOffset: CGVector(dx: x / 595, dy: y / 842))
@@ -646,10 +620,7 @@ final class VaultUITests: XCTestCase {
     choose(7, "horizontal, page 8")
 
     // The same in the vertical layout.
-    app.buttons["More"].tap()
-    let horizontal = app.descendants(matching: .any)["Horizontal pages"].firstMatch
-    XCTAssertTrue(horizontal.waitForExistence(timeout: 5))
-    horizontal.tap()
+    changeSetting(app, "Vertical")
     RunLoop.current.run(until: Date().addingTimeInterval(1.5))
     choose(4, "vertical, page 5")
     choose(9, "vertical, page 10")
@@ -749,6 +720,103 @@ final class VaultUITests: XCTestCase {
     XCTAssertTrue(waitForVisiblePage(app, "12 strokes"), visiblePageStrokes(app) ?? "no page")
     capture(app, name: "Page scrubber on a row of pages")
   }
+  // Settings holds what used to be switches in the ⋯ menu, and what the toolbar shows can be changed.
+  @MainActor func testSettingsHoldThePreferencesAndTheToolbarCanBeCustomized() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input"]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+
+    // From the library, with the storage section that only makes sense there.
+    app.buttons["Settings"].tap()
+    func scrollTo(_ element: XCUIElement) {
+      var swipes = 0
+      while !element.exists && swipes < 6 {
+        app.swipeUp()
+        swipes += 1
+      }
+    }
+    let storage = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Storage folder'"))
+    scrollTo(storage.firstMatch)
+    XCTAssertTrue(storage.firstMatch.exists, "Settings opened from the library has a storage section")
+    XCTAssertTrue(app.buttons["Add storage folder…"].exists)
+    scrollTo(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Version'")).firstMatch)
+    XCTAssertTrue(
+      app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Version'")).firstMatch.exists)
+    app.buttons["Done"].tap()
+
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    XCTAssertTrue(app.descendants(matching: .any)["drawingCanvas"].firstMatch.waitForExistence(timeout: 10))
+
+    // The menu keeps actions on the document and one way into Settings.
+    app.buttons["More"].tap()
+    XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 5))
+    XCTAssertFalse(app.descendants(matching: .any)["Draw and hold for shapes"].firstMatch.exists)
+    XCTAssertFalse(app.descendants(matching: .any)["Apple Pencil only"].firstMatch.exists)
+    app.buttons["Settings"].tap()
+    capture(app, name: "Settings")
+
+    // Everything that was a switch in the menu is here (the sheet is a lazy list: scroll down).
+    for name in [
+      "Infinite scrolling", "Apple Pencil only", "Fast GPU ink", "Draw and hold for shapes",
+      "Scribble to erase", "Circle to lasso",
+    ] {
+      scrollSheet(app, to: app.descendants(matching: .any)[name].firstMatch)
+      XCTAssertTrue(app.descendants(matching: .any)[name].firstMatch.exists, "Settings has \(name)")
+    }
+    // A switch keeps its value while the sheet is closed and opened again.
+    let hold = app.switches["Draw and hold for shapes"]
+    scrollSheet(app, to: hold)
+    let before = hold.value as? String
+    flip(hold)
+    XCTAssertNotEqual(hold.value as? String, before)
+    app.buttons["Done"].tap()
+    app.buttons["More"].tap()
+    app.buttons["Settings"].tap()
+    scrollSheet(app, to: hold)
+    XCTAssertNotEqual(hold.value as? String, before, "The switch stayed where it was put")
+    flip(hold)
+    XCTAssertEqual(hold.value as? String, before)
+    app.buttons["Done"].tap()
+    app.buttons["More"].tap()
+    app.buttons["Settings"].tap()
+
+    // Customizing the toolbar: switch the text tool off, and it leaves the bar.
+    scrollSheet(app, to: app.buttons["Customize toolbar"])
+    app.buttons["Customize toolbar"].tap()
+    let text = app.switches["Text"]
+    XCTAssertTrue(text.waitForExistence(timeout: 5))
+    capture(app, name: "Customize toolbar")
+    // The reorder handle takes the end of the row.
+    flip(text, at: 0.84)
+    XCTAssertEqual(text.value as? String, "0", "The text tool's switch is off \(text.frame)")
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+    app.buttons["Done"].tap()
+    XCTAssertTrue(app.buttons["Eraser"].waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      app.buttons["Text"].waitForNonExistence(timeout: 5), "A tool that is switched off leaves the bar")
+
+    // Undo and redo can move to the other end of the quick bar.
+    let swatch = app.buttons["Ink color #1F2B3D"]
+    XCTAssertTrue(swatch.waitForExistence(timeout: 5))
+    XCTAssertLessThan(app.buttons["Undo"].frame.minX, swatch.frame.minX)
+    app.buttons["More"].tap()
+    app.buttons["Settings"].tap()
+    // A picker row: its value, at the trailing end, opens the menu.
+    let position = app.cells.containing(.staticText, identifier: "Undo and redo").firstMatch
+    scrollSheet(app, to: position)
+    position.coordinate(withNormalizedOffset: CGVector(dx: 0.88, dy: 0.5)).tap()
+    app.buttons["Right"].tap()
+    app.buttons["Done"].tap()
+    XCTAssertTrue(swatch.waitForExistence(timeout: 5))
+    XCTAssertGreaterThan(app.buttons["Undo"].frame.minX, swatch.frame.minX)
+    capture(app, name: "Undo and redo on the right")
+  }
   @MainActor func testLargeNotebookKeepsOnlyVisibleCanvasesLoaded() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     defer { XCUIDevice.shared.orientation = .portrait }
@@ -816,6 +884,42 @@ final class VaultUITests: XCTestCase {
       RunLoop.current.run(until: Date().addingTimeInterval(0.2))
     }
     return false
+  }
+  // The control of a switch sits at the trailing end of its row; the middle of the row is its label.
+  @MainActor private func flip(_ toggle: XCUIElement, at x: Double = 0.93) {
+    toggle.coordinate(withNormalizedOffset: CGVector(dx: x, dy: 0.5)).tap()
+  }
+  // The settings sheet lists lazily: drag it up in small steps until the control is on screen and
+  // clear of the title bar that the list scrolls under. A drag that ends in a hold has no momentum.
+  @MainActor private func scrollSheet(_ app: XCUIApplication, to element: XCUIElement) {
+    let bar = app.navigationBars["Settings"]
+    let list = app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch : app.tables.firstMatch
+    var steps = 0
+    func placed() -> Bool {
+      guard element.exists, element.isHittable else { return false }
+      return element.frame.minY > (bar.exists ? bar.frame.maxY : 0) + 48
+    }
+    while !placed() && steps < 30 {
+      list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8)).press(
+        forDuration: 0.05,
+        thenDragTo: list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.62)),
+        withVelocity: .slow, thenHoldForDuration: 0.2)
+      steps += 1
+    }
+  }
+  // Settings is a sheet: open it from the ⋯ menu of a notebook, use one control, close it.
+  @MainActor private func changeSetting(_ app: XCUIApplication, _ name: String) {
+    app.buttons["More"].tap()
+    app.buttons["Settings"].tap()
+    let any = app.descendants(matching: .any)[name].firstMatch
+    XCTAssertTrue(any.waitForExistence(timeout: 5), name)
+    // A switch is turned by its own control, not by the row around it.
+    if app.switches[name].exists {
+      flip(app.switches[name])
+    } else {
+      any.tap()
+    }
+    app.buttons["Done"].tap()
   }
   @MainActor private func capture(_ app: XCUIApplication, name: String) {
     let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())

@@ -43,6 +43,7 @@
 		7F89EA602DE2E02A75826812 /* LiveInkPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = B139E3D4DFB68EE9C51955D0 /* LiveInkPlan.swift */; };
 		8214887E731BD706250D9D7B /* ScreenshotScenes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2830385451CA3D1365E2ADF2 /* ScreenshotScenes.swift */; };
 		88226F358DF63DB57B8C3B99 /* CurveFitter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDC7C0DC30B9DDAFD228FBAD /* CurveFitter.swift */; };
+		8B056A05182AC3389B267A14 /* ToolbarLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5606E86DCC1CB0C10BA82BED /* ToolbarLayoutTests.swift */; };
 		8C0882676A6114FB78EADAF7 /* WorkspaceCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508F352E349747AA65DE46CE /* WorkspaceCommands.swift */; };
 		8CB31283FCD7A7CC6075797F /* NotebookLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2A1666ADCCF23A81FF51D61 /* NotebookLayoutTests.swift */; };
 		8CBE6468DAB424A5B1A074C9 /* LibrarySheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CE25C9D08742478F1554ABA /* LibrarySheets.swift */; };
@@ -60,6 +61,8 @@
 		AF1CD09F689443B75C2D5CF7 /* VaultManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABB273F19C18B6124D82D232 /* VaultManagement.swift */; };
 		AFCA6FA4889F0886ED4ABB5F /* ImportEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7498B04DDA06141A375AD880 /* ImportEngine.swift */; };
 		B1278694EAC63090BE61F2EB /* InkWidths.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE42574D448530FC992981D6 /* InkWidths.swift */; };
+		B7FB8E4D750B558553524D8B /* ToolbarLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6465C672F7146612E59C45C9 /* ToolbarLayout.swift */; };
+		BB39A1B4FEC73D02F0B9F308 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 232E3E428068464856083278 /* Settings.swift */; };
 		BE09234502E9611C98BFD209 /* VaultUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C0B8D61A66A011E45218373 /* VaultUITests.swift */; };
 		C2D1F481499E76BBE63220CC /* NotebookDocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D444877F5E64EF227951121 /* NotebookDocumentView.swift */; };
 		C410B0FA00E91CC6E9D93300 /* VaultCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 327B668A8960E2B8A8C80F45 /* VaultCover.swift */; };
@@ -144,6 +147,7 @@
 		1690740D889858D8D61F1422 /* CircleLasso.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleLasso.swift; sourceTree = "<group>"; };
 		1B18528EAB55247EA57BDEAF /* VaultFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFiles.swift; sourceTree = "<group>"; };
 		224B6213A14759EFA003EB49 /* Renderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Renderer.swift; sourceTree = "<group>"; };
+		232E3E428068464856083278 /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
 		2830385451CA3D1365E2ADF2 /* ScreenshotScenes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotScenes.swift; sourceTree = "<group>"; };
 		2BEFB5FFC666C8AD680794AD /* ScribblePerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScribblePerformanceTests.swift; sourceTree = "<group>"; };
 		2CE25C9D08742478F1554ABA /* LibrarySheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySheets.swift; sourceTree = "<group>"; };
@@ -157,10 +161,12 @@
 		45B8DB9DB9B9181BF0DE1979 /* CircleLassoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleLassoTests.swift; sourceTree = "<group>"; };
 		4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = NoteCraftCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		508F352E349747AA65DE46CE /* WorkspaceCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceCommands.swift; sourceTree = "<group>"; };
+		5606E86DCC1CB0C10BA82BED /* ToolbarLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarLayoutTests.swift; sourceTree = "<group>"; };
 		59824A39DB8CA45EC1323726 /* PencilEstimatesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PencilEstimatesTests.swift; sourceTree = "<group>"; };
 		5D444877F5E64EF227951121 /* NotebookDocumentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookDocumentView.swift; sourceTree = "<group>"; };
 		5DDBBDC3CA309B61BBDF4E16 /* ScrubberTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrubberTests.swift; sourceTree = "<group>"; };
 		60AAD7C60FE3807BE65F423F /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
+		6465C672F7146612E59C45C9 /* ToolbarLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarLayout.swift; sourceTree = "<group>"; };
 		6468239C62CD91E6D4D35465 /* InkSmoother.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InkSmoother.swift; sourceTree = "<group>"; };
 		6961F7917F77CAD924567EC6 /* NativeCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCanvas.swift; sourceTree = "<group>"; };
 		7498B04DDA06141A375AD880 /* ImportEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportEngine.swift; sourceTree = "<group>"; };
@@ -249,6 +255,7 @@
 				B63B23C1154FDC27E76662B8 /* Shapes.swift */,
 				BAEDCF2464F505B39B0EDDB7 /* Storage.swift */,
 				F8269ECE70D39556F15E0F34 /* TileGrid.swift */,
+				6465C672F7146612E59C45C9 /* ToolbarLayout.swift */,
 				1B18528EAB55247EA57BDEAF /* VaultFiles.swift */,
 				ABB273F19C18B6124D82D232 /* VaultManagement.swift */,
 			);
@@ -270,6 +277,7 @@
 				5DDBBDC3CA309B61BBDF4E16 /* ScrubberTests.swift */,
 				8C6CA8AE2045682013E613E6 /* ShapeTests.swift */,
 				E8BC9AC85E86D2733B45E486 /* TileGridTests.swift */,
+				5606E86DCC1CB0C10BA82BED /* ToolbarLayoutTests.swift */,
 				C2DF4BA61A4AD7E1CBD55E03 /* VaultTests.swift */,
 				84C124651AE5264B8AA2F90F /* WidthTrackTests.swift */,
 			);
@@ -312,6 +320,7 @@
 				B0E29D5CFE38AB19018FD578 /* QuickBar.swift */,
 				224B6213A14759EFA003EB49 /* Renderer.swift */,
 				2830385451CA3D1365E2ADF2 /* ScreenshotScenes.swift */,
+				232E3E428068464856083278 /* Settings.swift */,
 				023E3898BB20FF9226135691 /* Stickers.swift */,
 				082B492A0CAE47C877AA7C1E /* VaultActions.swift */,
 				327B668A8960E2B8A8C80F45 /* VaultCover.swift */,
@@ -507,6 +516,7 @@
 				7DABD64630190458F73E0643 /* ScrubberTests.swift in Sources */,
 				9669A46A095DCCDE46AB4F9A /* ShapeTests.swift in Sources */,
 				F523DB2944F23CF416AD2702 /* TileGridTests.swift in Sources */,
+				8B056A05182AC3389B267A14 /* ToolbarLayoutTests.swift in Sources */,
 				CE7AAD86B3DC29EDC5E24C6B /* VaultTests.swift in Sources */,
 				795730C897D8C8B52E7DEAC4 /* WidthTrackTests.swift in Sources */,
 			);
@@ -538,6 +548,7 @@
 				A43579F439E4E01D9F10DCE2 /* Shapes.swift in Sources */,
 				70983F5CE1C7B37D2D003C68 /* Storage.swift in Sources */,
 				5D7AA9EB523F9D21689C6FAA /* TileGrid.swift in Sources */,
+				B7FB8E4D750B558553524D8B /* ToolbarLayout.swift in Sources */,
 				EA11D437FD711AEEE9A0009F /* VaultFiles.swift in Sources */,
 				AF1CD09F689443B75C2D5CF7 /* VaultManagement.swift in Sources */,
 			);
@@ -566,6 +577,7 @@
 				23B83FD9F52EB60AAB14A324 /* QuickBar.swift in Sources */,
 				2F8CD8EA4BCD64BD87624623 /* Renderer.swift in Sources */,
 				8214887E731BD706250D9D7B /* ScreenshotScenes.swift in Sources */,
+				BB39A1B4FEC73D02F0B9F308 /* Settings.swift in Sources */,
 				DBA123D11F060779970F9E43 /* Stickers.swift in Sources */,
 				2E56118CAF0505CF95D4D1F0 /* VaultActions.swift in Sources */,
 				C410B0FA00E91CC6E9D93300 /* VaultCover.swift in Sources */,

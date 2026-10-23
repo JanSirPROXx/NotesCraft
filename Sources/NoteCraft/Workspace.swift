@@ -63,19 +63,19 @@ struct Workspace: View {
   @AppStorage("fountainSharpness") private var tipSharpness = 0.5
   @AppStorage("fountainPressure") private var tipPressure = 0.5
   @AppStorage("fountainFlatness") private var tipFlatness = 0.0
-  @AppStorage("penStabilization") private var stabilization = 0.0
+  @AppStorage(Preferences.stabilization) private var stabilization = 0.0
   @State private var eraserMode: EraserMode = .stroke
   @State private var highlighterOnly = false
   @State private var autoDeselect = false
   @State private var straightHighlight = false
-  @AppStorage("pencilOnlyDrawing") private var pencilOnly = true
-  @AppStorage("holdToShape") private var holdToShape = true
-  @AppStorage("scratchToErase") private var scratchToErase = true
-  @AppStorage("circleToLasso") private var circleToLasso = true
+  @AppStorage(Preferences.pencilOnly) private var pencilOnly = true
+  @AppStorage(Preferences.holdToShape) private var holdToShape = true
+  @AppStorage(Preferences.scratchToErase) private var scratchToErase = true
+  @AppStorage(Preferences.circleToLasso) private var circleToLasso = true
   // The tool to go back to once a selection made by Circle to Lasso has been dismissed.
   @State private var lassoReturnTool: InkTool?
-  @AppStorage("gpuInk") private var gpuInk = true
-  @AppStorage("scribbleHint") private var scribbleHintMode = ScribbleHintMode.sometimes
+  @AppStorage(Preferences.gpuInk) private var gpuInk = true
+  @AppStorage(Preferences.scribbleHint) private var scribbleHintMode = ScribbleHintMode.sometimes
   // Shown after a scribble took ink away, so a drawing that was mistaken for one can be kept.
   @State private var scribbleHint: ScribbleHint?
   @State private var pagePullProgress = 0.0
@@ -138,8 +138,18 @@ struct Workspace: View {
   @State private var searchVisible = false
   @State private var search = ""
   @State private var documentSearch = DocumentSearch()
-  @AppStorage("horizontalNotebookPages") private var horizontalSetting = false
-  @AppStorage("infiniteScroll") private var infinite = false
+  @AppStorage(Preferences.horizontalPages) private var horizontalSetting = false
+  @AppStorage(Preferences.infiniteScroll) private var infinite = false
+  @AppStorage(Preferences.pullToAddPage) private var pullToAddPage = true
+  @AppStorage(Preferences.showPageIndicator) private var showPageIndicator = true
+  @AppStorage(Preferences.showZoomIndicator) private var showZoomIndicator = true
+  @AppStorage(Preferences.undoRedoPosition) private var undoRedoPosition = UndoRedoPosition.left
+  @AppStorage(Preferences.toolbarOrder) private var toolbarOrder = ""
+  @AppStorage(Preferences.toolbarHidden) private var toolbarHidden = ""
+  @State private var appSettings = false
+  private var toolbarLayout: ToolbarLayout {
+    ToolbarLayout(storedOrder: toolbarOrder, storedHidden: toolbarHidden)
+  }
   // Infinite scrolling is one continuous vertical sheet, so it overrides page-by-page layout.
   private var horizontal: Bool { horizontalSetting && !infinite }
   // A blank page after the last one: swiping onto it turns it into a real page, so adding a
@@ -208,7 +218,8 @@ struct Workspace: View {
         ids: slots.map(\.id), sizes: slots.map(\.dimensions),
         axis: horizontal ? .horizontal : .vertical, infinite: infinite, selectedIndex: activePage,
         trailingIndex: trailingPage == nil ? nil : notebook.pages.count,
-        canPull: !horizontal && !infinite,
+        canPull: !horizontal && !infinite && pullToAddPage,
+        showsPageIndicator: showPageIndicator, showsZoomIndicator: showZoomIndicator,
         onCurrentPage: { index in
           if index < notebook.pages.count, index != activePage { activePage = index }
         },
@@ -333,6 +344,7 @@ struct Workspace: View {
   }
   var body: some View {
     syncedContent
+    .sheet(isPresented: $appSettings) { SettingsView() }
     .sheet(isPresented: $templateSheet) {
       TemplatePicker(initialPaper: page.paper) { paper in
         appendPage(Page(paper: paper))
@@ -465,19 +477,8 @@ struct Workspace: View {
       Button("Add page", systemImage: "plus") { templateSheet = true }
       Button("Paste ink", systemImage: "doc.on.clipboard") { paste() }.disabled(
         clipboard.isEmpty && clipboardImages.isEmpty && clipboardTexts.isEmpty)
-      Toggle("Infinite scrolling", isOn: $infinite)
-      Toggle("Horizontal pages", isOn: $horizontalSetting).disabled(infinite)
-      Toggle("Apple Pencil only", isOn: $pencilOnly)
-      Toggle("Draw and hold for shapes", isOn: $holdToShape)
-      Toggle("Fast GPU ink", isOn: $gpuInk)
-      Toggle("Circle to lasso", isOn: $circleToLasso)
-      Toggle("Scribble to erase", isOn: $scratchToErase)
-      Picker("Scribble hint", selection: $scribbleHintMode) {
-        ForEach(ScribbleHintMode.allCases, id: \.self) { Text($0.title).tag($0) }
-      }.disabled(!scratchToErase)
-      Text(
-        pencilOnly
-          ? "Pencil writes · one finger navigates" : "One finger draws · two fingers navigate")
+      Divider()
+      Button("Settings", systemImage: "gearshape") { appSettings = true }
       Button("Delete current page", role: .destructive) {
         if notebook.pages.count > 1 {
           edit { $0.notebook.pages.remove(at: activePage) }
@@ -588,7 +589,7 @@ struct Workspace: View {
   }
   private var workspaceActions: WorkspaceActions {
     WorkspaceActions(
-      tools: InkTool.allCases.map { .init(tool: $0, title: label($0)) },
+      tools: toolbarLayout.visible.map { .init(tool: $0, title: label($0)) },
       selectTool: { item in if tool != item { switchTool(to: item) } },
       toggleEraser: {
         if tool == .eraser {
@@ -612,7 +613,7 @@ struct Workspace: View {
           documentActions
           Spacer(minLength: 16)
           Divider().frame(height: 24)
-          ForEach(InkTool.allCases, id: \.self) { item in
+          ForEach(toolbarLayout.visible, id: \.self) { item in
             Button {
               if tool == item {
                 settings.toggle()
@@ -644,7 +645,7 @@ struct Workspace: View {
     }.frame(height: 44).foregroundStyle(.white).background(
       Color(red: 0.17, green: 0.29, blue: 0.47))
   }
-  private var contextualToolBar: some View {
+  private var undoRedoButtons: some View {
     HStack(spacing: 12) {
       Button {
         undo()
@@ -658,6 +659,11 @@ struct Workspace: View {
         Image(systemName: "arrow.uturn.forward").font(.system(size: 19)).hitTarget(width: 42)
       }.disabled(redoStack.isEmpty).help("Redo").accessibilityLabel("Redo").keyboardShortcut(
         "z", modifiers: [.command, .shift])
+    }
+  }
+  private var contextualToolBar: some View {
+    HStack(spacing: 12) {
+      if undoRedoPosition == .left { undoRedoButtons }
 
       if [.pen, .highlighter, .shapes].contains(tool) {
         Divider().frame(height: 24)
@@ -719,6 +725,12 @@ struct Workspace: View {
         Toggle("Ink", isOn: $selectInk)
         Toggle("Images", isOn: $selectImages)
         Toggle("Text", isOn: $selectTexts)
+      }
+      if undoRedoPosition == .right {
+        if [.pen, .highlighter, .shapes, .eraser, .lasso].contains(tool) {
+          Divider().frame(height: 24)
+        }
+        undoRedoButtons
       }
     }.buttonStyle(.plain).font(.system(size: 16)).foregroundStyle(.white)
       .padding(.horizontal, 14).frame(height: 44)
@@ -1105,7 +1117,8 @@ struct Workspace: View {
     document.package.notebook.revision += 1
   }
   private func refreshTrailingPage() {
-    guard horizontal, notebook.kind != .whiteboard, let last = notebook.pages.last else {
+    guard horizontal, pullToAddPage, notebook.kind != .whiteboard, let last = notebook.pages.last
+    else {
       trailingPage = nil
       return
     }
@@ -1842,22 +1855,8 @@ struct Workspace: View {
       return InkColor(red: r, green: g, blue: b)
     #endif
   }
-  private func icon(_ tool: InkTool) -> String {
-    switch tool {
-    case .pen: "pencil.tip"
-    case .eraser: "eraser"
-    case .highlighter: "highlighter"
-    case .shapes: "square.on.circle"
-    case .lasso: "lasso"
-    case .elements: "star.square"
-    case .image: "photo"
-    case .text: "textformat"
-    case .readOnly: "hand.draw"
-    }
-  }
-  private func label(_ tool: InkTool) -> String {
-    tool == .readOnly ? "Read only" : tool.rawValue.capitalized
-  }
+  private func icon(_ tool: InkTool) -> String { tool.symbol }
+  private func label(_ tool: InkTool) -> String { tool.title }
 }
 
 struct TemplatePicker: View {

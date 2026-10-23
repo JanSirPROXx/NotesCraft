@@ -43,6 +43,10 @@ Rules that keep latency low:
 
 The notebook is one `UIScrollView` (`NotebookDocumentController` in `NotebookDocumentView.swift`) that scrolls and zooms all pages together. `NotebookLayout` (Core, pure) works out where the pages sit at zoom 1, which are near the view and which one is current, and keeps the reader's place across a resize through anchors; only the pages near the view are built, one per pass, with a blank sheet in place of the others. The pages report their place and zoom to SwiftUI only when the paper has come to rest. Whatever floats over the document while it moves (`PageIndicator`, `ZoomIndicator`, `PageScrubber`) is UIKit, because a SwiftUI state change per frame of a scroll or pinch costs a pass over every page on screen; the maths of the scrubber handle is `Scrubber` in Core. Pencil never moves the paper and nothing floating over it takes a Pencil touch.
 
+## Settings
+
+`SettingsView` (Settings.swift) is the one place for preferences; it is a sheet reached from the gear in the library and from Settings in the ⋯ menu of a notebook, and the ⋯ menu otherwise only holds actions on the page and document. Preferences are `@AppStorage` values whose keys are the constants in `Preferences`; the workspace reads the same keys, so a switch is read where it is used and written in one place only. A new preference gets a key there, a control in the right section of `SettingsView`, and a UI test that flips it. The toolbar's tools and their order are `ToolbarLayout` (Core, tested), stored as two strings.
+
 ## Toolbar and tool state
 
 `Workspace.swift` owns tool state. `toolBar` (primary tools) and `contextualToolBar` (quick bar: undo/redo, pen style, colors, thickness presets) are SwiftUI. Every tappable control needs a minimum 44×44 pt hit area with an explicit `.contentShape`, because `.buttonStyle(.plain)` only hits drawn pixels.
