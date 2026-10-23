@@ -27,6 +27,7 @@
 		4CCE5AF05E383D1CC1D9FEC4 /* PencilEstimatesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59824A39DB8CA45EC1323726 /* PencilEstimatesTests.swift */; };
 		551F0CF829C15BE662903339 /* MetalInk.swift in Sources */ = {isa = PBXBuildFile; fileRef = 934B5242780CD4A297E839A1 /* MetalInk.swift */; };
 		5A0E432B5DBABD77470F7982 /* Editing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DFF298F863075A387BD1348 /* Editing.swift */; };
+		5B8FD87616B8FB6A7B215F25 /* CircleLassoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45B8DB9DB9B9181BF0DE1979 /* CircleLassoTests.swift */; };
 		70983F5CE1C7B37D2D003C68 /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAEDCF2464F505B39B0EDDB7 /* Storage.swift */; };
 		7EC54F90D9D3B6D387946D28 /* EraseSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CB304711543F998B0B73322 /* EraseSession.swift */; };
 		7F89EA602DE2E02A75826812 /* LiveInkPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = B139E3D4DFB68EE9C51955D0 /* LiveInkPlan.swift */; };
@@ -56,6 +57,7 @@
 		DFD70495D78EC158F0FA15F0 /* NoteCraftCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */; };
 		E137DA07679CBEEE0D586AC0 /* InlineText.swift in Sources */ = {isa = PBXBuildFile; fileRef = F34C2411DFFD86FCA20BE3C3 /* InlineText.swift */; };
 		EA11D437FD711AEEE9A0009F /* VaultFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B18528EAB55247EA57BDEAF /* VaultFiles.swift */; };
+		EC44A781C8012FD73DB6B2C3 /* CircleLasso.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1690740D889858D8D61F1422 /* CircleLasso.swift */; };
 		EEB884CB261E1FA776A7B68A /* PDFNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ED3506C82DEE6478F5D3866 /* PDFNavigation.swift */; };
 		EF83E3C1A207AD1450319206 /* ElementClip.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0F0A9A567741EBB11E3961 /* ElementClip.swift */; };
 		FC0ED3F795DE08F525C6E7F6 /* Scribble.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53FA053B01B52E525809AEF /* Scribble.swift */; };
@@ -122,6 +124,7 @@
 		0F4C8BFD47E8EEBD9510B9FB /* ScreenshotTour.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotTour.swift; sourceTree = "<group>"; };
 		13F4D36FF592085842FF6302 /* NoteCraftUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NoteCraftUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		157E94B041AAC1E2E6506F3D /* NoteCraft.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NoteCraft.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1690740D889858D8D61F1422 /* CircleLasso.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleLasso.swift; sourceTree = "<group>"; };
 		1B18528EAB55247EA57BDEAF /* VaultFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFiles.swift; sourceTree = "<group>"; };
 		224B6213A14759EFA003EB49 /* Renderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Renderer.swift; sourceTree = "<group>"; };
 		2830385451CA3D1365E2ADF2 /* ScreenshotScenes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotScenes.swift; sourceTree = "<group>"; };
@@ -132,6 +135,7 @@
 		3338F9FEC504B25F904A7165 /* PencilEstimates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PencilEstimates.swift; sourceTree = "<group>"; };
 		3C0B8D61A66A011E45218373 /* VaultUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultUITests.swift; sourceTree = "<group>"; };
 		3CB304711543F998B0B73322 /* EraseSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EraseSession.swift; sourceTree = "<group>"; };
+		45B8DB9DB9B9181BF0DE1979 /* CircleLassoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleLassoTests.swift; sourceTree = "<group>"; };
 		4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = NoteCraftCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		508F352E349747AA65DE46CE /* WorkspaceCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceCommands.swift; sourceTree = "<group>"; };
 		59824A39DB8CA45EC1323726 /* PencilEstimatesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PencilEstimatesTests.swift; sourceTree = "<group>"; };
@@ -193,6 +197,7 @@
 		064390D5E72308DD61EE33B6 /* NoteCraftCore */ = {
 			isa = PBXGroup;
 			children = (
+				1690740D889858D8D61F1422 /* CircleLasso.swift */,
 				FDC7C0DC30B9DDAFD228FBAD /* CurveFitter.swift */,
 				8DFF298F863075A387BD1348 /* Editing.swift */,
 				DC0F0A9A567741EBB11E3961 /* ElementClip.swift */,
@@ -217,6 +222,7 @@
 		567B1279EBA5AD14B4C107BC /* NoteCraftCoreTests */ = {
 			isa = PBXGroup;
 			children = (
+				45B8DB9DB9B9181BF0DE1979 /* CircleLassoTests.swift */,
 				06224446505127FB574CE719 /* CoreTests.swift */,
 				6B24B3453C52225B874FE867 /* FountainTrackTests.swift */,
 				907A3C2D72335907F6C88AEF /* InkSmootherTests.swift */,
@@ -445,6 +451,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5B8FD87616B8FB6A7B215F25 /* CircleLassoTests.swift in Sources */,
 				1B974C057F8DABA631C1EE8E /* CoreTests.swift in Sources */,
 				DE17859C82C578E9D38F702F /* FountainTrackTests.swift in Sources */,
 				FF9BF0BD274B62FC407A5997 /* InkSmootherTests.swift in Sources */,
@@ -459,6 +466,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EC44A781C8012FD73DB6B2C3 /* CircleLasso.swift in Sources */,
 				88226F358DF63DB57B8C3B99 /* CurveFitter.swift in Sources */,
 				5A0E432B5DBABD77470F7982 /* Editing.swift in Sources */,
 				EF83E3C1A207AD1450319206 /* ElementClip.swift in Sources */,
