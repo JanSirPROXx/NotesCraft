@@ -136,6 +136,10 @@
     private var restoring = false
     private var syncScheduled = false
     private var dragStartOffset = 0.0
+    // The page a row was on when the finger came down, and the gap its pages had at the zoom the
+    // layout was made for.
+    private var dragPage = 0
+    private var rowGap = NotebookLayout.rowGap(atZoom: 1)
     private var pullStarted: TimeInterval?
     private var pullTriggered = false
     private var lastSelected = -1
@@ -246,7 +250,9 @@
       return (props.ids[min(anchor.index, props.ids.count - 1)], anchor)
     }
 
-    private func applyLayout() {
+    // `refresh` is off when only the spacing of a row changes with the zoom: the pages themselves
+    // stay as they are and are just moved.
+    private func applyLayout(refresh: Bool = true) {
       guard let props, scroll.bounds.width > 1, scroll.bounds.height > 1 else { return }
       var oldPlace = currentPlace() ?? place
       let oldCenterX =
@@ -256,14 +262,15 @@
       layout = NotebookLayout(
         pageSizes: props.sizes,
         viewport: Point(Double(scroll.bounds.width), Double(scroll.bounds.height)),
-        axis: props.axis, infinite: props.infinite)
+        axis: props.axis, infinite: props.infinite, zoom: Double(targetZoom))
+      rowGap = NotebookLayout.rowGap(atZoom: Double(targetZoom))
       restoring = true
       defer { restoring = false }
       scroll.minimumZoomScale = props.infinite ? 1 : (props.axis == .horizontal ? 1 : 0.5)
       scroll.maximumZoomScale = props.infinite ? 1 : 6
       configureGestures()
       scroll.allowsZoom = !props.infinite
-      scroll.decelerationRate = props.axis == .horizontal ? .fast : .normal
+      updateDecelerationRate()
       scroll.alwaysBounceVertical = props.axis == .vertical
       scroll.alwaysBounceHorizontal = props.axis == .horizontal
       // The handle of `PageScrubber` is the scroll bar.
@@ -304,8 +311,22 @@
       laidOut = true
       scroll.accessibilityValue = "Zoom \(Int((zoom * 100).rounded())) percent"
       // The pages are drawn at the size they now have, not the one they had.
-      refreshHosts()
+      if refresh { refreshHosts() } else { syncHosts() }
       place = currentPlace()
+    }
+
+    // A row that fits the view settles on a page quickly; zoomed in, a pan glides on like any other.
+    private func updateDecelerationRate() {
+      scroll.decelerationRate = !columns && zoom < 1.02 ? .fast : .normal
+    }
+
+    // The pages of a row move together as it is zoomed, and the spacing that goes with the zoom is
+    // made once the pinch is over.
+    private func relayoutRowForZoom() {
+      guard laidOut, !columns, props?.infinite != true else { return }
+      updateDecelerationRate()
+      guard abs(NotebookLayout.rowGap(atZoom: Double(zoom)) - rowGap) > 0.001 else { return }
+      applyLayout(refresh: false)
     }
 
     // A column keeps the same margin between a page and the edge of the screen however far it is
@@ -515,6 +536,8 @@
     func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
       guard !restoring else { return }
       props?.onZoom(Double(scale))
+      relayoutRowForZoom()
+
       syncHosts()
       place = currentPlace()
       settled()
@@ -524,19 +547,39 @@
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
       dragStartOffset = Double(scrollView.contentOffset.x)
       animatingTo = nil
+      if laidOut, let props, layout.count == props.ids.count, !columns {
+        dragPage = layout.currentIndex(visibleIn: visibleRect())
+        // The finger can drag the paper across the page it is on, and into the next one only from
+        // the edge: the rest of the row is out of reach, so the edge of a page bounces.
+        let range = layout.dragRange(page: dragPage, startedAt: dragStartOffset, zoom: Double(zoom))
+        var inset = scrollView.contentInset
+        inset.left = -CGFloat(range.lowerBound)
+        inset.right = CGFloat(range.upperBound) - (scrollView.contentSize.width - scrollView.bounds.width)
+        if scrollView.contentInset != inset { scrollView.contentInset = inset }
+      }
     }
 
-    // In a row the paper settles on one page at a time while it is not zoomed.
+    // A row turns one page at a time, at any zoom. Zoomed in, a swipe that starts inside the page
+    // pans and stops at the edge of the page; one that starts at the edge turns to the next page,
+    // at the same zoom and height, as fast as a swipe at fit does.
     func scrollViewWillEndDragging(
       _ scrollView: UIScrollView, withVelocity velocity: CGPoint,
       targetContentOffset: UnsafeMutablePointer<CGPoint>
     ) {
-      guard props?.axis == .horizontal, zoom < 1.02 else { return }
-      targetContentOffset.pointee.x = CGFloat(
-        NotebookPaging.target(
-          origin: dragStartOffset, projected: Double(targetContentOffset.pointee.x),
-          velocity: Double(velocity.x) * 1000, pageWidth: Double(scrollView.bounds.width),
-          contentWidth: Double(scrollView.contentSize.width)))
+      guard !columns, laidOut, let props, layout.count == props.ids.count else { return }
+      let release = layout.release(
+        page: dragPage, startedAt: dragStartOffset,
+        projected: Double(targetContentOffset.pointee.x), velocity: Double(velocity.x) * 1000,
+        zoom: Double(zoom))
+      switch release {
+      case .stay(let x):
+        updateDecelerationRate()
+        targetContentOffset.pointee.x = CGFloat(x)
+      case .flip(_, let x):
+        // The turn is a short, quick glide whatever the zoom.
+        scrollView.decelerationRate = .fast
+        targetContentOffset.pointee.x = CGFloat(x)
+      }
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -628,6 +671,8 @@
 
     // The paper has come to rest: now the view above is told where it is.
     private func settled() {
+      // Back from the limits of a drag to the ones of the surface.
+      if !columns, laidOut { updateInsets() }
       place = currentPlace()
       guard let props, layout.count == props.ids.count else { return }
       let index = layout.currentIndex(visibleIn: visibleRect())

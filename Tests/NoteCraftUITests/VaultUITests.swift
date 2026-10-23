@@ -817,6 +817,53 @@ final class VaultUITests: XCTestCase {
     XCTAssertGreaterThan(app.buttons["Undo"].frame.minX, swatch.frame.minX)
     capture(app, name: "Undo and redo on the right")
   }
+  // Zoomed in, a row of pages behaves as at fit once the view is at the edge of a page: swipes
+  // inside the page pan it, a swipe at the edge turns to the next page, and the zoom stays.
+  @MainActor func testZoomedRowPansInsideAPageAndTurnsAtItsEdge() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = [
+      "--ui-test-reset-input", "--ui-test-numbered-notebook", "--ui-test-horizontal-pages",
+    ]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    let surface = try visibleZoomSurface(app)
+    XCTAssertTrue(waitForVisiblePage(app, "1 strokes"))
+    // Far enough that a page is much wider than the view.
+    func percent() -> Int { Int((surface.value as? String ?? "").filter(\.isNumber)) ?? 100 }
+    var pinches = 0
+    while percent() < 250 && pinches < 6 {
+      surface.pinch(withScale: 3, velocity: 1.5)
+      RunLoop.current.run(until: Date().addingTimeInterval(1))
+      pinches += 1
+    }
+    let zoom = surface.value as? String
+    XCTAssertGreaterThanOrEqual(percent(), 250, zoom ?? "no zoom")
+    XCTAssertTrue(waitForVisiblePage(app, "1 strokes"))
+
+    capture(app, name: "Row zoomed in before swiping")
+    // Swipes pan inside the zoomed page until its edge is reached, then the next swipe turns.
+    var swipes = 0
+    while visiblePageStrokes(app) == "1 strokes" && swipes < 8 {
+      surface.swipeLeft()
+      RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+      swipes += 1
+    }
+    XCTAssertEqual(visiblePageStrokes(app), "2 strokes", "swiped \(swipes) times")
+    XCTAssertGreaterThan(swipes, 1, "The first swipes pan inside the zoomed page")
+    XCTAssertEqual(surface.value as? String, zoom, "The next page is at the same zoom")
+    capture(app, name: "Row turned to the next page while zoomed in")
+
+    // Back from the start of the page: one swipe, to the end of the page before.
+    surface.swipeRight()
+    XCTAssertTrue(waitForVisiblePage(app, "1 strokes"), visiblePageStrokes(app) ?? "no page")
+    XCTAssertEqual(surface.value as? String, zoom)
+  }
   @MainActor func testLargeNotebookKeepsOnlyVisibleCanvasesLoaded() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     defer { XCUIDevice.shared.orientation = .portrait }

@@ -69,7 +69,7 @@ move the group with a live preview; release commits one undoable change.
 
 Notebooks scroll vertically by default, like Goodnotes, and pinching zooms the whole document
 (50 % to 600 %) around your fingers, so every page is at the same zoom. Settings switches to
-horizontal pages: a swipe then settles on exactly one page, and swiping past the last page turns the
+horizontal pages: a swipe then settles on exactly one page (zoomed in, swipes pan inside the page and a swipe from its edge turns to the next page at the same zoom), and swiping past the last page turns the
 blank page waiting there into a real one with the previous page's paper, orientation and
 dimensions; undo removes it. At the bottom of a vertical notebook, pull upward beyond the end and
 hold for a moment to append the same kind of page. Opening or closing the page sidebar, rotating the
