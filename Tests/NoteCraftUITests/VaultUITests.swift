@@ -473,6 +473,38 @@ final class VaultUITests: XCTestCase {
     point(300, 414).press(forDuration: 0.05, thenDragTo: point(200, 314))
     editsBoxAt(200, 314, "moved without selecting first")
   }
+  // Measures what a notebook of handwriting costs to scroll, zoom and pan while zoomed: CPU time and
+  // peak memory for the same gestures. It asserts nothing; the numbers are for comparing a change
+  // with the one before (the simulator records no hitch metric).
+  @MainActor func testScrollingAndZoomingHitchMeasurement() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input", "--ui-test-dense-notebook"]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    let scroll = app.scrollViews["notebookScrollView"]
+    XCTAssertTrue(scroll.waitForExistence(timeout: 20))
+    RunLoop.current.run(until: Date().addingTimeInterval(3))
+    func gestures() {
+      for _ in 0..<4 { scroll.swipeUp(velocity: .fast) }
+      for _ in 0..<4 { scroll.swipeDown(velocity: .fast) }
+      scroll.pinch(withScale: 3, velocity: 1.5)
+      for _ in 0..<3 { scroll.swipeLeft(velocity: .fast) }
+      for _ in 0..<3 { scroll.swipeRight(velocity: .fast) }
+      for _ in 0..<3 { scroll.swipeUp(velocity: .fast) }
+      scroll.pinch(withScale: 0.3, velocity: -2)
+    }
+    let options = XCTMeasureOptions()
+    options.iterationCount = 3
+    measure(
+      metrics: [XCTCPUMetric(application: app), XCTMemoryMetric(application: app)],
+      options: options, block: gestures)
+  }
   // The page that fills most of the notebook view, told apart by how many strokes it holds.
   @MainActor private func visiblePageStrokes(_ app: XCUIApplication) -> String? {
     let viewport = app.scrollViews["notebookScrollView"].frame

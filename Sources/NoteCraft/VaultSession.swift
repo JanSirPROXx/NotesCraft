@@ -457,6 +457,29 @@ struct WorkspaceTab: Identifiable {
           return page
         }
       }
+      // Six pages that each hold a page of handwriting (about 1600 strokes), for measuring how
+      // smoothly a heavy notebook scrolls and zooms.
+      if !whiteboard && CommandLine.arguments.contains("--ui-test-dense-notebook") {
+        notebook.pages = (0..<6).map { _ in
+          var page = Page(paper: paper)
+          for line in 0..<36 {
+            for word in 0..<9 {
+              for letter in 0..<5 {
+                let x = 40 + Double(word) * 60 + Double(letter) * 10
+                let y = 50 + Double(line) * 22
+                let samples = (0..<30).map { i -> Sample in
+                  let t = Double(i) / 29
+                  return Sample(
+                    point: Point(x + 6 * sin(t * 6.28), y + 14 * t), pressure: 0.3 + 0.6 * t,
+                    altitude: 1)
+                }
+                page.strokes.append(Stroke(samples: samples, width: 1.5, style: .ballpoint))
+              }
+            }
+          }
+          return page
+        }
+      }
       // A short word with a ring drawn around it, for the Circle to Lasso flow.
       if !whiteboard && CommandLine.arguments.contains("--ui-test-ring-notebook") {
         func stroke(_ a: Point, _ b: Point) -> Stroke {
