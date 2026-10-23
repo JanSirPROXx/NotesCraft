@@ -82,3 +82,36 @@ public enum FountainInk {
 
   private static func startRatio(_ tip: PenTip) -> Double { 0.85 - 0.25 * tip.sharpness }
 }
+
+// The fountain widths of the stroke being written, with the filter state saved after each sample.
+// When a measured force arrives for an earlier sample, only the widths from there on are worked out
+// again, from the saved state, instead of replaying the whole stroke.
+public struct FountainTrack: Sendable {
+  public private(set) var widths: [Double] = []
+  private var states: [FountainInk.State] = []
+
+  public init() {}
+
+  // The state after the newest sample, for widths of samples that are only predicted.
+  public var state: FountainInk.State { states.last ?? FountainInk.State() }
+
+  public mutating func append(_ sample: Sample, base: Double, tip: PenTip) {
+    var next = state
+    widths.append(FountainInk.advance(&next, sample: sample, base: base, tip: tip))
+    states.append(next)
+  }
+
+  public mutating func revise(from index: Int, samples: [Sample], base: Double, tip: PenTip) {
+    guard index >= 0, index < widths.count, samples.count == widths.count else { return }
+    var next = index > 0 ? states[index - 1] : FountainInk.State()
+    for i in index..<samples.count {
+      widths[i] = FountainInk.advance(&next, sample: samples[i], base: base, tip: tip)
+      states[i] = next
+    }
+  }
+
+  public mutating func removeAll() {
+    widths.removeAll(keepingCapacity: true)
+    states.removeAll(keepingCapacity: true)
+  }
+}

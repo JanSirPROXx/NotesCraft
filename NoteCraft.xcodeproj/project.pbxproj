@@ -48,6 +48,7 @@
 		C89409F71FE8853E13F8E328 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB364BB9C08BDF203F68B72A /* App.swift */; };
 		CE7AAD86B3DC29EDC5E24C6B /* VaultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2DF4BA61A4AD7E1CBD55E03 /* VaultTests.swift */; };
 		DBA123D11F060779970F9E43 /* Stickers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 023E3898BB20FF9226135691 /* Stickers.swift */; };
+		DE17859C82C578E9D38F702F /* FountainTrackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B24B3453C52225B874FE867 /* FountainTrackTests.swift */; };
 		DFD70495D78EC158F0FA15F0 /* NoteCraftCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */; };
 		E137DA07679CBEEE0D586AC0 /* InlineText.swift in Sources */ = {isa = PBXBuildFile; fileRef = F34C2411DFFD86FCA20BE3C3 /* InlineText.swift */; };
 		EA11D437FD711AEEE9A0009F /* VaultFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B18528EAB55247EA57BDEAF /* VaultFiles.swift */; };
@@ -129,6 +130,7 @@
 		508F352E349747AA65DE46CE /* WorkspaceCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceCommands.swift; sourceTree = "<group>"; };
 		60AAD7C60FE3807BE65F423F /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
 		6961F7917F77CAD924567EC6 /* NativeCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCanvas.swift; sourceTree = "<group>"; };
+		6B24B3453C52225B874FE867 /* FountainTrackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FountainTrackTests.swift; sourceTree = "<group>"; };
 		7498B04DDA06141A375AD880 /* ImportEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportEngine.swift; sourceTree = "<group>"; };
 		86F0B54A3AD9D8FC001C136B /* SampleCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleCodec.swift; sourceTree = "<group>"; };
 		8C6CA8AE2045682013E613E6 /* ShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeTests.swift; sourceTree = "<group>"; };
@@ -204,6 +206,7 @@
 			isa = PBXGroup;
 			children = (
 				06224446505127FB574CE719 /* CoreTests.swift */,
+				6B24B3453C52225B874FE867 /* FountainTrackTests.swift */,
 				2BEFB5FFC666C8AD680794AD /* ScribblePerformanceTests.swift */,
 				8C6CA8AE2045682013E613E6 /* ShapeTests.swift */,
 				C2DF4BA61A4AD7E1CBD55E03 /* VaultTests.swift */,
@@ -428,6 +431,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1B974C057F8DABA631C1EE8E /* CoreTests.swift in Sources */,
+				DE17859C82C578E9D38F702F /* FountainTrackTests.swift in Sources */,
 				C749B4E2D92EDC728A6FF056 /* ScribblePerformanceTests.swift in Sources */,
 				9669A46A095DCCDE46AB4F9A /* ShapeTests.swift in Sources */,
 				CE7AAD86B3DC29EDC5E24C6B /* VaultTests.swift in Sources */,

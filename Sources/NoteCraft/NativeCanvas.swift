@@ -300,8 +300,8 @@ enum PencilAction {
         offset: SIMD2(Float(offset.x * pixelScale), Float(offset.y * pixelScale)),
         viewport: SIMD2(Float(metalInk.surface.width), Float(metalInk.surface.height)),
         scale: Float(docScale * pixelScale))
-      let fountain = configuration.style == .fountain && input.fountainWidths.count == count
-      let widths = fountain ? input.fountainWidths : nil
+      let fountain = configuration.style == .fountain && input.fountain.widths.count == count
+      let widths = fountain ? input.fountain.widths : nil
       var bake: [InkCone] = []
       // Segments up to the second-to-last sample are final; the rest is redrawn every frame.
       let stableEnd = count - 2
@@ -316,9 +316,9 @@ enum PencilAction {
       let tailSamples = Array(samples.suffix(context)) + predictedSamples
       var tailWidths: [Double]?
       if fountain {
-        var state = input.fountain
+        var state = input.fountain.state
         tailWidths =
-          Array(input.fountainWidths.suffix(context))
+          Array(input.fountain.widths.suffix(context))
           + predictedSamples.map {
             FountainInk.advance(
               &state, sample: $0, base: configuration.width, tip: configuration.tip)
@@ -781,8 +781,7 @@ enum PencilAction {
   var frame: InkGestures.ObjectFrame?
   var invalidatedSamples = 0
   var lastInkRect = CGRect.null
-  var fountain = FountainInk.State()
-  var fountainWidths: [Double] = []
+  var fountain = FountainTrack()
   var lastRaw: Point?
   // The page with the eraser path applied so far; each new sample only erases incrementally.
   var eraseSession: EraseSession?
@@ -1051,6 +1050,7 @@ extension DrawingView {
     input.liveLayer = nil
     input.bakedThrough = 0
     input.renderedSegments = 0
+    input.fountain.removeAll()
     input.holdTask?.cancel()
     input.holdTask = nil
     input.holdDeadline = nil
@@ -1282,9 +1282,7 @@ extension DrawingView {
     }
     samples.append(sample)
     if configuration.tool == .pen, configuration.style == .fountain {
-      input.fountainWidths.append(
-        FountainInk.advance(
-          &input.fountain, sample: sample, base: configuration.width, tip: configuration.tip))
+      input.fountain.append(sample, base: configuration.width, tip: configuration.tip)
     }
     if configuration.tool == .eraser {
       // Mutated in place in `input`: a second reference would copy the whole index per hit.
@@ -1713,7 +1711,7 @@ extension DrawingView {
       PageRenderer.smoothInkSegments(
         samples, range: range, color: configuration.color,
         width: configuration.width, style: configuration.style, in: context,
-        widths: input.fountainWidths)
+        widths: input.fountain.widths)
       input.renderedSegments += range.count
       input.bakedThrough = stableEnd
     }
@@ -1721,10 +1719,10 @@ extension DrawingView {
     let tail = Array(samples.suffix(3)) + predictedSamples
     // Include one already-baked sample to preserve the tail's midpoint tangent.
     var tailWidths: [Double]?
-    if configuration.style == .fountain, input.fountainWidths.count == samples.count {
-      var state = input.fountain
+    if configuration.style == .fountain, input.fountain.widths.count == samples.count {
+      var state = input.fountain.state
       tailWidths =
-        Array(input.fountainWidths.suffix(3))
+        Array(input.fountain.widths.suffix(3))
         + predictedSamples.map {
           FountainInk.advance(
             &state, sample: $0, base: configuration.width, tip: configuration.tip)
