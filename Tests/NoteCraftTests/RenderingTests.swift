@@ -300,7 +300,8 @@ import UniformTypeIdentifiers
     let angle = Double(i) / 48 * 2 * Double.pi
     view.accept(Sample(point: Point(100 + 40 * cos(angle), 100 + 40 * sin(angle))))
   }
-  let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+  // The hold task runs on the main actor, which other tests keep busy for seconds at a time.
+  let deadline = ContinuousClock.now.advanced(by: .seconds(15))
   while view.input.held == nil && ContinuousClock.now < deadline {
     try await Task.sleep(for: .milliseconds(50))
   }
@@ -333,7 +334,8 @@ import UniformTypeIdentifiers
     let angle = Double(i) / 48 * 2 * Double.pi
     view.accept(Sample(point: Point(100 + 40 * cos(angle), 100 + 40 * sin(angle))))
   }
-  let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+  // The hold task runs on the main actor, which other tests keep busy for seconds at a time.
+  let deadline = ContinuousClock.now.advanced(by: .seconds(15))
   while view.input.held == nil && ContinuousClock.now < deadline {
     try await Task.sleep(for: .milliseconds(50))
   }
