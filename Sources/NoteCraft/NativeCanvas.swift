@@ -302,30 +302,29 @@ enum PencilAction {
         scale: Float(docScale * pixelScale))
       let fountain = configuration.style == .fountain && input.fountain.widths.count == count
       let widths = fountain ? input.fountain.widths : nil
+      let plan = LiveInkPlan(
+        count: count, bakedThrough: input.bakedThrough, firstPending: input.estimates.earliest)
       var bake: [InkCone] = []
-      // Segments up to the second-to-last sample are final; the rest is redrawn every frame.
-      let stableEnd = count - 2
-      if stableEnd > input.bakedThrough {
+      if !plan.bake.isEmpty {
         bake = InkTessellator.cones(
-          samples, range: (input.bakedThrough + 1)..<(stableEnd + 1), width: configuration.width,
+          samples, range: plan.bake, width: configuration.width,
           style: configuration.style, widths: widths, finish: false,
           pixelScale: docScale * pixelScale)
-        input.bakedThrough = stableEnd
       }
-      let context = min(3, count)
-      let tailSamples = Array(samples.suffix(context)) + predictedSamples
+      input.bakedThrough = plan.bakedThrough
+      let tailSamples = Array(samples[plan.tailStart...]) + predictedSamples
       var tailWidths: [Double]?
       if fountain {
         var state = input.fountain.state
         tailWidths =
-          Array(input.fountain.widths.suffix(context))
+          Array(input.fountain.widths[plan.tailStart...])
           + predictedSamples.map {
             FountainInk.advance(
               &state, sample: $0, base: configuration.width, tip: configuration.tip)
           }
       }
       var tail = InkTessellator.cones(
-        tailSamples, range: (max(1, count - 1) - (count - context))..<tailSamples.count,
+        tailSamples, range: plan.tailFirstSegment..<tailSamples.count,
         width: configuration.width, style: configuration.style, widths: tailWidths, finish: true,
         pixelScale: docScale * pixelScale)
       if count == 1, predictedSamples.isEmpty {
@@ -441,6 +440,31 @@ enum PencilAction {
       predictedSamples =
         input.held == nil && input.moveStart == nil
         ? (event?.predictedTouches(for: touch) ?? []).map { sample($0) } : []
+      invalidateInk()
+    }
+    // Force and tilt of the newest samples are estimates until the Pencil's own reading arrives, a
+    // few milliseconds later. The width of the live ink follows the measured values as they come
+    // in, and the baked part of the stroke only advances over samples that have them.
+    override func touchesEstimatedPropertiesUpdated(_ touches: Set<UITouch>) {
+      guard !input.estimates.isEmpty, configuration?.tool == .pen else { return }
+      var earliest: Int?
+      for touch in touches {
+        guard let key = touch.estimationUpdateIndex?.intValue,
+          let index = input.estimates.receive(
+            updateIndex: key, complete: touch.estimatedPropertiesExpectingUpdates.isEmpty),
+          index < samples.count
+        else { continue }
+        let measured = measurement(touch)
+        samples[index].pressure = measured.pressure
+        samples[index].altitude = measured.altitude
+        earliest = min(earliest ?? index, index)
+      }
+      guard let earliest, let configuration else { return }
+      if configuration.style == .fountain {
+        input.fountain.revise(
+          from: earliest, samples: samples, base: configuration.width, tip: configuration.tip)
+      }
+      input.gpuInkDirty = true
       invalidateInk()
     }
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -725,19 +749,35 @@ enum PencilAction {
       }
       updateDisplayLink()
     }
+    func measurement(_ touch: UITouch) -> (pressure: Double, altitude: Double) {
+      (
+        touch.type == .pencil
+          ? min(1, Double(touch.force / max(0.01, touch.maximumPossibleForce))) : 1,
+        Double(touch.altitudeAngle)
+      )
+    }
     func sample(_ touch: UITouch) -> Sample {
       let p = touch.type == .pencil ? touch.preciseLocation(in: self) : touch.location(in: self)
       let scale = bounds.width / (configuration?.page.dimensions.x ?? 595)
+      let measured = measurement(touch)
       return Sample(
         point: configuration?.viewport?.documentPoint(Point(p.x, p.y))
           ?? Point(p.x / scale, p.y / scale),
-        pressure: touch.type == .pencil
-          ? min(1, Double(touch.force / max(0.01, touch.maximumPossibleForce))) : 1,
-        altitude: Double(touch.altitudeAngle))
+        pressure: measured.pressure, altitude: measured.altitude)
     }
     func append(_ touch: UITouch) {
-      guard configuration != nil else { return }
+      guard let configuration else { return }
+      let before = samples.count
       accept(sample(touch))
+      guard samples.count > before else { return }
+      // Ballpoint ink ignores force and tilt, so nothing about it has to wait for the measured
+      // values.
+      guard configuration.tool == .pen, configuration.style != .ballpoint, touch.type == .pencil,
+        let key = touch.estimationUpdateIndex?.intValue,
+        !touch.estimatedPropertiesExpectingUpdates.isDisjoint(with: [.force, .altitude])
+      else { return }
+      input.estimates.expect(updateIndex: key, forSample: samples.count - 1)
+      input.estimates.expire(newest: samples.count - 1)
     }
   }
   @MainActor private final class CanvasDisplayTarget: NSObject {
@@ -782,6 +822,8 @@ enum PencilAction {
   var invalidatedSamples = 0
   var lastInkRect = CGRect.null
   var fountain = FountainTrack()
+  // Samples whose force and tilt are still estimates; see `PendingEstimates`.
+  var estimates = PendingEstimates()
   var lastRaw: Point?
   // The page with the eraser path applied so far; each new sample only erases incrementally.
   var eraseSession: EraseSession?
@@ -1051,6 +1093,7 @@ extension DrawingView {
     input.bakedThrough = 0
     input.renderedSegments = 0
     input.fountain.removeAll()
+    input.estimates.removeAll()
     input.holdTask?.cancel()
     input.holdTask = nil
     input.holdDeadline = nil
@@ -1705,34 +1748,34 @@ extension DrawingView {
           tip: configuration.tip), in: c)
       return
     }
-    let stableEnd = samples.count - 2
-    if stableEnd > input.bakedThrough {
-      let range = (input.bakedThrough + 1)..<(stableEnd + 1)
+    let plan = LiveInkPlan(
+      count: samples.count, bakedThrough: input.bakedThrough, firstPending: input.estimates.earliest)
+    if !plan.bake.isEmpty {
       PageRenderer.smoothInkSegments(
-        samples, range: range, color: configuration.color,
+        samples, range: plan.bake, color: configuration.color,
         width: configuration.width, style: configuration.style, in: context,
         widths: input.fountain.widths)
-      input.renderedSegments += range.count
-      input.bakedThrough = stableEnd
+      input.renderedSegments += plan.bake.count
     }
+    input.bakedThrough = plan.bakedThrough
     c.draw(layer, in: rect)
-    let tail = Array(samples.suffix(3)) + predictedSamples
-    // Include one already-baked sample to preserve the tail's midpoint tangent.
+    let tail = Array(samples[plan.tailStart...]) + predictedSamples
+    // The tail starts at an already-baked sample to preserve its midpoint tangent.
     var tailWidths: [Double]?
     if configuration.style == .fountain, input.fountain.widths.count == samples.count {
       var state = input.fountain.state
       tailWidths =
-        Array(input.fountain.widths.suffix(3))
+        Array(input.fountain.widths[plan.tailStart...])
         + predictedSamples.map {
           FountainInk.advance(
             &state, sample: $0, base: configuration.width, tip: configuration.tip)
         }
     }
     PageRenderer.smoothInkSegments(
-      tail, range: 2..<tail.count, color: configuration.color,
+      tail, range: plan.tailFirstSegment..<tail.count, color: configuration.color,
       width: configuration.width, style: configuration.style, in: c, finish: true,
       widths: tailWidths)
-    input.renderedSegments += max(0, tail.count - 2)
+    input.renderedSegments += max(0, tail.count - plan.tailFirstSegment)
   }
 }
 
