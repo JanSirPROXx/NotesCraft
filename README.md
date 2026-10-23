@@ -88,7 +88,7 @@ auto-deselect options. Highlighter ink renders beneath pen ink. Closed shapes su
 Lasso filters select handwriting, images and text, with cut/copy/paste, deletion, recoloring,
 direct corner resize and rotation handles, cropped PNG export and a named reusable element
 library. Elements preserve handwriting, images and rotated text across notebooks and vaults. Text boxes support font,
-size, alignment, width, border and background; tap an existing box to edit it. Images can
+size, alignment, width, border and background; with the text tool, touch a box to select it and drag it to move it; its handles widen, scale and rotate it, a tap on the selected box edits it, and a tap beside it lets go. Images can
 be imported from Files or Photos, dropped as file URLs, moved, pinched and rotated.
 
 Infinite scrolling (overflow menu, off by default) turns a notebook into one continuous vertical

@@ -424,6 +424,54 @@ final class VaultUITests: XCTestCase {
     point(0.2, 0.4).press(forDuration: 0.05, thenDragTo: point(0.7, 0.45))
     XCTAssertEqual(canvas.value as? String, "2 strokes")
   }
+  @MainActor func testATextBoxCanBeMovedAfterItIsInserted() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input"]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    let canvas = app.descendants(matching: .any)["drawingCanvas"].firstMatch
+    XCTAssertTrue(canvas.waitForExistence(timeout: 10))
+    app.buttons["More"].tap()
+    let pencilOnly = app.descendants(matching: .any)["Apple Pencil only"].firstMatch
+    XCTAssertTrue(pencilOnly.waitForExistence(timeout: 5))
+    pencilOnly.tap()
+    // Page points, so the positions do not depend on how the page is scaled on screen.
+    func point(_ x: Double, _ y: Double) -> XCUICoordinate {
+      canvas.coordinate(withNormalizedOffset: CGVector(dx: x / 595, dy: y / 842))
+    }
+    // Type a box at (120, 200) and finish: it stays selected.
+    app.buttons["Text"].tap()
+    point(120, 200).tap()
+    let field = app.descendants(matching: .any)["inlineTextField"].firstMatch
+    XCTAssertTrue(field.waitForExistence(timeout: 5), app.debugDescription)
+    field.typeText("Hello")
+    app.buttons["Done editing text"].tap()
+    XCTAssertTrue(app.buttons["Selection actions"].waitForExistence(timeout: 5), "the box stays selected")
+
+    // Drag the selected box 100 pt right and 200 pt down. Tapping where it now is edits it; had it
+    // not moved, that spot would be empty paper.
+    func editsBoxAt(_ x: Double, _ y: Double, _ label: String) {
+      point(x, y).tap()
+      XCTAssertTrue(field.waitForExistence(timeout: 5), "\(label): no text box at \(x), \(y)")
+      XCTAssertEqual(field.value as? String, "Hello", label)
+      app.buttons["Done editing text"].tap()
+      XCTAssertTrue(app.buttons["Selection actions"].waitForExistence(timeout: 5))
+    }
+    point(200, 214).press(forDuration: 0.05, thenDragTo: point(300, 414))
+    editsBoxAt(300, 414, "moved while selected")
+
+    // Let go of it with a tap on empty paper, then take hold of it again without selecting first.
+    point(500, 700).tap()
+    XCTAssertTrue(app.buttons["Selection actions"].waitForNonExistence(timeout: 5))
+    point(300, 414).press(forDuration: 0.05, thenDragTo: point(200, 314))
+    editsBoxAt(200, 314, "moved without selecting first")
+  }
   // The page that fills most of the notebook view, told apart by how many strokes it holds.
   @MainActor private func visiblePageStrokes(_ app: XCUIApplication) -> String? {
     let viewport = app.scrollViews["notebookScrollView"].frame

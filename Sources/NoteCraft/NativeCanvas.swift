@@ -23,6 +23,8 @@ import SwiftUI
   // The pen was held still where it came down (document point). True when that was a press on a
   // loop that has just become a selection, so the touch must not leave a dot behind.
   var onLoopHold: ((Point) -> Bool)? = nil
+  // With the text tool, a touch came down on a text box that was not selected: select it.
+  var onSelectObject: ((UUID) -> Void)? = nil
   var onTouchDown: (() -> Void)? = nil
   var onPencilDetected: (() -> Void)? = nil
   var onPencilAction: ((PencilAction) -> Void)? = nil
@@ -840,6 +842,9 @@ enum PencilAction {
   var held: Stroke?
   // The touch turned a loop into a selection; whatever else it does is ignored until it lifts.
   var consumed = false
+  // The touch took hold of a text box that was not selected, so lifting without a drag leaves it
+  // selected instead of opening it for editing.
+  var grabbedText = false
   // The held shape after the pen dragged it to a new size; this is what lifts off the screen.
   var heldResized: Stroke?
   var resizeStart: Point?
@@ -1133,6 +1138,7 @@ extension DrawingView {
     input.holdPoint = nil
     input.held = nil
     input.consumed = false
+    input.grabbedText = false
     input.heldResized = nil
     input.resizeStart = nil
     input.moveStart = nil
@@ -1155,7 +1161,7 @@ extension DrawingView {
     if input.overlayInked { invalidateOverlay() }
   }
   // Tools whose selection can be moved, stretched and rotated in place.
-  static let manipulatingTools: [InkTool] = [.lasso, .shapes, .image, .elements]
+  static let manipulatingTools: [InkTool] = [.lasso, .shapes, .image, .elements, .text]
 
   func handlePoints(_ frame: InkGestures.ObjectFrame, scale: Double) -> [(SelectionHandle, Point)] {
     func world(_ sx: Double, _ sy: Double) -> Point {
@@ -1255,13 +1261,26 @@ extension DrawingView {
   }
   func accept(_ sample: Sample, time: TimeInterval = ProcessInfo.processInfo.systemUptime) {
     guard let configuration, !input.consumed else { return }
-    if samples.isEmpty, Self.manipulatingTools.contains(configuration.tool),
-      !configuration.selection.isEmpty,
-      let hit = selectionHit(at: sample.point, configuration)
+    var effective = configuration
+    // With the text tool, a touch that lands on a text box takes hold of it: the box becomes the
+    // selection and the same drag moves it, so there is no separate step of selecting it first.
+    if samples.isEmpty, configuration.tool == .text, let onSelect = configuration.onSelectObject,
+      selectionHit(at: sample.point, configuration) == nil,
+      let box = configuration.page.texts.last(where: { $0.contains(sample.point) })
+    {
+      onSelect(box.id)
+      // The owner's state reaches this view a moment later; the drag has to start now.
+      self.configuration?.selection = [box.id]
+      effective.selection = [box.id]
+      input.grabbedText = true
+    }
+    if samples.isEmpty, Self.manipulatingTools.contains(effective.tool),
+      !effective.selection.isEmpty,
+      let hit = selectionHit(at: sample.point, effective)
     {
       input.selectionHandle = hit.handle
       input.moveStart = sample.point
-      input.frame = InkGestures.objectFrame(page: configuration.page, ids: configuration.selection)
+      input.frame = InkGestures.objectFrame(page: effective.page, ids: effective.selection)
       input.selectionTransform = SelectionTransform(
         center: hit.center, axis: input.frame?.rotation ?? 0)
       cachedPage = nil
@@ -1746,7 +1765,7 @@ extension DrawingView {
         } else {
           configuration.onTranslateSelection?(transform.translation)
         }
-      } else {
+      } else if !input.grabbedText {
         configuration.onSelectionMenu?()
       }
       resetInput()

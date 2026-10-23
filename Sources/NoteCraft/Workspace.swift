@@ -983,7 +983,10 @@ struct Workspace: View {
           insertPoint = point
           if tool == .readOnly { followLink(at: point, on: p) }
           if tool == .lasso { selectObject(at: point, on: p, viewScale: viewScale) }
-          if tool == .text { beginInlineText(at: point, on: p) }
+          if tool == .text {
+            // A tap beside a selected text box first lets go of it; the next one starts a new box.
+            if selection.isEmpty { beginInlineText(at: point, on: p) } else { selection = [] }
+          }
           if tool == .image {
             if let image = p.images.last(where: { $0.contains(point) }) {
               selection = [image.id]
@@ -1011,7 +1014,17 @@ struct Workspace: View {
               ids: selection, by: transform)
           }
         },
-        onSelectionMenu: { selectionMenuPresented = true },
+        onSelectionMenu: {
+          // A tap on a selected text box edits it, like a second tap in Goodnotes.
+          if tool == .text, selection.count == 1, let id = selection.first,
+            let box = document.package.notebook.pages[index].texts.first(where: { $0.id == id })
+          {
+            activePage = index
+            editInline(box)
+          } else {
+            selectionMenuPresented = true
+          }
+        },
         onLongPress: { point in
           activePage = index
           pasteSpot = (index, point)
@@ -1036,6 +1049,12 @@ struct Workspace: View {
             selection = target.selection
             return true
           } : nil,
+        onSelectObject: { id in
+          activePage = index
+          // A box that is still being edited is committed first, then the new one is selected.
+          commitInlineText()
+          selection = [id]
+        },
         onTouchDown: {
           if pasteSpot != nil { pasteSpot = nil }
           if scribbleHint != nil { scribbleHint = nil }
@@ -1742,13 +1761,18 @@ struct Workspace: View {
   private func beginInlineText(at point: Point, on p: Page) {
     commitInlineText()
     if let box = p.texts.last(where: { $0.contains(point) }) {
-      inlineText = InlineText(
-        id: box.id, origin: box.layoutBounds.originPoint, text: box.text, size: box.size,
-        width: box.boxWidth ?? 280, color: box.color)
+      editInline(box)
     } else {
       inlineText = InlineText(
         origin: point, size: textSize, width: 220, color: color)
+      selection = []
     }
+  }
+  private func editInline(_ box: TextBox) {
+    commitInlineText()
+    inlineText = InlineText(
+      id: box.id, origin: box.layoutBounds.originPoint, text: box.text, size: box.size,
+      width: box.boxWidth ?? 280, color: box.color)
     selection = []
   }
   private func commitInlineText() {
@@ -1769,13 +1793,19 @@ struct Workspace: View {
           package.notebook.pages[activePage].texts[i].boxWidth = draft.width
         }
       }
+      if !empty { selectAfterTyping(id) }
     } else if !empty {
       var box = TextBox(origin: draft.origin, text: draft.text)
       box.size = draft.size
       box.color = draft.color
       box.boxWidth = draft.width
       edit { $0.notebook.pages[activePage].texts.append(box) }
+      selectAfterTyping(box.id)
     }
+  }
+  // The box that was just typed stays selected, with its handles, so it can be moved right away.
+  private func selectAfterTyping(_ id: UUID) {
+    if tool == .text { selection = [id] }
   }
   private func discardInlineText() {
     guard let draft = inlineText else { return }
