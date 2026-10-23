@@ -20,6 +20,9 @@ import SwiftUI
   var onSelectionMenu: (() -> Void)? = nil
   // A long finger press on empty paper (document point), e.g. to offer "Paste" there.
   var onLongPress: ((Point) -> Void)? = nil
+  // The pen was held still where it came down (document point). True when that was a press on a
+  // loop that has just become a selection, so the touch must not leave a dot behind.
+  var onLoopHold: ((Point) -> Bool)? = nil
   var onTouchDown: (() -> Void)? = nil
   var onPencilDetected: (() -> Void)? = nil
   var onPencilAction: ((PencilAction) -> Void)? = nil
@@ -833,6 +836,8 @@ enum PencilAction {
   var holdDeadline: ContinuousClock.Instant?
   var holdPoint: Point?
   var held: Stroke?
+  // The touch turned a loop into a selection; whatever else it does is ignored until it lifts.
+  var consumed = false
   // The held shape after the pen dragged it to a new size; this is what lifts off the screen.
   var heldResized: Stroke?
   var resizeStart: Point?
@@ -1125,6 +1130,7 @@ extension DrawingView {
     input.holdDeadline = nil
     input.holdPoint = nil
     input.held = nil
+    input.consumed = false
     input.heldResized = nil
     input.resizeStart = nil
     input.moveStart = nil
@@ -1246,7 +1252,7 @@ extension DrawingView {
     return nil
   }
   func accept(_ sample: Sample, time: TimeInterval = ProcessInfo.processInfo.systemUptime) {
-    guard let configuration else { return }
+    guard let configuration, !input.consumed else { return }
     if samples.isEmpty, Self.manipulatingTools.contains(configuration.tool),
       !configuration.selection.isEmpty,
       let hit = selectionHit(at: sample.point, configuration)
@@ -1382,7 +1388,9 @@ extension DrawingView {
       }
     }
     updateScratchPreview()
-    guard configuration.holdToShape, [.pen, .shapes].contains(configuration.tool) else { return }
+    let shapeHold = configuration.holdToShape && [.pen, .shapes].contains(configuration.tool)
+    let loopHold = configuration.tool == .pen && configuration.onLoopHold != nil
+    guard shapeHold || loopHold else { return }
     if let anchor = input.holdPoint, anchor.distance(to: sample.point) < 3 { return }
     input.holdPoint = sample.point
     input.holdDeadline = ContinuousClock.now.advanced(by: .milliseconds(450))
@@ -1393,6 +1401,29 @@ extension DrawingView {
         guard let self, let configuration = self.configuration else { return }
         guard deadline == self.input.holdDeadline else { continue }
         self.input.holdTask = nil
+        // A pen held still where it came down, on a loop drawn earlier, turns the loop into a
+        // selection; the workspace decides whether there is such a loop.
+        if loopHold, let onLoopHold = configuration.onLoopHold, let start = self.samples.first {
+          let scale =
+            configuration.viewport?.scale ?? self.bounds.width / configuration.page.dimensions.x
+          let slop = 8 / scale
+          if self.samples.allSatisfy({ $0.point.distance(to: start.point) < slop }),
+            onLoopHold(start.point)
+          {
+            self.input.consumed = true
+            self.input.gpuInkDirty = false
+            self.metalInkClearNow()
+            self.invalidateOverlay()
+            self.samples = []
+            self.predictedSamples = []
+            self.invalidateCanvas()
+            #if os(iOS)
+              UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            #endif
+            return
+          }
+        }
+        guard shapeHold else { return }
         let raw = Stroke(
           samples: self.samples, color: configuration.color,
           width: configuration.width, tool: configuration.tool, style: configuration.style,

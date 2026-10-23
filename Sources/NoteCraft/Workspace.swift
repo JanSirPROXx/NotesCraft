@@ -71,6 +71,9 @@ struct Workspace: View {
   @AppStorage("pencilOnlyDrawing") private var pencilOnly = true
   @AppStorage("holdToShape") private var holdToShape = true
   @AppStorage("scratchToErase") private var scratchToErase = true
+  @AppStorage("circleToLasso") private var circleToLasso = true
+  // The tool to go back to once a selection made by Circle to Lasso has been dismissed.
+  @State private var lassoReturnTool: InkTool?
   @AppStorage("gpuInk") private var gpuInk = true
   @AppStorage("scribbleHint") private var scribbleHintMode = ScribbleHintMode.sometimes
   // Shown after a scribble took ink away, so a drawing that was mistaken for one can be kept.
@@ -317,6 +320,11 @@ struct Workspace: View {
     .frame(minHeight: 500)
   }
   private var syncedContent: some View {
+    pageSyncedContent
+    .onChange(of: selection) { returnFromCircleLasso() }
+    .onChange(of: tool) { if tool != .lasso { lassoReturnTool = nil } }
+  }
+  private var pageSyncedContent: some View {
     // Split into stages: one chained expression this long exceeds the type checker.
     editorContent
     .onChange(of: activePage) { showPageIndicator() }
@@ -489,6 +497,7 @@ struct Workspace: View {
       Toggle("Apple Pencil only", isOn: $pencilOnly)
       Toggle("Draw and hold for shapes", isOn: $holdToShape)
       Toggle("Fast GPU ink", isOn: $gpuInk)
+      Toggle("Circle to lasso", isOn: $circleToLasso)
       Toggle("Scribble to erase", isOn: $scratchToErase)
       Picker("Scribble hint", selection: $scribbleHintMode) {
         ForEach(ScribbleHintMode.allCases, id: \.self) { Text($0.title).tag($0) }
@@ -582,8 +591,15 @@ struct Workspace: View {
     }.font(.system(size: 13, weight: .medium)).foregroundStyle(Color.white).background(
       Color(red: 0.12, green: 0.20, blue: 0.36))
   }
+  // A selection made by Circle to Lasso hands the page back to the pen once it is dismissed.
+  private func returnFromCircleLasso() {
+    guard selection.isEmpty, let back = lassoReturnTool, tool == .lasso else { return }
+    tool = back
+    lassoReturnTool = nil
+  }
   private func switchTool(to item: InkTool) {
     previousTool = tool
+    lassoReturnTool = nil
     tool = item
     selection = []
     commitInlineText()
@@ -921,21 +937,12 @@ struct Workspace: View {
           } else if let tapped = points.first, tapExtent(points) < 10 / viewScale {
             selectObject(at: tapped, on: p, viewScale: viewScale)
           } else {
-            selection =
-              selectInk
-              ? Editing.selection(
-                strokes: p.strokes, polygon: points,
-                bounds: boardHeight == nil
-                  ? Rect(x: 0, y: 0, width: p.dimensions.x, height: p.dimensions.y)
-                  : PageRenderer.contentBounds(p)) : []
-            if selectImages {
-              selection.formUnion(
-                p.images.filter { intersects($0.bounds, polygon: points) }.map(\.id))
-            }
-            if selectTexts {
-              selection.formUnion(
-                p.texts.filter { intersects($0.bounds, polygon: points) }.map(\.id))
-            }
+            selection = InkGestures.lassoSelection(
+              page: p, polygon: points,
+              bounds: boardHeight == nil
+                ? Rect(x: 0, y: 0, width: p.dimensions.x, height: p.dimensions.y)
+                : PageRenderer.contentBounds(p),
+              ink: selectInk, images: selectImages, texts: selectTexts)
           }
         },
         onTap: { point in
@@ -976,6 +983,26 @@ struct Workspace: View {
           activePage = index
           pasteSpot = (index, point)
         },
+        onLoopHold: circleToLasso && tool == .pen
+          ? { point in
+            // Judged against the page as it is now, like a scribble.
+            let current = document.package.notebook.pages[index]
+            guard
+              let target = InkGestures.loopSelection(
+                at: point, page: current, tolerance: 14 / viewScale,
+                bounds: boardHeight == nil
+                  ? Rect(x: 0, y: 0, width: current.dimensions.x, height: current.dimensions.y)
+                  : PageRenderer.contentBounds(current),
+                ink: selectInk, images: selectImages, texts: selectTexts)
+            else { return false }
+            activePage = index
+            edit { $0.notebook.pages[index].strokes.removeAll { $0.id == target.loop } }
+            previousTool = tool
+            lassoReturnTool = tool
+            tool = .lasso
+            selection = target.selection
+            return true
+          } : nil,
         onTouchDown: {
           if pasteSpot != nil { pasteSpot = nil }
           if scribbleHint != nil { scribbleHint = nil }
@@ -1520,16 +1547,6 @@ struct Workspace: View {
         document.package.assets[image.filename].map { (image.filename, $0) }
       })
     clipboardTexts = page.texts.filter { selection.contains($0.id) }
-  }
-  private func intersects(_ rect: Rect, polygon: [Point]) -> Bool {
-    let outline = [
-      Point(rect.x, rect.y), Point(rect.x + rect.width, rect.y),
-      Point(rect.x + rect.width, rect.y + rect.height), Point(rect.x, rect.y + rect.height),
-      Point(rect.x, rect.y),
-    ]
-    return Editing.strokeIntersects(
-      Stroke(samples: outline.map { Sample(point: $0) }), polygon: polygon)
-      || polygon.contains { rect.contains($0) }
   }
   private func selectionBounds() -> Rect {
     let bounds =

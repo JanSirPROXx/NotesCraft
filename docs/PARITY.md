@@ -63,7 +63,6 @@ Erase and Circle to Lasso.
 
 Not built yet, in the order they matter for writing:
 
-- Circle to Lasso: drawing a loop around ink with the pen selects it.
 - Pencil: a textured pen with its own settings.
 - Tape: strips that hide the content under them, with Straight Tape and Remove All Tape.
 - Laser pointer, Ruler, Timer and Sticky Notes.

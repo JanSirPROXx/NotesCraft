@@ -446,6 +446,24 @@ struct WorkspaceTab: Identifiable {
       if !whiteboard && CommandLine.arguments.contains("--ui-test-large-notebook") {
         notebook.pages = (0..<300).map { _ in Page(paper: paper) }
       }
+      // A short word with a ring drawn around it, for the Circle to Lasso flow.
+      if !whiteboard && CommandLine.arguments.contains("--ui-test-ring-notebook") {
+        func stroke(_ a: Point, _ b: Point) -> Stroke {
+          Stroke(
+            samples: (0..<12).map { i in
+              let t = Double(i) / 11
+              return Sample(point: Point(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t))
+            }, width: 2)
+        }
+        let ring = Stroke(
+          samples: (0...80).map { i in
+            let angle = -Double.pi / 2 + Double(i) / 80 * 2 * .pi
+            return Sample(point: Point(300 + 80 * cos(angle), 300 + 80 * sin(angle)))
+          }, width: 2)
+        notebook.pages[0].strokes = [
+          stroke(Point(270, 285), Point(285, 320)), stroke(Point(300, 285), Point(318, 320)), ring,
+        ]
+      }
     #endif
     notebook.kind = whiteboard ? .whiteboard : .notebook
     if whiteboard { notebook.pages[0].backgroundSize = Point(2000, 2000) }

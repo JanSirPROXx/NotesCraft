@@ -62,7 +62,7 @@ that was scribbled over on several sweeps. The ink that will go turns
 red while you scribble. A loose scribble across nothing but long lines stays ink, so a symbol
 drawn over a wire is not mistaken for an eraser gesture. After an uncertain case a "Keep as ink"
 button appears for a few seconds; the overflow menu sets the hint to Off, When unsure or Always.
-Both gestures can be disabled in the overflow menu. The eraser shows its reach as a ring that follows the pencil (and hovers with it on
+Both gestures can be disabled in the overflow menu. Circle to lasso: draw a loop around ink with the pen as usual, lift, then hold the pen still on the loop for about half a second; the loop turns into a lasso selection of what it encloses and touches (the loop itself leaves the page), and the pen returns once the selection is dismissed. A circle around a word stays a circle unless it is held; the overflow menu switches the gesture off. The eraser shows its reach as a ring that follows the pencil (and hovers with it on
 supported iPads), and it sweeps the path between samples so a quick swipe leaves nothing
 behind. Lasso handwriting, images and text, then drag inside the selection to
 move the group with a live preview; release commits one undoable change.

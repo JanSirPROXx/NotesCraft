@@ -362,6 +362,39 @@ final class VaultUITests: XCTestCase {
     XCTAssertTrue(app.buttons["Bring to front"].waitForExistence(timeout: 5))
     capture(app, name: "Selection menu")
   }
+  @MainActor func testHoldingThePenOnARingSelectsWhatItEnclosesAndGoesBackToThePen() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input", "--ui-test-ring-notebook"]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    let canvas = app.descendants(matching: .any)["drawingCanvas"].firstMatch
+    XCTAssertTrue(canvas.waitForExistence(timeout: 10))
+    XCTAssertEqual(canvas.value as? String, "3 strokes")
+    // The simulator only has fingers: let one ink, like a Pencil would.
+    app.buttons["More"].tap()
+    let pencilOnly = app.descendants(matching: .any)["Apple Pencil only"].firstMatch
+    XCTAssertTrue(pencilOnly.waitForExistence(timeout: 5))
+    pencilOnly.tap()
+    func point(_ x: Double, _ y: Double) -> XCUICoordinate {
+      canvas.coordinate(withNormalizedOffset: CGVector(dx: x / 595, dy: y / 842))
+    }
+    // Held still on the top of the ring (page point 300, 220): the ring becomes a selection.
+    point(300, 220).press(forDuration: 1.2)
+    XCTAssertTrue(app.buttons["Selection actions"].waitForExistence(timeout: 5), app.debugDescription)
+    XCTAssertEqual(canvas.value as? String, "2 strokes", "The ring leaves the page, the word stays")
+
+    // Tapping beside the selection dismisses it, and the pen is back: a drag draws ink again.
+    point(120, 600).tap()
+    XCTAssertTrue(app.buttons["Selection actions"].waitForNonExistence(timeout: 5))
+    point(100, 650).press(forDuration: 0.05, thenDragTo: point(300, 700))
+    XCTAssertEqual(canvas.value as? String, "3 strokes")
+  }
   @MainActor func testLargeNotebookKeepsOnlyVisibleCanvasesLoaded() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     defer { XCUIDevice.shared.orientation = .portrait }
