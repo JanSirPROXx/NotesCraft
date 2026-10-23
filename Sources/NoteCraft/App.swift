@@ -28,6 +28,10 @@ struct NoteDocument: FileDocument {
           UserDefaults.standard.removeObject(forKey: key)
         }
       }
+      // Notebooks scroll vertically unless told otherwise; the paging tests ask for the row.
+      if CommandLine.arguments.contains("--ui-test-horizontal-pages") {
+        UserDefaults.standard.set(true, forKey: "horizontalNotebookPages")
+      }
     #endif
   }
   var body: some Scene {

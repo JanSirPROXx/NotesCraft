@@ -81,10 +81,6 @@ struct Workspace: View {
   @State private var pagePullProgress = 0.0
   @State private var settings = false
   @State private var thumbnails = false
-  // The page area is being resized (sidebar, rotation, Split View); until it settles, where the
-  // scroll view says it is must not be taken for the reader turning a page.
-  @State private var resizing = false
-  @State private var resizeTask: Task<Void, Never>?
   @State private var navigator = false
   @State private var pdfForms = false
   @State private var templateSheet = false
@@ -142,20 +138,18 @@ struct Workspace: View {
   @State private var searchVisible = false
   @State private var search = ""
   @State private var documentSearch = DocumentSearch()
-  @AppStorage("horizontalNotebookPages") private var horizontalSetting = true
+  @AppStorage("horizontalNotebookPages") private var horizontalSetting = false
   @AppStorage("infiniteScroll") private var infinite = false
   // Infinite scrolling is one continuous vertical sheet, so it overrides page-by-page layout.
   private var horizontal: Bool { horizontalSetting && !infinite }
   @State private var pageHUD = false
   @State private var lastHUDActivation = Date.distantPast
   @State private var pageHUDTask: Task<Void, Never>?
-  @State private var horizontalPageID: UUID?
-  @State private var pageChangedByScroll = false
   // A blank page after the last one: swiping onto it turns it into a real page, so adding a
   // page is part of the swipe instead of a separate pull-and-hold gesture.
   @State private var trailingPage: Page?
-  @AppStorage("keepZoomOnNewPage") private var keepZoomOnNewPage = true
-  @State private var pageZoom = NotebookZoomMemory()
+  // How far the paper is zoomed; the bars that float over a selection stay the same size on screen.
+  @State private var documentZoom = 1.0
   @State private var zoom = 1.0
   @State private var zoomBase = 1.0
   @State private var customColor = Color.black
@@ -207,92 +201,59 @@ struct Workspace: View {
     }
   }
   @ViewBuilder private func notebookScroller(_ geometry: GeometryProxy) -> some View {
-    ScrollViewReader { proxy in
-      ScrollView(horizontal ? .horizontal : .vertical, showsIndicators: false) {
-        if horizontal {
-          LazyHStack(alignment: .top, spacing: 0) {
-            // The blank page that swiping creates sits in the same list as the real pages and
-            // keeps its ID when it becomes one, so its view (and zoom surface) is never rebuilt.
-            ForEach(
-              Array((notebook.pages + (trailingPage.map { [$0] } ?? [])).enumerated()),
-              id: \.element.id
-            ) { index, p in
-              notebookPage(p, index: index, size: geometry.size)
-                .frame(width: geometry.size.width).id(p.id)
-                .allowsHitTesting(index < notebook.pages.count)
-            }
-          }.scrollTargetLayout()
-        } else {
-          LazyVStack(spacing: infinite ? 0 : 28) {
-            ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
-              notebookPage(p, index: index, size: geometry.size, vertical: true)
-            }
-          }.scrollTargetLayout().frame(maxWidth: .infinity)
-        }
-      }.frame(width: geometry.size.width, height: geometry.size.height)
-        .scrollTargetBehavior(NotebookPageBehavior(horizontal: horizontal))
-        .scrollPosition(id: $horizontalPageID, anchor: .topLeading)
-        .accessibilityIdentifier("notebookScrollView")
-        .background(Color(red: 0.105, green: 0.11, blue: 0.115)).onChange(of: activePage) {
-          previous, current in
-          if pageChangedByScroll {
-            pageChangedByScroll = false
-            return
-          }
-          let move = {
-            if horizontal {
-              horizontalPageID = page.id
-            } else {
-              proxy.scrollTo(page.id, anchor: .top)
-            }
-          }
-          // A distant jump should not build/render every page along an animation.
-          if abs(current - previous) > 1 { move() } else { withAnimation { move() } }
-        }.onChange(of: horizontalPageID) {
-          guard !resizing else { return }
-          if let id = horizontalPageID, let next = trailingPage, id == next.id {
-            pageChangedByScroll = true
+    #if os(iOS)
+      // The blank page that swiping creates is part of the same list as the real pages and keeps its
+      // ID when it becomes one, so its view is never rebuilt.
+      let slots = pagesWithTrailing
+      NotebookDocumentView(
+        ids: slots.map(\.id), sizes: slots.map(\.dimensions),
+        axis: horizontal ? .horizontal : .vertical, infinite: infinite, selectedIndex: activePage,
+        trailingIndex: trailingPage == nil ? nil : notebook.pages.count,
+        canPull: !horizontal && !infinite,
+        onCurrentPage: { index in
+          if index < notebook.pages.count, index != activePage { activePage = index }
+        },
+        onZoom: { documentZoom = $0 },
+        onPull: { pagePullProgress = $0 },
+        onAppend: {
+          if let last = notebook.pages.last { appendPage(InkGestures.blankPage(matching: last)) }
+        },
+        onTrailingReached: {
+          if let next = trailingPage {
             trailingPage = nil
             appendPage(next)
-            return
           }
-          if let id = horizontalPageID,
-            let index = notebook.pages.firstIndex(where: { $0.id == id })
-          {
-            if activePage != index {
-              pageChangedByScroll = true
-              activePage = index
-            }
-          }
-        }.onChange(of: geometry.size) {
-          keepPageWhileResizing(proxy)
-        }.task(id: horizontal) {
-          let targetID = page.id
-          // Changing axes rebuilds the page layout. Reapply the position even when
-          // the selected page ID has not changed.
-          await Task.yield()
-          proxy.scrollTo(targetID, anchor: .topLeading)
-          horizontalPageID = targetID
+        },
+        onScrollActivity: { showPageIndicator() },
+        content: { index, size in
+          AnyView(
+            pageView(
+              slots[index], index: index, availableWidth: size.width + 56,
+              availableHeight: size.height + 80
+            ).allowsHitTesting(index < notebook.pages.count))
         }
-    }
+      ).frame(width: geometry.size.width, height: geometry.size.height)
+    #else
+      ScrollView {
+        LazyVStack(spacing: infinite ? 0 : 28) {
+          ForEach(Array(notebook.pages.enumerated()), id: \.element.id) { index, p in
+            notebookPage(p, index: index, size: geometry.size, vertical: true)
+          }
+        }.frame(maxWidth: .infinity)
+      }.frame(width: geometry.size.width, height: geometry.size.height)
+        .background(Color(red: 0.105, green: 0.11, blue: 0.115))
+    #endif
   }
-  // The pages are laid out at the width of the page area, but the scroll view keeps its offset in
-  // points: after the sidebar closes, an offset worked out for the narrow strip lands on an earlier
-  // page, and reporting that page would send the reader back. The current page is scrolled to again
-  // once the size has stopped changing, and nothing the scroll view reports in between counts.
-  private func keepPageWhileResizing(_ proxy: ScrollViewProxy) {
-    resizing = true
-    resizeTask?.cancel()
-    resizeTask = Task { @MainActor in
-      try? await Task.sleep(for: .milliseconds(150))
-      guard !Task.isCancelled else { return }
-      let id = page.id
-      proxy.scrollTo(id, anchor: horizontal ? .topLeading : .top)
-      horizontalPageID = id
-      try? await Task.sleep(for: .milliseconds(120))
-      if !Task.isCancelled { resizing = false }
-    }
+  private var pagesWithTrailing: [Page] {
+    var slots = notebook.pages
+    if let trailingPage { slots.append(trailingPage) }
+    return slots
   }
+  #if os(iOS)
+    private static let canvasPullsToAddPages = false
+  #else
+    private static let canvasPullsToAddPages = true
+  #endif
   private var notebook: Notebook { document.package.notebook }
   private var page: Page { notebook.pages[min(activePage, notebook.pages.count - 1)] }
   private var editorContent: some View {
@@ -517,7 +478,6 @@ struct Workspace: View {
         clipboard.isEmpty && clipboardImages.isEmpty && clipboardTexts.isEmpty)
       Toggle("Infinite scrolling", isOn: $infinite)
       Toggle("Horizontal pages", isOn: $horizontalSetting).disabled(infinite)
-      Toggle("Keep zoom on new pages", isOn: $keepZoomOnNewPage)
       Toggle("Apple Pencil only", isOn: $pencilOnly)
       Toggle("Draw and hold for shapes", isOn: $holdToShape)
       Toggle("Fast GPU ink", isOn: $gpuInk)
@@ -543,8 +503,6 @@ struct Workspace: View {
   private var documentActions: some View {
     HStack(spacing: 0) {
       Button {
-        // Before the layout changes, so the first position report of the new layout is ignored.
-        resizing = true
         thumbnails.toggle()
       } label: {
         Image(systemName: "sidebar.left").font(.system(size: 20)).hitTarget()
@@ -1075,7 +1033,8 @@ struct Workspace: View {
             settings.toggle()
           }
         },
-        onAppendPage: boardHeight == nil && !horizontal && !infinite
+        // On iPad the document view watches for the pull; the Mac test host leaves it to the canvas.
+        onAppendPage: Self.canvasPullsToAddPages && boardHeight == nil && !horizontal && !infinite
           && index == notebook.pages.count - 1
           ? {
             let next = InkGestures.blankPage(matching: p)
@@ -1161,15 +1120,9 @@ struct Workspace: View {
       return
     }
     let next = InkGestures.blankPage(matching: last)
-    if keepZoomOnNewPage { pageZoom[next.id] = pageZoom[last.id] ?? 1 }
     trailingPage = next
   }
   private func appendPage(_ next: Page) {
-    pageZoom[next.id] = keepZoomOnNewPage ? (pageZoom[page.id] ?? zoom) : 1
-    if !keepZoomOnNewPage {
-      zoom = 1
-      zoomBase = 1
-    }
     edit { $0.notebook.pages.append(next) }
     activePage = notebook.pages.count - 1
   }
@@ -1298,7 +1251,7 @@ struct Workspace: View {
       let height = boardHeight ?? w * p.dimensions.y / p.dimensions.x
       // The page sits in a zoom surface that magnifies everything on it, so the bar is shrunk
       // back to a constant on-screen size.
-      let zoomed = boardHeight == nil ? max(1, pageZoom[p.id] ?? 1) : 1
+      let zoomed = boardHeight == nil ? max(1, documentZoom) : 1
       HStack(spacing: 0) {
         Button {
           copySelection()
@@ -1355,7 +1308,7 @@ struct Workspace: View {
     if let spot = pasteSpot, spot.index == index {
       let offset = boardHeight == nil ? Point(0, 0) : boardViewport.offset
       let height = boardHeight ?? w * p.dimensions.y / p.dimensions.x
-      let zoomed = boardHeight == nil ? max(1, pageZoom[p.id] ?? 1) : 1
+      let zoomed = boardHeight == nil ? max(1, documentZoom) : 1
       let empty = clipboard.isEmpty && clipboardImages.isEmpty && clipboardTexts.isEmpty
       Button {
         paste(at: spot.point)
@@ -1452,36 +1405,17 @@ struct Workspace: View {
       if !Task.isCancelled { pageHUD = false }
     }
   }
+  // The Mac test host shows pages in a plain column; on iPad the document view lays them out.
   @ViewBuilder private func notebookPage(
     _ p: Page, index: Int, size: CGSize, vertical: Bool = false
   ) -> some View {
-    let width = max(
-      120,
-      min(
-        size.width - 40,
-        vertical ? size.width - 40 : max(120, size.height * p.dimensions.x / p.dimensions.y)))
-    let height = width * p.dimensions.y / p.dimensions.x
-    #if os(iOS)
-      ZoomableNotebookPage(
-        contentSize: CGSize(width: width, height: height),
-        viewportSize: CGSize(width: size.width, height: vertical ? height : size.height),
-        pencilOnly: pencilOnly || tool == .readOnly, zoomEnabled: !infinite,
-        initialZoom: pageZoom[p.id] ?? 1,
-        onZoomChange: {
-          pageZoom[p.id] = $0
-        }
-      ) {
-        pageView(p, index: index, availableWidth: width + 56, availableHeight: height + 80)
-      }.frame(width: size.width, height: vertical ? height : size.height)
-    #else
-      pageView(
-        p, index: index, availableWidth: size.width, availableHeight: vertical ? nil : size.height
-      )
-      .simultaneousGesture(
-        MagnifyGesture().onChanged { value in
-          zoom = min(5, max(1, zoomBase * value.magnification))
-        }.onEnded { _ in zoomBase = zoom })
-    #endif
+    pageView(
+      p, index: index, availableWidth: size.width, availableHeight: vertical ? nil : size.height
+    )
+    .simultaneousGesture(
+      MagnifyGesture().onChanged { value in
+        zoom = min(5, max(1, zoomBase * value.magnification))
+      }.onEnded { _ in zoomBase = zoom })
   }
   private var textEditor: some View {
     VStack(alignment: .leading, spacing: 18) {
@@ -1983,19 +1917,6 @@ struct TemplatePicker: View {
   }
 }
 
-private struct NotebookPageBehavior: ScrollTargetBehavior {
-  let horizontal: Bool
-  func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
-    if horizontal {
-      target.rect.origin.x = NotebookPaging.target(
-        origin: context.originalTarget.rect.minX, projected: target.rect.minX,
-        velocity: context.velocity.dx, pageWidth: context.containerSize.width,
-        contentWidth: context.contentSize.width)
-      target.rect.size.width = context.containerSize.width
-    }
-  }
-}
-
 struct PaperPatternPicker: View {
   @Binding var pattern: PaperPattern
   var whiteboard = false
@@ -2090,15 +2011,6 @@ private struct PaperBackgroundSheet: View {
         }.buttonStyle(.borderedProminent).disabled(isPDFPage && !allPages)
       }
     }.padding(28).frame(minWidth: 340, idealWidth: 440).preferredColorScheme(.light)
-  }
-}
-
-@MainActor private final class NotebookZoomMemory {
-  // Zoom gestures update this without rebuilding their SwiftUI hosting view mid-gesture.
-  private var scales: [UUID: Double] = [:]
-  subscript(id: UUID) -> Double? {
-    get { scales[id] }
-    set { scales[id] = newValue }
   }
 }
 

@@ -6,7 +6,7 @@ final class VaultUITests: XCTestCase {
     XCUIDevice.shared.orientation = .portrait
     defer { XCUIDevice.shared.orientation = .portrait }
     let app = XCUIApplication()
-    app.launchArguments = ["--ui-test-reset-input"]
+    app.launchArguments = ["--ui-test-reset-input", "--ui-test-horizontal-pages"]
     app.launch()
     XCTAssertTrue(app.buttons["chooseStorageFolder"].waitForExistence(timeout: 10))
     app.buttons["chooseStorageFolder"].tap()
@@ -78,7 +78,7 @@ final class VaultUITests: XCTestCase {
     app.buttons["Undo"].tap()
     XCTAssertEqual(canvas.value as? String, "1 strokes")
     app.buttons["Read only"].tap()
-    let zoomSurface = app.scrollViews["notebookZoomSurface"].firstMatch
+    let zoomSurface = app.scrollViews["notebookScrollView"]
     XCTAssertTrue(zoomSurface.exists)
     zoomSurface.pinch(withScale: 3, velocity: 0.5)
     let zoomed = XCTNSPredicateExpectation(
@@ -211,15 +211,16 @@ final class VaultUITests: XCTestCase {
     XCTAssertNotEqual(inheritedZoom, "Zoom 100 percent")
     app.buttons["newPageButton"].tap()
     app.buttons["confirmAddPage"].tap()
-    let newZoom = try visibleZoomSurface(app)
-    XCTAssertEqual(newZoom.value as? String, inheritedZoom)
-    capture(app, name: "New page retains zoom at top left")
-    app.buttons["More"].tap()
-    app.descendants(matching: .any)["Keep zoom on new pages"].firstMatch.tap()
+    // The whole document zooms, so a new page is at the zoom the paper already has.
+    let afterNewPage = try visibleZoomSurface(app)
+    XCTAssertEqual(afterNewPage.value as? String, inheritedZoom)
+    capture(app, name: "New page at the zoom of the document")
     app.buttons["newPageButton"].tap()
     app.buttons["confirmAddPage"].tap()
-    let resetZoom = try visibleZoomSurface(app)
-    XCTAssertEqual(resetZoom.value as? String, "Zoom 100 percent")
+    // Zooming out to fit makes the pages step one at a time again.
+    let surface = try visibleZoomSurface(app)
+    zoomToFit(surface)
+    XCTAssertTrue(waitForZoom(surface, "Zoom 100 percent"), surface.value as? String ?? "no zoom")
     app.buttons["Read only"].tap()
     // XCUITest's synthetic fast swipe is not picked up by the paging scroll view at this point
     // of the flow (a slow drag is, as earlier in this test), so drag the page over by hand.
@@ -272,7 +273,7 @@ final class VaultUITests: XCTestCase {
   @MainActor func testPageCreatedBySwipingCanBeZoomedImmediately() throws {
     continueAfterFailure = false
     let app = XCUIApplication()
-    app.launchArguments = ["--ui-test-reset-input"]
+    app.launchArguments = ["--ui-test-reset-input", "--ui-test-horizontal-pages"]
     app.launch()
     chooseFreshStorageFolder(app)
     XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
@@ -496,7 +497,9 @@ final class VaultUITests: XCTestCase {
   @MainActor func testClosingThePageSidebarKeepsThePageThatWasChosen() throws {
     continueAfterFailure = false
     let app = XCUIApplication()
-    app.launchArguments = ["--ui-test-reset-input", "--ui-test-numbered-notebook"]
+    app.launchArguments = [
+      "--ui-test-reset-input", "--ui-test-numbered-notebook", "--ui-test-horizontal-pages",
+    ]
     app.launch()
     chooseFreshStorageFolder(app)
     XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
@@ -556,7 +559,7 @@ final class VaultUITests: XCTestCase {
     app.buttons["Notebook"].tap()
     XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
     app.buttons["Create"].tap()
-    let surfaces = app.scrollViews.matching(identifier: "notebookZoomSurface")
+    let surfaces = app.descendants(matching: .any).matching(identifier: "drawingCanvas")
     XCTAssertTrue(surfaces.firstMatch.waitForExistence(timeout: 20))
     XCTAssertLessThan(surfaces.count, 12, "A large notebook must not allocate one canvas per page")
     let options = XCTMeasureOptions()
@@ -583,15 +586,28 @@ final class VaultUITests: XCTestCase {
     app.buttons["Documents"].tap()
   }
 
+  // The one scroll view that holds all the pages and zooms them together.
   @MainActor private func visibleZoomSurface(_ app: XCUIApplication) throws -> XCUIElement {
-    let surfaces = app.scrollViews.matching(identifier: "notebookZoomSurface")
-    XCTAssertTrue(surfaces.firstMatch.waitForExistence(timeout: 5))
-    let viewport = app.scrollViews["notebookScrollView"].frame
-    func area(_ element: XCUIElement) -> CGFloat {
-      let visible = element.frame.intersection(viewport)
-      return visible.isNull ? 0 : visible.width * visible.height
+    let surface = app.scrollViews["notebookScrollView"]
+    XCTAssertTrue(surface.waitForExistence(timeout: 5))
+    return surface
+  }
+  // A synthetic pinch does not always reach the scale it was given, so it is repeated.
+  @MainActor private func zoomToFit(_ surface: XCUIElement) {
+    for _ in 0..<4 {
+      if waitForZoom(surface, "Zoom 100 percent", timeout: 1) { return }
+      surface.pinch(withScale: 0.3, velocity: -2)
     }
-    return try XCTUnwrap(surfaces.allElementsBoundByIndex.max { area($0) < area($1) })
+  }
+  @MainActor private func waitForZoom(
+    _ surface: XCUIElement, _ expected: String, timeout: TimeInterval = 6
+  ) -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+      if surface.value as? String == expected { return true }
+      RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+    }
+    return false
   }
   @MainActor private func capture(_ app: XCUIApplication, name: String) {
     let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())

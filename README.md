@@ -67,10 +67,13 @@ supported iPads), and it sweeps the path between samples so a quick swipe leaves
 behind. Lasso handwriting, images and text, then drag inside the selection to
 move the group with a live preview; release commits one undoable change.
 
-In the default horizontal mode a swipe settles on exactly one page, and swiping past the last
-page turns the blank page waiting there into a real one with the previous page's paper,
-orientation and dimensions; undo removes it. At the bottom of a vertical notebook, pull upward
-beyond the end and hold for a moment to append the same kind of page. In finger-drawing mode use
+Notebooks scroll vertically by default, like Goodnotes, and pinching zooms the whole document
+(50 % to 600 %) around your fingers, so every page is at the same zoom. The editor menu switches to
+horizontal pages: a swipe then settles on exactly one page, and swiping past the last page turns the
+blank page waiting there into a real one with the previous page's paper, orientation and
+dimensions; undo removes it. At the bottom of a vertical notebook, pull upward beyond the end and
+hold for a moment to append the same kind of page. Opening or closing the page sidebar, rotating the
+iPad or entering Split View keeps the page and the place on it. In finger-drawing mode use
 two fingers; with Pencil-only or read-only mode use one finger. On Mac, continue scrolling
 downward at the end with the trackpad. The new page retains
 the format but does not duplicate PDF content. Whiteboards support finger pan and two-finger

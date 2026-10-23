@@ -643,14 +643,14 @@ enum PencilAction {
           scroll.panGestureRecognizer.minimumNumberOfTouches =
             configuration?.tool == .readOnly || configuration?.pencilOnly == true || pencilSeen
             ? 1 : 2
-          if let paper = scroll as? NotebookZoomScrollView { paperIsZooming = paper.isZooming }
+          if let paper = scroll as? ZoomingSurface { paperIsZooming = paper.isZooming }
           scroll.panGestureRecognizer.isEnabled =
             !pencilActive
-            && (scroll is NotebookZoomScrollView || !paperIsZooming)
-          if let paper = scroll as? NotebookZoomScrollView {
+            && (scroll is ZoomingSurface || !paperIsZooming)
+          if let paper = scroll as? ZoomingSurface {
             paper.pinchGestureRecognizer?.isEnabled = paper.allowsZoom && !pencilActive
           }
-          if !(scroll is NotebookZoomScrollView) {
+          if !(scroll is ZoomingSurface) {
             // A page swipe should settle quickly onto the target page rather than glide, and a
             // mostly vertical drag must not slide the notebook sideways.
             scroll.isDirectionalLockEnabled = true
@@ -658,7 +658,7 @@ enum PencilAction {
             scroll.alwaysBounceVertical = configuration?.horizontalPages != true
             scroll.alwaysBounceHorizontal = configuration?.horizontalPages == true
           }
-          if !(scroll is NotebookZoomScrollView), observedScroll !== scroll {
+          if !(scroll is ZoomingSurface), observedScroll !== scroll {
             observedScroll?.panGestureRecognizer.removeTarget(
               self, action: #selector(scrollGesture(_:)))
             observedScroll = scroll

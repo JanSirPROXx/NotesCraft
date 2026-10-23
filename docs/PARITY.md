@@ -17,9 +17,9 @@ has not been established.
 - Library rename, move, duplicate, recoverable trash, restore, permanent deletion and
   Empty Trash; PDF sidecars and open sessions follow file operations.
 - Visible file actions, folder breadcrumbs, persistent view/sort settings and trash undo.
-- Notebook papers support native finger pinch zoom up to 6× and panning while zoomed.
-- Horizontal paging is the persistent default; the editor menu can switch to vertical.
-  Holding an outward pull beyond the last page appends matching paper in either direction.
+- The notebook is one scroll view: whole-document finger pinch zoom (50 % to 600 %) and panning.
+- Vertical scrolling is the persistent default, as in Goodnotes; the editor menu can switch to
+  horizontal paging. Pulling beyond the last page appends matching paper in either direction.
 - Image tool immediately offers Files/Photos, selects inserted images, and provides direct
   move, corner resize, pinch resize and rotation gestures with undo.
 - Standalone images open in a read-only, zoomable preview. Explicit import creates an editable
