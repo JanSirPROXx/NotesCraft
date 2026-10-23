@@ -138,6 +138,9 @@ private final class DecodedImages: @unchecked Sendable {
         bitmap, in: CGRect(x: -r.width / 2, y: -r.height / 2, width: r.width, height: r.height))
       c.restoreGState()
     }
+    // Pencil strokes that follow each other are drawn together; anything else in between has to
+    // land on top of them, so it ends the run.
+    var pencilRun: [Stroke] = []
     for s in page.strokes.filter({ $0.tool == .highlighter })
       + page.strokes.filter({ $0.tool != .highlighter })
     {
@@ -146,8 +149,17 @@ private final class DecodedImages: @unchecked Sendable {
         let pad = s.width * 2 + 2
         guard cull.intersects(CGRect(x: b.x - pad, y: b.y - pad, width: b.width + 2 * pad, height: b.height + 2 * pad)) else { continue }
       }
+      if s.isPencil {
+        pencilRun.append(s)
+        continue
+      }
+      if !pencilRun.isEmpty {
+        pencilStrokes(pencilRun, in: c)
+        pencilRun = []
+      }
       stroke(s, in: c)
     }
+    if !pencilRun.isEmpty { pencilStrokes(pencilRun, in: c) }
     for text in page.texts {
       let r = text.layoutBounds
       c.saveGState()
@@ -267,6 +279,10 @@ private final class DecodedImages: @unchecked Sendable {
   }
   nonisolated static func stroke(_ s: Stroke, in c: CGContext) {
     guard let first = s.samples.first else { return }
+    if s.isPencil {
+      pencilStrokes([s], in: c)
+      return
+    }
     c.saveGState()
     c.setLineCap(.round)
     c.setLineJoin(.round)
@@ -365,7 +381,16 @@ private final class DecodedImages: @unchecked Sendable {
     _ samples: [Sample], widths: [Double], range: Range<Int>, in c: CGContext,
     finish: Bool = false
   ) {
-    guard samples.count > 1, widths.count == samples.count else { return }
+    guard let path = ribbonPath(samples, widths: widths, range: range, finish: finish) else {
+      return
+    }
+    c.addPath(path)
+    c.fillPath()
+  }
+  nonisolated static func ribbonPath(
+    _ samples: [Sample], widths: [Double], range: Range<Int>, finish: Bool = false
+  ) -> CGPath? {
+    guard samples.count > 1, widths.count == samples.count else { return nil }
     let path = CGMutablePath()
     var previousNormal = CGPoint(x: 0, y: 1)
     var rangeStart: (CGPoint, Double)?
@@ -420,8 +445,82 @@ private final class DecodedImages: @unchecked Sendable {
         in: CGRect(x: -radius, y: -radius, width: radius * 2, height: radius * 2),
         transform: CGAffineTransform(translationX: center.x, y: center.y).scaledBy(x: 1, y: -1))
     }
-    c.addPath(path)
-    c.fillPath()
+    return path
+  }
+  // Pencil ink. The ribbons are filled as plain colour inside a transparency layer, and the paper
+  // grain is multiplied in once over everything in it, which costs a tile blit per run instead of a
+  // pattern fill per stroke (about 15 times slower on a page of handwriting). The grain is laid out
+  // from the page origin, so it does not move with a stroke or a zoom level.
+  private final class GrainImage: @unchecked Sendable {
+    let image: CGImage
+    init() {
+      let size = PencilGrain.size
+      // The page is y down, so the tile's top row has to end up at the top of the page; CoreGraphics
+      // draws an image's first row at the top of a y-up space.
+      var rows: [UInt8] = []
+      rows.reserveCapacity(size * size * 4)
+      for row in (0..<size).reversed() {
+        for column in 0..<size {
+          let value = PencilGrain.alpha[row * size + column]
+          rows += [value, value, value, value]
+        }
+      }
+      image = CGImage(
+        width: size, height: size, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: size * 4,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+        provider: CGDataProvider(data: Data(rows) as CFData)!, decode: nil,
+        shouldInterpolate: false, intent: .defaultIntent)!
+    }
+  }
+  private nonisolated static let grain = GrainImage()
+  // How much of the colour a pencil line lays down before the grain takes its share.
+  nonisolated static let pencilOpacity = 0.9
+
+  nonisolated static func pencilRibbon(_ s: Stroke) -> CGPath? {
+    guard let first = s.samples.first else { return nil }
+    let widths = WidthModel.pencil.widths(for: s.samples, base: s.width, finished: true)
+    if let path = ribbonPath(
+      s.samples, widths: widths, range: 1..<max(1, s.samples.count), finish: true),
+      !s.samples.allSatisfy({ $0.point == first.point })
+    {
+      return path
+    }
+    let radius = (widths.first ?? s.width) / 2
+    return CGPath(
+      ellipseIn: CGRect(
+        x: first.point.x - radius, y: first.point.y - radius, width: radius * 2, height: radius * 2),
+      transform: nil)
+  }
+  nonisolated static func pencilLayer(_ ribbons: [(path: CGPath, color: CGColor)], in c: CGContext)
+  {
+    var box = CGRect.null
+    for ribbon in ribbons { box = box.union(ribbon.path.boundingBoxOfPath) }
+    // A line reaches half its width past the path's box; the grain tile is anchored to the page, so
+    // limiting the layer to what is visible does not move it.
+    box = box.insetBy(dx: -2, dy: -2).intersection(c.boundingBoxOfClipPath)
+    guard !box.isNull, box.width > 0, box.height > 0 else { return }
+    c.saveGState()
+    c.clip(to: box)
+    c.beginTransparencyLayer(in: box, auxiliaryInfo: nil)
+    for ribbon in ribbons {
+      c.setFillColor(ribbon.color)
+      c.addPath(ribbon.path)
+      c.fillPath()
+    }
+    c.setBlendMode(.destinationIn)
+    c.interpolationQuality = .none
+    c.draw(
+      grain.image, in: CGRect(x: 0, y: 0, width: PencilGrain.cell, height: PencilGrain.cell),
+      byTiling: true)
+    c.endTransparencyLayer()
+    c.restoreGState()
+  }
+  nonisolated static func pencilStrokes(_ strokes: [Stroke], in c: CGContext) {
+    pencilLayer(
+      strokes.compactMap { s in
+        pencilRibbon(s).map { ($0, color(s.color, alpha: pencilOpacity)) }
+      }, in: c)
   }
   // Midpoint segments are final once their following sample arrives. Live ink can
   // rasterize that prefix once and redraw only the provisional/predicted tail.
@@ -435,6 +534,12 @@ private final class DecodedImages: @unchecked Sendable {
       c.setFillColor(color(ink))
       fountainSegments(samples, widths: widths, range: range, in: c, finish: finish)
       c.restoreGState()
+      return
+    }
+    if style == .pencil, let widths, widths.count == samples.count {
+      if let path = ribbonPath(samples, widths: widths, range: range, finish: finish) {
+        pencilLayer([(path, color(ink, alpha: pencilOpacity))], in: c)
+      }
       return
     }
     c.saveGState()

@@ -53,7 +53,9 @@ public struct InkColor: Codable, Hashable, Sendable {
 public enum InkTool: String, Codable, CaseIterable, Sendable {
   case pen, eraser, highlighter, shapes, lasso, elements, image, text, readOnly
 }
-public enum PenStyle: String, Codable, CaseIterable, Sendable { case fountain, ballpoint, brush }
+public enum PenStyle: String, Codable, CaseIterable, Sendable {
+  case fountain, ballpoint, brush, pencil
+}
 public enum EraserMode: String, Codable, CaseIterable, Sendable {
   case precision, stroke, entireStroke
 }
@@ -347,4 +349,10 @@ public struct ViewTransform: Codable, Sendable, Equatable {
   public func viewPoint(_ document: Point) -> Point {
     Point(document.x * scale + offset.x, document.y * scale + offset.y)
   }
+}
+
+extension Stroke {
+  // Pencil ink is drawn in groups with the paper grain multiplied in, so the renderers need to tell
+  // it from plain ink. Shapes keep their clean outline whatever pen style was active.
+  public var isPencil: Bool { tool == .pen && style == .pencil && shape == nil }
 }

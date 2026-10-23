@@ -4,10 +4,12 @@ import Foundation
 // only on the samples up to it, so live ink drawn while the pen moves is the stroke that is saved.
 public enum WidthModel: Sendable, Equatable {
   case fountain(PenTip)
+  case pencil
 
   public init?(style: PenStyle, tip: PenTip) {
     switch style {
     case .fountain: self = .fountain(tip)
+    case .pencil: self = .pencil
     case .ballpoint, .brush: return nil
     }
   }
@@ -15,6 +17,7 @@ public enum WidthModel: Sendable, Equatable {
   public func advance(_ state: inout FountainInk.State, sample: Sample, base: Double) -> Double {
     switch self {
     case .fountain(let tip): FountainInk.advance(&state, sample: sample, base: base, tip: tip)
+    case .pencil: PencilInk.advance(&state, sample: sample, base: base)
     }
   }
 
@@ -22,6 +25,7 @@ public enum WidthModel: Sendable, Equatable {
     switch self {
     case .fountain(let tip):
       FountainInk.widths(for: samples, base: base, tip: tip, finished: finished)
+    case .pencil: PencilInk.widths(for: samples, base: base, finished: finished)
     }
   }
 }

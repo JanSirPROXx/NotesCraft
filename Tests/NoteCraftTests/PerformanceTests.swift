@@ -38,7 +38,7 @@ private func fullPage(style: PenStyle) -> Page {
 // timing-sensitive canvas tests.
 @MainActor @Test(.enabled(if: optimized)) func pageRenderTimings() throws {
   let clock = ContinuousClock()
-  for style in [PenStyle.ballpoint, .fountain, .brush] {
+  for style in [PenStyle.ballpoint, .fountain, .brush, .pencil] {
     let page = fullPage(style: style)
     let context = try #require(
       CGContext(
