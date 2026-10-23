@@ -302,13 +302,14 @@ enum PencilAction {
       let docScale = configuration.viewport?.scale ?? bounds.width / configuration.page.dimensions.x
       let offset = configuration.viewport?.offset ?? Point(0, 0)
       let count = samples.count
+      let pencil = configuration.style == .pencil
       let uniforms = InkUniforms(
         color: SIMD4(
           Float(configuration.color.red), Float(configuration.color.green),
-          Float(configuration.color.blue), 1),
+          Float(configuration.color.blue), pencil ? Float(PageRenderer.pencilOpacity) : 1),
         offset: SIMD2(Float(offset.x * pixelScale), Float(offset.y * pixelScale)),
         viewport: SIMD2(Float(metalInk.surface.width), Float(metalInk.surface.height)),
-        scale: Float(docScale * pixelScale))
+        scale: Float(docScale * pixelScale), grain: pencil ? 1 : 0)
       let model = input.inkWidths.widths.count == count ? configuration.widthModel : nil
       let widths = model == nil ? nil : input.inkWidths.widths
       let plan = LiveInkPlan(

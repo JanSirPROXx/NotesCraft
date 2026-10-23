@@ -26,7 +26,7 @@ enum InkTessellator {
     widths: [Double]? = nil, finish: Bool = false, pixelScale: Double
   ) -> [InkCone] {
     guard samples.count > 1 else { return [] }
-    let useWidths = style == .fountain && widths?.count == samples.count
+    let useWidths = (style == .fountain || style == .pencil) && widths?.count == samples.count
     var cones: [InkCone] = []
     for i in range where i > 0 && i < samples.count {
       let a = samples[i - 1]
@@ -79,10 +79,13 @@ enum InkTessellator {
 }
 
 struct InkUniforms {
+  // The alpha is how much of the colour a line lays down (pencil ink is a little under 1).
   var color: SIMD4<Float>
   var offset: SIMD2<Float>
   var viewport: SIMD2<Float>
   var scale: Float
+  // 1 multiplies the line by the paper grain, anchored to the page like the committed ink.
+  var grain: Float = 0
 }
 
 @MainActor final class MetalInkEngine {
@@ -91,14 +94,19 @@ struct InkUniforms {
   let queue: MTLCommandQueue
   let inkPipeline: MTLRenderPipelineState
   let copyPipeline: MTLRenderPipelineState
+  // The grain tile the committed pencil ink is multiplied with, one texel per tile texel.
+  let grainTexture: MTLTexture
 
   // Compiled from source at run time so the Swift package builds without a Metal toolchain step.
   private static let source = """
     #include <metal_stdlib>
     using namespace metal;
 
+    constant float TILE = \(PencilGrain.size).0;
+    constant float TEXELS = \(PencilGrain.texelsPerPoint);
+
     struct Cone { float2 a; float2 b; float ra; float rb; };
-    struct Uniforms { float4 color; float2 offset; float2 viewport; float scale; };
+    struct Uniforms { float4 color; float2 offset; float2 viewport; float scale; float grain; };
     struct InkOut {
       float4 position [[position]];
       float2 a [[flat]];
@@ -126,15 +134,26 @@ struct InkUniforms {
       return out;
     }
 
+    constexpr sampler grainSampler(address::repeat, filter::nearest);
+
     // Coverage of a round cone, one pixel of anti-aliasing. Blending takes the maximum, so
     // overlapping pieces of one stroke union exactly instead of darkening their edges.
-    fragment float4 ink_fragment(InkOut in [[stage_in]], constant Uniforms &u [[buffer(1)]]) {
+    fragment float4 ink_fragment(
+      InkOut in [[stage_in]], constant Uniforms &u [[buffer(1)]],
+      texture2d<float> grainTexture [[texture(1)]])
+    {
       float2 ab = in.b - in.a;
       float len2 = dot(ab, ab);
       float t = len2 > 1e-6 ? clamp(dot(in.position.xy - in.a, ab) / len2, 0.0, 1.0) : 0.0;
       float r = mix(in.ra, in.rb, t);
       float d = length(in.position.xy - (in.a + ab * t)) - r;
       float coverage = clamp(0.5 - d, 0.0, 1.0);
+      if (u.grain > 0.5) {
+        // Page position of this pixel; the tile is `TILE` texels, `TEXELS` of them per page point.
+        float2 page = (in.position.xy - u.offset) / u.scale;
+        coverage *= grainTexture.sample(grainSampler, page * (TEXELS / TILE)).r;
+      }
+      coverage *= u.color.a;
       return float4(u.color.rgb * coverage, coverage);
     }
 
@@ -150,8 +169,23 @@ struct InkUniforms {
     }
     """
 
+  private static func makeGrainTexture(_ device: MTLDevice) -> MTLTexture? {
+    let size = PencilGrain.size
+    let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+      pixelFormat: .r8Unorm, width: size, height: size, mipmapped: false)
+    descriptor.usage = .shaderRead
+    guard let texture = device.makeTexture(descriptor: descriptor) else { return nil }
+    PencilGrain.alpha.withUnsafeBytes {
+      texture.replace(
+        region: MTLRegionMake2D(0, 0, size, size), mipmapLevel: 0, withBytes: $0.baseAddress!,
+        bytesPerRow: size)
+    }
+    return texture
+  }
+
   private init?() {
     guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue(),
+      let grain = Self.makeGrainTexture(device),
       let library = try? device.makeLibrary(source: Self.source, options: nil),
       let inkVertex = library.makeFunction(name: "ink_vertex"),
       let inkFragment = library.makeFunction(name: "ink_fragment"),
@@ -178,6 +212,7 @@ struct InkUniforms {
     else { return nil }
     self.device = device
     self.queue = queue
+    grainTexture = grain
     inkPipeline = inkState
     copyPipeline = copyState
   }
@@ -222,6 +257,7 @@ struct InkUniforms {
     guard !cones.isEmpty, let buffer = buffer(cones) else { return }
     var uniforms = uniforms
     encoder.setRenderPipelineState(engine.inkPipeline)
+    encoder.setFragmentTexture(engine.grainTexture, index: 1)
     encoder.setVertexBuffer(buffer, offset: 0, index: 0)
     encoder.setVertexBytes(&uniforms, length: MemoryLayout<InkUniforms>.stride, index: 1)
     encoder.setFragmentBytes(&uniforms, length: MemoryLayout<InkUniforms>.stride, index: 1)

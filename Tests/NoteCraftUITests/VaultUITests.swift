@@ -395,6 +395,35 @@ final class VaultUITests: XCTestCase {
     point(100, 650).press(forDuration: 0.05, thenDragTo: point(300, 700))
     XCTAssertEqual(canvas.value as? String, "3 strokes")
   }
+  @MainActor func testPencilStyleInksThroughTheLivePath() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input"]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    let canvas = app.descendants(matching: .any)["drawingCanvas"].firstMatch
+    XCTAssertTrue(canvas.waitForExistence(timeout: 10))
+    app.buttons["More"].tap()
+    let pencilOnly = app.descendants(matching: .any)["Apple Pencil only"].firstMatch
+    XCTAssertTrue(pencilOnly.waitForExistence(timeout: 5))
+    pencilOnly.tap()
+    // The pen's quick bar lists the pen styles; the pencil is one of them.
+    XCTAssertTrue(app.buttons["Pencil"].waitForExistence(timeout: 5), app.debugDescription)
+    app.buttons["Pencil"].tap()
+    func point(_ x: Double, _ y: Double) -> XCUICoordinate {
+      canvas.coordinate(withNormalizedOffset: CGVector(dx: x, dy: y))
+    }
+    point(0.2, 0.3).press(forDuration: 0.05, thenDragTo: point(0.7, 0.35))
+    XCTAssertEqual(canvas.value as? String, "1 strokes")
+    capture(app, name: "Pencil stroke")
+    point(0.2, 0.4).press(forDuration: 0.05, thenDragTo: point(0.7, 0.45))
+    XCTAssertEqual(canvas.value as? String, "2 strokes")
+  }
   @MainActor func testLargeNotebookKeepsOnlyVisibleCanvasesLoaded() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     defer { XCUIDevice.shared.orientation = .portrait }

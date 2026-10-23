@@ -597,6 +597,14 @@ struct Workspace: View {
     tool = back
     lassoReturnTool = nil
   }
+  private static func icon(for style: PenStyle) -> String {
+    switch style {
+    case .fountain: "pencil.tip"
+    case .ballpoint: "pencil"
+    case .brush: "paintbrush.pointed"
+    case .pencil: "pencil.line"
+    }
+  }
   private func switchTool(to item: InkTool) {
     previousTool = tool
     lassoReturnTool = nil
@@ -709,15 +717,12 @@ struct Workspace: View {
             Button {
               penStyle = style
             } label: {
-              Image(
-                systemName: style == .fountain
-                  ? "pencil.tip" : style == .ballpoint ? "pencil" : "paintbrush.pointed"
-              )
+              Image(systemName: Self.icon(for: style))
               .font(.system(size: 18)).hitTarget(width: 38)
               .background(
                 penStyle == style ? Color.cyan.opacity(0.35) : .clear,
                 in: RoundedRectangle(cornerRadius: 7))
-            }.accessibilityLabel(style.rawValue.capitalized + " pen")
+            }.accessibilityLabel(style == .pencil ? "Pencil" : style.rawValue.capitalized + " pen")
           }
         }
         Divider().frame(height: 24)

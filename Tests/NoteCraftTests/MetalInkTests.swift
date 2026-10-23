@@ -11,7 +11,7 @@ import Testing
 @MainActor private struct InkBitmaps {
   let width = 600
   let height = 360
-  let scale = 3.0
+  var scale = 3.0
 
   func samples() -> [Sample] {
     (0..<70).map { i in
@@ -40,9 +40,10 @@ import Testing
     return stride(from: 3, to: bytes.count, by: 4).map { bytes[$0] }
   }
 
-  func metalAlpha(_ samples: [Sample], style: PenStyle, width ink: Double, widths: [Double]?)
-    -> [UInt8]?
-  {
+  func metalAlpha(
+    _ samples: [Sample], style: PenStyle, width ink: Double, widths: [Double]?,
+    opacity: Float = 1, grain: Float = 0
+  ) -> [UInt8]? {
     guard let engine = MetalInkEngine.shared else { return nil }
     let surface = MetalInkSurface(engine: engine)
     _ = surface.resize(width: width, height: height)
@@ -55,8 +56,8 @@ import Testing
       samples, range: 1..<samples.count, width: ink, style: style, widths: widths, finish: true,
       pixelScale: scale)
     let uniforms = InkUniforms(
-      color: SIMD4(0, 0, 0, 1), offset: SIMD2(0, 0),
-      viewport: SIMD2(Float(width), Float(height)), scale: Float(scale))
+      color: SIMD4(0, 0, 0, opacity), offset: SIMD2(0, 0),
+      viewport: SIMD2(Float(width), Float(height)), scale: Float(scale), grain: grain)
     surface.draw(bake: cones, tail: [], uniforms: uniforms, reset: true, target: target)?
       .waitUntilCompleted()
     var bytes = [UInt8](repeating: 0, count: width * height * 4)
@@ -129,4 +130,48 @@ func gpuInkMatchesTheCoreGraphicsStroke(style: PenStyle) throws {
   // A reset clears everything.
   let cleared = render(bake: 1..<1, tail: 1..<1, reset: true)
   #expect(cleared.allSatisfy { $0 == 0 })
+}
+
+// A broken shader compiles at run time and leaves the engine nil, which the tests above would read
+// as "no Metal on this machine" and skip.
+@MainActor @Test func theInkShadersCompileWhereThereIsAGPU() {
+  guard MTLCreateSystemDefaultDevice() != nil else { return }
+  #expect(MetalInkEngine.shared != nil)
+}
+
+// Live pencil ink is drawn on the GPU and replaced by the CoreGraphics ink at pen-up; the grain must
+// land on the same texels, or the texture would shimmer at the moment the pen lifts.
+@MainActor @Test func gpuPencilGrainLandsWhereTheCoreGraphicsGrainDoes() throws {
+  var bitmaps = InkBitmaps()
+  // One texel is one pixel at twice the page scale.
+  bitmaps.scale = 2
+  let samples = bitmaps.samples()
+  let widths = WidthModel.pencil.widths(for: samples, base: 3.4, finished: false)
+  let reference = bitmaps.coreGraphicsAlpha(samples, style: .pencil, width: 3.4, widths: widths)
+  guard
+    let gpu = bitmaps.metalAlpha(
+      samples, style: .pencil, width: 3.4, widths: widths,
+      opacity: Float(PageRenderer.pencilOpacity), grain: 1)
+  else { return }
+  // Where both draw solid ink, compare how the grain varies from pixel to pixel.
+  var a: [Double] = []
+  var b: [Double] = []
+  for (x, y) in zip(reference, gpu) where x > 90 && y > 90 {
+    a.append(Double(x))
+    b.append(Double(y))
+  }
+  #expect(a.count > 800, "the strokes should overlap on \(a.count) pixels")
+  let meanA = a.reduce(0, +) / Double(a.count)
+  let meanB = b.reduce(0, +) / Double(b.count)
+  var covariance = 0.0
+  var varianceA = 0.0
+  var varianceB = 0.0
+  for (x, y) in zip(a, b) {
+    covariance += (x - meanA) * (y - meanB)
+    varianceA += (x - meanA) * (x - meanA)
+    varianceB += (y - meanB) * (y - meanB)
+  }
+  let correlation = covariance / (varianceA * varianceB).squareRoot()
+  #expect(correlation > 0.85, "grain correlation \(correlation)")
+  #expect(abs(meanA - meanB) < 12, "mean alpha \(meanA) against \(meanB)")
 }

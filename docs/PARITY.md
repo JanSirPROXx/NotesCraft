@@ -61,9 +61,11 @@ tip sharpness, pressure sensitivity, tip flatness and stroke stabilization (all 
 Adjust Thickness by Speed, Reduce Latency, Draw and Hold (snap to other shapes, fill), Scribble to
 Erase and Circle to Lasso.
 
+Circle to Lasso (hold the pen on a loop) and the Pencil are built here; the Pencil is a pen style in
+the pen's quick bar rather than a separate tool in a palette.
+
 Not built yet, in the order they matter for writing:
 
-- Pencil: a textured pen with its own settings.
 - Tape: strips that hide the content under them, with Straight Tape and Remove All Tape.
 - Laser pointer, Ruler, Timer and Sticky Notes.
 - A switch for Adjust Thickness by Speed (the fountain pen always does it).

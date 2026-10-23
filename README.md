@@ -80,8 +80,8 @@ workspace tab strip on both platforms. Changes autosave after a short pause and 
 returning to the library. Failed saves keep changes in memory and show an error; concurrent
 external changes are rejected instead of overwritten.
 
-Select a toolbar tool; tap it again for settings. The pen supports fountain, ballpoint
-and brush styles, pressure/tilt, fountain tip sharpness, pressure sensitivity and flatness with a live
+Select a toolbar tool; tap it again for settings. The pen supports fountain, ballpoint,
+brush and pencil styles (the pencil is graphite with a paper grain that stays fixed to the page, wider when pressed harder or laid on its side), pressure/tilt, fountain tip sharpness, pressure sensitivity and flatness with a live
 preview, stroke stabilization, custom colors, hex entry and three persistent thickness
 presets. Erasure supports precision splits and whole strokes, with highlighter-only and
 auto-deselect options. Highlighter ink renders beneath pen ink. Closed shapes support fill.
