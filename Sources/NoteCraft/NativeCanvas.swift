@@ -43,6 +43,10 @@ import SwiftUI
   // With the shapes tool: the shape inserted by tapping or dragging; nil keeps freehand recognition.
   var shapeKind: ShapeKind? = nil
 }
+extension CanvasConfiguration {
+  // Pens whose width follows the pen through a model; nil for the others.
+  var widthModel: WidthModel? { tool == .pen ? WidthModel(style: style, tip: tip) : nil }
+}
 // What a Pencil double tap or squeeze should do, as chosen in Settings > Apple Pencil.
 enum PencilAction {
   case switchEraser, switchPrevious, showPalette
@@ -305,8 +309,8 @@ enum PencilAction {
         offset: SIMD2(Float(offset.x * pixelScale), Float(offset.y * pixelScale)),
         viewport: SIMD2(Float(metalInk.surface.width), Float(metalInk.surface.height)),
         scale: Float(docScale * pixelScale))
-      let fountain = configuration.style == .fountain && input.fountain.widths.count == count
-      let widths = fountain ? input.fountain.widths : nil
+      let model = input.inkWidths.widths.count == count ? configuration.widthModel : nil
+      let widths = model == nil ? nil : input.inkWidths.widths
       let plan = LiveInkPlan(
         count: count, bakedThrough: input.bakedThrough, firstPending: input.estimates.earliest)
       var bake: [InkCone] = []
@@ -319,14 +323,11 @@ enum PencilAction {
       input.bakedThrough = plan.bakedThrough
       let tailSamples = Array(samples[plan.tailStart...]) + predictedSamples
       var tailWidths: [Double]?
-      if fountain {
-        var state = input.fountain.state
+      if let model {
+        var state = input.inkWidths.state
         tailWidths =
-          Array(input.fountain.widths[plan.tailStart...])
-          + predictedSamples.map {
-            FountainInk.advance(
-              &state, sample: $0, base: configuration.width, tip: configuration.tip)
-          }
+          Array(input.inkWidths.widths[plan.tailStart...])
+          + predictedSamples.map { model.advance(&state, sample: $0, base: configuration.width) }
       }
       var tail = InkTessellator.cones(
         tailSamples, range: plan.tailFirstSegment..<tailSamples.count,
@@ -465,9 +466,9 @@ enum PencilAction {
         earliest = min(earliest ?? index, index)
       }
       guard let earliest, let configuration else { return }
-      if configuration.style == .fountain {
-        input.fountain.revise(
-          from: earliest, samples: samples, base: configuration.width, tip: configuration.tip)
+      if let model = configuration.widthModel {
+        input.inkWidths.revise(
+          from: earliest, samples: samples, base: configuration.width, model: model)
       }
       input.gpuInkDirty = true
       invalidateInk()
@@ -848,7 +849,7 @@ enum PencilAction {
   var frame: InkGestures.ObjectFrame?
   var invalidatedSamples = 0
   var lastInkRect = CGRect.null
-  var fountain = FountainTrack()
+  var inkWidths = WidthTrack()
   // The pen path is steadied as it arrives, so the live ink and the stored stroke are the same line.
   var smoother: InkSmoother?
   // Samples whose force and tilt are still estimates; see `PendingEstimates`.
@@ -1121,7 +1122,7 @@ extension DrawingView {
     input.liveLayer = nil
     input.bakedThrough = 0
     input.renderedSegments = 0
-    input.fountain.removeAll()
+    input.inkWidths.removeAll()
     input.smoother = nil
     input.estimates.removeAll()
     input.lastRaw = nil
@@ -1361,8 +1362,8 @@ extension DrawingView {
       sample.point = input.smoother?.advance(sample.point, at: time) ?? sample.point
     }
     samples.append(sample)
-    if configuration.tool == .pen, configuration.style == .fountain {
-      input.fountain.append(sample, base: configuration.width, tip: configuration.tip)
+    if let model = configuration.widthModel {
+      input.inkWidths.append(sample, base: configuration.width, model: model)
     }
     if configuration.tool == .eraser {
       // Mutated in place in `input`: a second reference would copy the whole index per hit.
@@ -1816,7 +1817,7 @@ extension DrawingView {
       PageRenderer.smoothInkSegments(
         samples, range: plan.bake, color: configuration.color,
         width: configuration.width, style: configuration.style, in: context,
-        widths: input.fountain.widths)
+        widths: input.inkWidths.widths)
       input.renderedSegments += plan.bake.count
     }
     input.bakedThrough = plan.bakedThrough
@@ -1824,14 +1825,11 @@ extension DrawingView {
     let tail = Array(samples[plan.tailStart...]) + predictedSamples
     // The tail starts at an already-baked sample to preserve its midpoint tangent.
     var tailWidths: [Double]?
-    if configuration.style == .fountain, input.fountain.widths.count == samples.count {
-      var state = input.fountain.state
+    if let model = configuration.widthModel, input.inkWidths.widths.count == samples.count {
+      var state = input.inkWidths.state
       tailWidths =
-        Array(input.fountain.widths[plan.tailStart...])
-        + predictedSamples.map {
-          FountainInk.advance(
-            &state, sample: $0, base: configuration.width, tip: configuration.tip)
-        }
+        Array(input.inkWidths.widths[plan.tailStart...])
+        + predictedSamples.map { model.advance(&state, sample: $0, base: configuration.width) }
     }
     PageRenderer.smoothInkSegments(
       tail, range: plan.tailFirstSegment..<tail.count, color: configuration.color,

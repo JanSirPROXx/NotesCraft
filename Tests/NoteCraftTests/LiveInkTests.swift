@@ -32,7 +32,7 @@ import Testing
   // The live ink is only drawn with the fountain model while there is one width per sample; a
   // second stroke that inherits the first one's widths falls back to plain pressure widths and then
   // changes thickness when the pen lifts.
-  #expect(view.input.fountain.widths.count == view.samples.count)
+  #expect(view.input.inkWidths.widths.count == view.samples.count)
 }
 
 @MainActor @Test func theSmootherStartsFreshWithEachStroke() throws {
