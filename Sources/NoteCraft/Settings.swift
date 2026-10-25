@@ -316,6 +316,7 @@ struct ThemeGallery: View {
               }
             }.contentShape(Rectangle())
           }
+          .buttonStyle(.plain)
           .accessibilityIdentifier("theme-" + theme.id)
           .accessibilityAddTraits(store.selectedID == theme.id ? .isSelected : [])
           .swipeActions {

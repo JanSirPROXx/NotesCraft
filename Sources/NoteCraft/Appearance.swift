@@ -377,6 +377,8 @@ struct ThemedRoot<Content: View>: View {
       .onAppear { store.refreshSystemScheme() }
       .onChange(of: colorScheme) { store.refreshSystemScheme() }
       .tint(Color.theme(.accent))
+      // Text that does not choose a font has the theme's.
+      .font(Font.theme(.body))
   }
 }
 
