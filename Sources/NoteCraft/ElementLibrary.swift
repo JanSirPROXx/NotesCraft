@@ -36,6 +36,15 @@ import SwiftUI
     updated.append(clip)
     try persist(updated)
   }
+  // Several at once, written once: a pack of stickers.
+  func add(contentsOf new: [ElementClip]) throws {
+    guard loadError == nil else { throw PackageError.invalidPackage }
+    try persist(clips + new)
+  }
+  func remove(ids: Set<UUID>) throws {
+    guard loadError == nil else { throw PackageError.invalidPackage }
+    try persist(clips.filter { !ids.contains($0.id) })
+  }
   func rename(_ id: UUID, title: String) throws {
     guard loadError == nil else { throw PackageError.invalidPackage }
     var updated = clips

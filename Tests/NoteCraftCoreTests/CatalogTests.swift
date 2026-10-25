@@ -167,6 +167,15 @@ private func make(
   #expect(throws: PackError.self) { try Pack.open(extra.data).stickers() }
   // Asking a pack for what it is not.
   #expect(throws: PackError.self) { try Pack.open(data).notebook() }
+  // A picture on a sticker that is not in the pack.
+  var picture = page
+  picture.images = [PageAsset(filename: "pic.png", frame: Rect(x: 0, y: 0, width: 10, height: 10))]
+  let bare = try JSONEncoder().encode([ElementClip(title: "Photo", content: picture)])
+  let missing = try make(.sticker, content: ["elements.json": bare])
+  #expect(throws: PackError.self) { try Pack.open(missing.data).stickers() }
+  let whole = try JSONEncoder().encode([ElementClip(title: "Photo", content: picture, assets: ["pic.png": Data([1])])])
+  let present = try make(.sticker, content: ["elements.json": whole])
+  #expect(try Pack.open(present.data).stickers().count == 1)
 }
 
 @Test func aThemePackIsCheckedLikeAThemeFolder() throws {
@@ -220,4 +229,22 @@ private func make(
   template.notebook.pages[0].images = [PageAsset(filename: "gone.png", frame: Rect(x: 0, y: 0, width: 1, height: 1))]
   var notebook = NotebookPackage(notebook: Notebook(title: "Mine", pages: [Page()]))
   #expect(throws: PackageError.self) { try notebook.insertPages(of: template) }
+}
+
+@Test func aPlannerStartsAsANotebookOfItsOwn() throws {
+  var planner = NotebookPackage(notebook: Notebook(title: "Planner", pages: [Page(), Page(), Page()]))
+  planner.notebook.pages[1].images = [PageAsset(filename: "pic.png", frame: Rect(x: 0, y: 0, width: 10, height: 10))]
+  planner.notebook.pages[2].strokes = [Stroke(samples: [Sample(point: Point(1, 1))])]
+  planner.assets = ["pic.png": Data([1, 2])]
+
+  let one = try planner.asNewNotebook(title: "My plans")
+  let two = try planner.asNewNotebook(title: "My plans")
+  #expect(one.notebook.title == "My plans" && one.notebook.pages.count == 3)
+  #expect(one.notebook.id != planner.notebook.id && one.notebook.id != two.notebook.id)
+  #expect(Set(one.notebook.pages.map(\.id)).isDisjoint(with: planner.notebook.pages.map(\.id)))
+  #expect(Set(one.notebook.pages.map(\.id)).isDisjoint(with: two.notebook.pages.map(\.id)))
+  #expect(one.notebook.pages[2].strokes.count == 1)
+  #expect(one.notebook.pages[1].images[0].filename != "pic.png")
+  #expect(one.assets.count == 1 && one.assets.values.first == Data([1, 2]))
+  _ = try one.manifestData()
 }

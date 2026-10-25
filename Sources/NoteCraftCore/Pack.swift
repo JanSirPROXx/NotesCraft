@@ -128,6 +128,10 @@ public struct Pack: Sendable {
       guard clip.content.strokes.count <= 20_000 else {
         throw PackError.invalidContent("“\(clip.title)” is too detailed")
       }
+      // A picture the sticker shows has to come with it.
+      guard clip.content.images.allSatisfy({ clip.assets[$0.filename] != nil }) else {
+        throw PackError.invalidContent("“\(clip.title)” is missing a picture")
+      }
     }
     return clips
   }
@@ -168,6 +172,15 @@ public struct Pack: Sendable {
 }
 
 extension NotebookPackage {
+  // This notebook as one of its own: a pack of pages (a planner, say) is a model, and what you start
+  // from it must not share identities with the pack or with another notebook made from it.
+  public func asNewNotebook(title: String) throws -> NotebookPackage {
+    var fresh = NotebookPackage(notebook: Notebook(title: title, pages: [Page()]))
+    try fresh.insertPages(of: self, after: 0)
+    fresh.notebook.pages.removeFirst()
+    return fresh
+  }
+
   // Adds the pages of another notebook (a page template, say) after page `index`, or at the end.
   // Objects and media get new identities and names, so nothing in this notebook can be replaced by
   // what comes with the pages. Returns the index of the first page added.
