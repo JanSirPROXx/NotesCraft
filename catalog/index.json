@@ -1,0 +1,293 @@
+{
+  "format" : 1,
+  "packs" : [
+    {
+      "author" : "NotesCraft",
+      "category" : "home",
+      "file" : "packs/free.planner.habit-tracker.ncpack",
+      "id" : "free.planner.habit-tracker",
+      "kind" : "planner",
+      "license" : "CC0-1.0",
+      "name" : "Habit Tracker",
+      "pages" : 1,
+      "preview" : "previews/free.planner.habit-tracker.png",
+      "sha256" : "015702c84cef83a631098d5243412f531ff1cda3949223f404063867ea427b8d",
+      "size" : 66603,
+      "summary" : "Fourteen habits down the side, thirty-one days across: tick a box for every day you keep one.",
+      "tags" : [
+        "habits",
+        "month",
+        "tracker"
+      ],
+      "version" : "1.0"
+    },
+    {
+      "author" : "NotesCraft",
+      "category" : "study",
+      "file" : "packs/free.planner.study-planner.ncpack",
+      "id" : "free.planner.study-planner",
+      "kind" : "planner",
+      "license" : "CC0-1.0",
+      "name" : "Study Planner",
+      "pages" : 3,
+      "preview" : "previews/free.planner.study-planner.png",
+      "sha256" : "8d1770c69ac57499c60933368052b7abbbf7be09dec136c13964a9ed63971ca3",
+      "size" : 6600,
+      "summary" : "A semester overview, a weekly timetable and an exam preparation page, as a new notebook.",
+      "tags" : [
+        "semester",
+        "timetable",
+        "exams"
+      ],
+      "version" : "1.0"
+    },
+    {
+      "author" : "NotesCraft",
+      "category" : "work",
+      "file" : "packs/free.planner.weekly-planner.ncpack",
+      "id" : "free.planner.weekly-planner",
+      "kind" : "planner",
+      "license" : "CC0-1.0",
+      "name" : "Weekly Planner",
+      "pages" : 4,
+      "preview" : "previews/free.planner.weekly-planner.png",
+      "sha256" : "74299f452f53567002a955965ab4795c07dd9a2968f975e191bcaf3d682c9533",
+      "size" : 2987,
+      "summary" : "Four weeks, a page each, with a box for every day. Opens as a new notebook.",
+      "tags" : [
+        "week",
+        "schedule",
+        "month"
+      ],
+      "version" : "1.0"
+    },
+    {
+      "author" : "NotesCraft",
+      "category" : "study",
+      "file" : "packs/free.sticker.arrows-and-marks.ncpack",
+      "id" : "free.sticker.arrows-and-marks",
+      "kind" : "sticker",
+      "license" : "CC0-1.0",
+      "name" : "Arrows & Marks",
+      "preview" : "previews/free.sticker.arrows-and-marks.png",
+      "sha256" : "c7ddacdb6e26be0ea7fbef9939725b31e59eecf255c68fd17ad265d00538ab24",
+      "size" : 2039,
+      "summary" : "Curved and straight arrows, a bracket, a squiggle underline and numbered circles from one to five.",
+      "tags" : [
+        "arrow",
+        "numbers",
+        "annotate"
+      ],
+      "version" : "1.0"
+    },
+    {
+      "author" : "NotesCraft",
+      "category" : "work",
+      "file" : "packs/free.sticker.headers-and-banners.ncpack",
+      "id" : "free.sticker.headers-and-banners",
+      "kind" : "sticker",
+      "license" : "CC0-1.0",
+      "name" : "Headers & Banners",
+      "preview" : "previews/free.sticker.headers-and-banners.png",
+      "sha256" : "48d9d948e93cb147855d6ba17a4f94369925ab92035032d531b67cb03824418b",
+      "size" : 1221,
+      "summary" : "Six coloured labels (To do, Notes, Ideas, Done, Important, Later) to head a section.",
+      "tags" : [
+        "header",
+        "label",
+        "sections"
+      ],
+      "version" : "1.0"
+    },
+    {
+      "author" : "NotesCraft",
+      "category" : "study",
+      "file" : "packs/free.sticker.highlighter-strips.ncpack",
+      "id" : "free.sticker.highlighter-strips",
+      "kind" : "sticker",
+      "license" : "CC0-1.0",
+      "name" : "Highlighter Strips",
+      "preview" : "previews/free.sticker.highlighter-strips.png",
+      "sha256" : "cf86dd0b0d4787faf621810308a6790a6f5664f5a58f5379d88349a40c8ff855",
+      "size" : 733,
+      "summary" : "Six soft strips of colour to lay under a heading or behind a word.",
+      "tags" : [
+        "highlight",
+        "colour",
+        "study"
+      ],
+      "version" : "1.0"
+    },
+    {
+      "author" : "NotesCraft",
+      "category" : "life",
+      "file" : "packs/free.sticker.washi-tape.ncpack",
+      "id" : "free.sticker.washi-tape",
+      "kind" : "sticker",
+      "license" : "CC0-1.0",
+      "name" : "Washi Tape",
+      "preview" : "previews/free.sticker.washi-tape.png",
+      "sha256" : "e4345414032179ba7c2ca0767c949adeca6e899da392d19bc9850589d958d10a",
+      "size" : 1345,
+      "summary" : "Six pieces of striped paper tape to decorate a page or hold a picture.",
+      "tags" : [
+        "tape",
+        "decor",
+        "journal"
+      ],
+      "version" : "1.0"
+    },
+    {
+      "author" : "NotesCraft",
+      "category" : "study",
+      "file" : "packs/free.template.cornell-notes.ncpack",
+      "id" : "free.template.cornell-notes",
+      "kind" : "template",
+      "license" : "CC0-1.0",
+      "name" : "Cornell Notes",
+      "pages" : 1,
+      "preview" : "previews/free.template.cornell-notes.png",
+      "sha256" : "031205fe841fb4a43d32ef665277098c7049e208d817d729bacece76bfeaacf2",
+      "size" : 1237,
+      "summary" : "A page for lectures and reading: cues on the left, notes on the right, a summary at the bottom.",
+      "tags" : [
+        "lecture",
+        "notes",
+        "study"
+      ],
+      "version" : "1.0"
+    },
+    {
+      "author" : "NotesCraft",
+      "category" : "work",
+      "file" : "packs/free.template.meeting-notes.ncpack",
+      "id" : "free.template.meeting-notes",
+      "kind" : "template",
+      "license" : "CC0-1.0",
+      "name" : "Meeting Notes",
+      "pages" : 1,
+      "preview" : "previews/free.template.meeting-notes.png",
+      "sha256" : "c175443eca0d85dbfa53d01b08dd366468bd122ca678cc5b517977447e613702",
+      "size" : 2233,
+      "summary" : "Topic, date and people, an agenda, room for notes, and action items with an owner.",
+      "tags" : [
+        "meeting",
+        "agenda",
+        "actions"
+      ],
+      "version" : "1.0"
+    },
+    {
+      "author" : "NotesCraft",
+      "category" : "home",
+      "file" : "packs/free.template.shopping-list.ncpack",
+      "id" : "free.template.shopping-list",
+      "kind" : "template",
+      "license" : "CC0-1.0",
+      "name" : "Shopping List",
+      "pages" : 1,
+      "preview" : "previews/free.template.shopping-list.png",
+      "sha256" : "0c49407addebf64f51fadfb1160e756d015fb57647b32a6642f3aa159a8f0d94",
+      "size" : 10650,
+      "summary" : "Three columns of tick boxes: fresh food, the pantry, and everything else.",
+      "tags" : [
+        "groceries",
+        "list"
+      ],
+      "version" : "1.0"
+    },
+    {
+      "author" : "NotesCraft",
+      "category" : "life",
+      "file" : "packs/free.template.to-do-list.ncpack",
+      "id" : "free.template.to-do-list",
+      "kind" : "template",
+      "license" : "CC0-1.0",
+      "name" : "To-do List",
+      "pages" : 1,
+      "preview" : "previews/free.template.to-do-list.png",
+      "sha256" : "4a8e9104908d51609159854e0c1f71f5149fa4fe4bb9ea87eed137a4e8913951",
+      "size" : 4162,
+      "summary" : "Eighteen lines with a box to tick, split into today and later.",
+      "tags" : [
+        "tasks",
+        "checklist"
+      ],
+      "version" : "1.0"
+    },
+    {
+      "author" : "NotesCraft",
+      "category" : "home",
+      "file" : "packs/free.template.weekly-layout.ncpack",
+      "id" : "free.template.weekly-layout",
+      "kind" : "template",
+      "license" : "CC0-1.0",
+      "name" : "Weekly Layout",
+      "pages" : 1,
+      "preview" : "previews/free.template.weekly-layout.png",
+      "sha256" : "f0b9d1612cf695aa01876de435580d548bfeb94fb8fa22c571a283467f9fa85f",
+      "size" : 2340,
+      "summary" : "One page for the whole week: a box with writing lines for every day, Monday to Sunday.",
+      "tags" : [
+        "week",
+        "schedule"
+      ],
+      "version" : "1.0"
+    },
+    {
+      "author" : "NotesCraft",
+      "category" : "home",
+      "file" : "packs/free.theme.forest.ncpack",
+      "id" : "free.theme.forest",
+      "kind" : "theme",
+      "license" : "CC0-1.0",
+      "name" : "Forest",
+      "preview" : "previews/free.theme.forest.png",
+      "sha256" : "29c7f63ce3dbad5bb9bd2e55fe83364ac2ba73f0d6d5bfdf3446096fa94f1653",
+      "size" : 774,
+      "summary" : "Deep greens and moss with a serif typeface.",
+      "tags" : [
+        "green",
+        "calm"
+      ],
+      "version" : "1.0"
+    },
+    {
+      "author" : "NotesCraft",
+      "category" : "home",
+      "file" : "packs/free.theme.ocean.ncpack",
+      "id" : "free.theme.ocean",
+      "kind" : "theme",
+      "license" : "CC0-1.0",
+      "name" : "Ocean",
+      "preview" : "previews/free.theme.ocean.png",
+      "sha256" : "229039d1b91a1ef9b2d893ff168cc5042505abf527365289f30f68e03697d5a5",
+      "size" : 772,
+      "summary" : "Cool blues and sea greens, light and dark.",
+      "tags" : [
+        "blue",
+        "cool"
+      ],
+      "version" : "1.0"
+    },
+    {
+      "author" : "NotesCraft",
+      "category" : "life",
+      "file" : "packs/free.theme.sunset.ncpack",
+      "id" : "free.theme.sunset",
+      "kind" : "theme",
+      "license" : "CC0-1.0",
+      "name" : "Sunset",
+      "preview" : "previews/free.theme.sunset.png",
+      "sha256" : "d21b2ce6b23c6dd7d5689e19866ef55de3e1b9b47616c12cd0b62e7b0e7ea529",
+      "size" : 770,
+      "summary" : "Warm oranges and deep browns, with a rounded typeface.",
+      "tags" : [
+        "warm",
+        "orange"
+      ],
+      "version" : "1.0"
+    }
+  ],
+  "updated" : "2026-10-26"
+}
