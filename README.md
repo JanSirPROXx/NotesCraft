@@ -102,6 +102,8 @@ The thumbnail button reveals pages and bookmarks; its context menu inserts, dupl
 reorders and deletes pages. Horizontal navigation snaps to one page. The plus button opens paper templates.
 Settings ▸ Appearance sets Light, Dark or System, the accent and second color, and the theme: Classic, Sepia, Mono, or any theme added from Files (a folder with a theme.json, fonts and icons; see [docs/THEMES.md](docs/THEMES.md)). A theme changes colors, type, icons and how round things are, never what the app does.
 
+The library has a free **Marketplace**: themes, sticker packs, page templates and planners from a community catalog that is just a folder in this repository (`catalog/`). Browse by Home, Work, Study and Life, search, save packs for later, get one with a tap, and take it away again. Templates are offered in *New page*; a planner starts a notebook of its own. Every download is checked against the size and SHA-256 in the index, a pack never holds code, and anyone can add one with a pull request: see [docs/MARKETPLACE.md](docs/MARKETPLACE.md).
+
 Use the overflow menu for import, scan, paste, PDF forms, paper and page actions, and Settings. Settings (also the gear in the library) holds the preferences in one sheet: scrolling direction, infinite scrolling, adding pages by pulling past the last one, the page number and zoom indicators, Apple Pencil only, fast GPU ink, the pen gestures, stroke stabilization, which tools the toolbar shows and in what order, where undo and redo sit, the storage folder and the version.
 Navigate document opens a page-number jump, bookmarks and a PDF table of contents.
 PDF export retains outlines and remaps internal links after page reordering; links to

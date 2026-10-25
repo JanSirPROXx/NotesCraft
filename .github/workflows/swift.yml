@@ -13,6 +13,8 @@ jobs:
       - uses: actions/checkout@v5
       - name: Core and PDF rendering tests
         run: swift test
+      - name: Marketplace catalog
+        run: python3 scripts/catalog.py check
       - name: macOS application and Xcode tests
         run: xcodebuild -project NoteCraft.xcodeproj -scheme NoteCraft -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test
       - name: iPad simulator application

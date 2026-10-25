@@ -126,6 +126,7 @@ struct Library: View {
   @State private var pdfImport = false
   @AppStorage("librarySortNewest") private var sortNewest = false
   @State private var trashVisible = false
+  @State private var marketplaceVisible = false
   @State private var renameEntry: VaultEntry?
   @State private var moveEntry: VaultEntry?
   @State private var lastTrashed: TrashItem?
@@ -154,44 +155,12 @@ struct Library: View {
         if sidebar && geometry.size.width > 700 {
           navigation.frame(width: min(300, geometry.size.width * 0.25)).padding(12)
         }
-        VStack(alignment: .leading, spacing: 28) {
-          header
-          controls
-          if vault.busy { ProgressView("Working…").tint(Color.theme(.textPrimary)) }
-          if !trashVisible && !favoritesOnly { breadcrumbs }
-          ScrollView {
-            if trashVisible {
-              TrashLibrary(vault: vault, items: filteredTrash)
-            } else if filtered.isEmpty {
-              ContentUnavailableView(
-                search.isEmpty ? "No documents here yet" : "No matching files",
-                systemImage: Icon.name("folder"),
-                description: Text(
-                  search.isEmpty
-                    ? "Create a notebook, whiteboard or text document with New."
-                    : "Try another search."))
-            } else if list {
-              LazyVStack(spacing: 0) {
-                ForEach(filtered) { entry in
-                  row(entry)
-                  Divider().overlay(Color.theme(.separator))
-                }
-              }
-            } else {
-              LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 170, maximum: 250), spacing: 38)],
-                alignment: .leading, spacing: 42
-              ) {
-                ForEach(filtered) { entry in card(entry) }
-              }.padding(.top, 24).padding(.bottom, 30)
-            }
+        Group {
+          if marketplaceVisible {
+            MarketplaceView(vault: vault, sidebar: $sidebar) { marketplaceVisible = false }
+          } else {
+            documents
           }
-          HStack {
-            Text("\(trashVisible ? filteredTrash.count : filtered.count) items")
-            Spacer()
-            Text(vault.folder?.lastPathComponent ?? "")
-            Button("Add storage", action: chooseFolder)
-          }.font(.theme(12)).foregroundStyle(secondary)
         }.padding(.horizontal, geometry.size.width > 700 ? 30 : 20).padding(.top, 28).padding(
           .bottom, 16)
       }.background(background).foregroundStyle(Color.theme(.textPrimary))
@@ -234,10 +203,53 @@ struct Library: View {
     .onChange(of: vault.activeStorageID) {
       favoritesOnly = false
       trashVisible = false
+      marketplaceVisible = false
       search = ""
       lastTrashed = nil
     }
     .task { await vault.refresh() }
+  }
+  // The documents of the folder, or of the favorites or the trash.
+  private var documents: some View {
+    VStack(alignment: .leading, spacing: 28) {
+      header
+      controls
+      if vault.busy { ProgressView("Working…").tint(Color.theme(.textPrimary)) }
+      if !trashVisible && !favoritesOnly { breadcrumbs }
+      ScrollView {
+        if trashVisible {
+          TrashLibrary(vault: vault, items: filteredTrash)
+        } else if filtered.isEmpty {
+          ContentUnavailableView(
+            search.isEmpty ? "No documents here yet" : "No matching files",
+            systemImage: Icon.name("folder"),
+            description: Text(
+              search.isEmpty
+                ? "Create a notebook, whiteboard or text document with New."
+                : "Try another search."))
+        } else if list {
+          LazyVStack(spacing: 0) {
+            ForEach(filtered) { entry in
+              row(entry)
+              Divider().overlay(Color.theme(.separator))
+            }
+          }
+        } else {
+          LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 170, maximum: 250), spacing: 38)],
+            alignment: .leading, spacing: 42
+          ) {
+            ForEach(filtered) { entry in card(entry) }
+          }.padding(.top, 24).padding(.bottom, 30)
+        }
+      }
+      HStack {
+        Text("\(trashVisible ? filteredTrash.count : filtered.count) items")
+        Spacer()
+        Text(vault.folder?.lastPathComponent ?? "")
+        Button("Add storage", action: chooseFolder)
+      }.font(.theme(12)).foregroundStyle(secondary)
+    }
   }
   private var navigation: some View {
     VStack(alignment: .leading, spacing: 14) {
@@ -250,28 +262,39 @@ struct Library: View {
           Symbol("sidebar.left")
         }
       }.padding(.bottom, 24)
-      navigationItem("Documents", symbol: "folder.fill", selected: !favoritesOnly && !trashVisible)
-      {
+      navigationItem(
+        "Documents", symbol: "folder.fill",
+        selected: !favoritesOnly && !trashVisible && !marketplaceVisible
+      ) {
         favoritesOnly = false
         trashVisible = false
+        marketplaceVisible = false
         if let root = vault.root { Task { await vault.navigate(root) } }
       }
-      navigationItem("Favorites", symbol: "bookmark.fill", selected: favoritesOnly && !trashVisible)
-      {
+      navigationItem(
+        "Favorites", symbol: "bookmark.fill",
+        selected: favoritesOnly && !trashVisible && !marketplaceVisible
+      ) {
         favoritesOnly = true
         trashVisible = false
+        marketplaceVisible = false
       }
-      navigationItem("Trash", symbol: "trash", selected: trashVisible) {
+      navigationItem("Trash", symbol: "trash", selected: trashVisible && !marketplaceVisible) {
         trashVisible = true
         favoritesOnly = false
+        marketplaceVisible = false
         Task { await vault.refresh() }
       }
+      navigationItem("Marketplace", symbol: "storefront", selected: marketplaceVisible) {
+        marketplaceVisible = true
+      }.accessibilityIdentifier("showMarketplace")
       Divider().padding(.vertical, 12)
       Text("STORAGE FOLDERS").font(.theme(11, .medium)).foregroundStyle(secondary)
       ForEach(vault.storages) { storage in
         Button {
           favoritesOnly = false
           trashVisible = false
+          marketplaceVisible = false
           search = ""
           lastTrashed = nil
           Task { await vault.selectStorage(storage) }
@@ -313,7 +336,7 @@ struct Library: View {
     _ text: String, symbol: String, selected: Bool, action: @escaping () -> Void
   ) -> some View {
     Button(action: action) {
-      Label { Text(text) } icon: { Symbol(symbol) }.font(
+      Label { Text(text).lineLimit(1).minimumScaleFactor(0.8) } icon: { Symbol(symbol) }.font(
         .system(size: 17, weight: selected ? .semibold : .regular)
       ).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 17).padding(
         .vertical, 16
@@ -333,16 +356,22 @@ struct Library: View {
         Button("Documents", systemImage: Icon.name("folder")) {
           trashVisible = false
           favoritesOnly = false
+          marketplaceVisible = false
           if let root = vault.root { Task { await vault.navigate(root) } }
         }.accessibilityIdentifier("showDocuments")
         Button("Favorites", systemImage: Icon.name("star")) {
           trashVisible = false
           favoritesOnly = true
+          marketplaceVisible = false
         }
         Button("Trash", systemImage: Icon.name("trash")) {
           trashVisible = true
           favoritesOnly = false
+          marketplaceVisible = false
         }.accessibilityIdentifier("showTrash")
+        Button("Marketplace", systemImage: Icon.name("storefront")) {
+          marketplaceVisible = true
+        }.accessibilityIdentifier("showMarketplaceMenu")
       } label: {
         Symbol("folder.badge.gearshape")
       }

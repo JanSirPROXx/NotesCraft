@@ -30,7 +30,12 @@ targets:
   NoteCraft:
     type: application
     supportedDestinations: [iOS]
-    sources: [Sources/NoteCraft]
+    sources:
+      - Sources/NoteCraft
+      # The starter packs of the marketplace, so it works before the first download and without a network.
+      - path: catalog
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: NoteCraftCore
     settings:

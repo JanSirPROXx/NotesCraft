@@ -512,6 +512,23 @@ struct WorkspaceTab: Identifiable {
       }
     } catch { self.error = error.localizedDescription }
   }
+  // A notebook that is already made, a planner say, saved to the folder and opened.
+  func create(from package: NotebookPackage) async {
+    guard let folder else {
+      error = "Choose a storage folder first."
+      return
+    }
+    let url = await files.availableURL(in: folder, title: package.notebook.title, extension: "notecraft")
+    do {
+      try await packages.save(package, to: url)
+      await refresh()
+      if let entry = entries.first(where: {
+        $0.url.standardizedFileURL.path == url.standardizedFileURL.path
+      }) {
+        await open(entry)
+      }
+    } catch { self.error = error.localizedDescription }
+  }
   func createText(title: String) async {
     guard let folder else { return }
     let url = await files.availableURL(in: folder, title: title, extension: "md")

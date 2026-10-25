@@ -80,6 +80,7 @@ struct SettingsView: View {
         toolbarSection
         appearanceSection
         if let storage { storageSection(storage) }
+        marketplaceSection
         aboutSection
       }
       .navigationTitle("Settings")
@@ -221,6 +222,17 @@ struct SettingsView: View {
       Text(
         "Notebooks are plain .notecraft packages in the folder you chose, so Files, iCloud Drive "
           + "and other apps can see and back them up.")
+    }
+  }
+
+  private var marketplaceSection: some View {
+    Section {
+      NavigationLink("Marketplace") { MarketplaceSettings() }
+        .accessibilityIdentifier("marketplaceSettings")
+    } header: {
+      Text("Marketplace")
+    } footer: {
+      Text("Where the free themes, stickers, templates and planners are downloaded from.")
     }
   }
 

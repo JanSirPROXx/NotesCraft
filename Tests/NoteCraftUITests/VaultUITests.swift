@@ -929,6 +929,110 @@ final class VaultUITests: XCTestCase {
     RunLoop.current.run(until: Date().addingTimeInterval(1))
     capture(app, name: "Notebook, Classic dark")
   }
+  // The marketplace: browse and search the packs that come with the app, get a theme, a template and a
+  // planner, use them, and take one away again.
+  @MainActor func testMarketplacePacksAreBrowsedInstalledAndUsed() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = [
+      "--ui-test-reset-input", "--ui-test-reset-marketplace", "--ui-test-offline-catalog",
+    ]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    let element = { (id: String) in app.descendants(matching: .any)[id].firstMatch }
+
+    app.buttons["showMarketplace"].tap()
+    XCTAssertTrue(element("marketplaceTab-discover").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("pack-free.theme.ocean").waitForExistence(timeout: 10))
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    capture(app, name: "Marketplace, Discover")
+
+    // A category shows only its packs.
+    element("marketplaceCategory-Study").tap()
+    XCTAssertTrue(element("pack-free.template.cornell-notes").waitForExistence(timeout: 5))
+    XCTAssertFalse(element("pack-free.theme.ocean").exists)
+    element("marketplaceCategory-All").tap()
+
+    // Search finds a pack by its name and by what it is for.
+    searchMarketplace(app, "habit")
+    XCTAssertTrue(element("pack-free.planner.habit-tracker").waitForExistence(timeout: 5))
+    XCTAssertFalse(element("pack-free.theme.ocean").exists)
+    searchMarketplace(app, "zzzz")
+    XCTAssertTrue(app.staticTexts["No Results for “zzzz”"].waitForExistence(timeout: 5))
+    searchMarketplace(app, "ocean")
+
+    // Get a theme on the card, then use it from its page.
+    let getOcean = element("get-free.theme.ocean")
+    XCTAssertTrue(getOcean.waitForExistence(timeout: 5))
+    getOcean.tap()
+    XCTAssertTrue(waitForLabel(getOcean, containing: "Installed"), "the theme is installed")
+    element("pack-free.theme.ocean").tap()
+    XCTAssertTrue(element("packName").waitForExistence(timeout: 5))
+    XCTAssertEqual(element("packName").label, "Ocean")
+    capture(app, name: "Marketplace, a theme's page")
+    element("packUse").tap()
+    XCTAssertTrue(waitForLabel(element("packUse"), containing: "In use"))
+    element("packClose").tap()
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    capture(app, name: "Marketplace in the Ocean theme")
+
+    // Save a pack for later and find it under Saved.
+    searchMarketplace(app, "washi")
+    element("save-free.sticker.washi-tape").tap()
+    element("marketplaceTab-saved").tap()
+    XCTAssertTrue(element("pack-free.sticker.washi-tape").waitForExistence(timeout: 5))
+    app.buttons["Clear search"].tap()
+    element("marketplaceTab-installed").tap()
+    XCTAssertTrue(element("pack-free.theme.ocean").waitForExistence(timeout: 5), "installed packs are listed")
+    XCTAssertFalse(element("pack-free.sticker.washi-tape").exists)
+    element("marketplaceTab-discover").tap()
+
+    // A template and a planner.
+    searchMarketplace(app, "to-do")
+    element("get-free.template.to-do-list").tap()
+    XCTAssertTrue(waitForLabel(element("get-free.template.to-do-list"), containing: "Installed"))
+    searchMarketplace(app, "weekly planner")
+    element("pack-free.planner.weekly-planner").tap()
+    XCTAssertTrue(element("packGet").waitForExistence(timeout: 5))
+    element("packGet").tap()
+    XCTAssertTrue(waitForLabel(element("packGet"), containing: "Installed"))
+    capture(app, name: "Marketplace, a planner's page")
+    element("packUse").tap()
+    XCTAssertTrue(app.descendants(matching: .any)["drawingCanvas"].firstMatch.waitForExistence(timeout: 15))
+
+    // The planner is a notebook of four pages; a template adds its pages after the one you are on.
+    app.buttons["newPageButton"].tap()
+    XCTAssertTrue(element("template-free.template.to-do-list").waitForExistence(timeout: 5))
+    capture(app, name: "New page with an installed template")
+    element("template-free.template.to-do-list").tap()
+    app.buttons["More"].tap()
+    app.buttons["documentNavigatorMenu"].tap()
+    let pageNumber = app.textFields["pageNumberField"]
+    XCTAssertTrue(pageNumber.waitForExistence(timeout: 5))
+    XCTAssertEqual(pageNumber.value as? String, "2", "the template's page is where you are")
+    app.buttons["Done"].tap()
+    app.buttons["Documents"].tap()
+    XCTAssertTrue(app.staticTexts["Weekly Planner"].waitForExistence(timeout: 10), "the notebook is in the library")
+    capture(app, name: "Library with a notebook from a planner")
+
+    // Taking a pack away.
+    app.buttons["showMarketplace"].tap()
+    element("marketplaceTab-installed").tap()
+    element("pack-free.template.to-do-list").tap()
+    XCTAssertTrue(element("packRemove").waitForExistence(timeout: 5))
+    element("packRemove").tap()
+    // The button of the confirmation, not the one that asked for it.
+    let confirm = app.buttons.matching(
+      NSPredicate(format: "label == 'Remove' AND NOT (identifier == 'packRemove')")
+    ).firstMatch
+    XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+    confirm.tap()
+    XCTAssertTrue(waitForLabel(element("packGet"), containing: "Get"), "it can be got again")
+    element("packClose").tap()
+    XCTAssertFalse(element("pack-free.template.to-do-list").waitForExistence(timeout: 2))
+  }
+
   @MainActor func testLargeNotebookKeepsOnlyVisibleCanvasesLoaded() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     defer { XCUIDevice.shared.orientation = .portrait }
@@ -1032,6 +1136,23 @@ final class VaultUITests: XCTestCase {
       any.tap()
     }
     app.buttons["Done"].tap()
+  }
+  @MainActor private func searchMarketplace(_ app: XCUIApplication, _ text: String) {
+    if app.buttons["Clear search"].exists { app.buttons["Clear search"].tap() }
+    let field = app.textFields["marketplaceSearch"]
+    XCTAssertTrue(field.waitForExistence(timeout: 5))
+    field.tap()
+    field.typeText(text)
+  }
+  @MainActor private func waitForLabel(
+    _ element: XCUIElement, containing text: String, timeout: TimeInterval = 10
+  ) -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+      if element.exists, element.label.contains(text) { return true }
+      RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+    }
+    return false
   }
   @MainActor private func capture(_ app: XCUIApplication, name: String) {
     let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())

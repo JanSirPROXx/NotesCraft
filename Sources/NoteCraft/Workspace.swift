@@ -345,9 +345,10 @@ struct Workspace: View {
     syncedContent
     .sheet(isPresented: $appSettings) { SettingsView() }
     .sheet(isPresented: $templateSheet) {
-      TemplatePicker(initialPaper: page.paper) { paper in
-        appendPage(Page(paper: paper))
-      }
+      TemplatePicker(
+        initialPaper: page.paper,
+        onCreate: { paper in appendPage(Page(paper: paper)) },
+        onTemplate: { package in addPages(of: package) })
     }
     .sheet(isPresented: $paperSheet) {
       PaperBackgroundSheet(
@@ -1127,6 +1128,12 @@ struct Workspace: View {
     let next = InkGestures.blankPage(matching: last)
     trailingPage = next
   }
+  // The pages of an installed template, after the page you are on.
+  private func addPages(of template: NotebookPackage) {
+    var first: Int?
+    edit { first = try? $0.insertPages(of: template, after: activePage) }
+    if let first { activePage = first }
+  }
   private func appendPage(_ next: Page) {
     edit { $0.notebook.pages.append(next) }
     activePage = notebook.pages.count - 1
@@ -1870,12 +1877,18 @@ struct TemplatePicker: View {
   @State private var landscape = false
   @State private var color: InkColor?
   let onCreate: (Paper) -> Void
-  init(initialPaper: Paper = Paper(), onCreate: @escaping (Paper) -> Void) {
+  let onTemplate: (NotebookPackage) -> Void
+  @State private var templateError: String?
+  init(
+    initialPaper: Paper = Paper(), onCreate: @escaping (Paper) -> Void,
+    onTemplate: @escaping (NotebookPackage) -> Void = { _ in }
+  ) {
     _pattern = State(initialValue: initialPaper.pattern)
     _size = State(initialValue: initialPaper.size)
     _landscape = State(initialValue: initialPaper.landscape)
     _color = State(initialValue: initialPaper.color)
     self.onCreate = onCreate
+    self.onTemplate = onTemplate
   }
   var body: some View {
     VStack(alignment: .leading, spacing: 22) {
@@ -1884,6 +1897,7 @@ struct TemplatePicker: View {
         Spacer()
         Button("Cancel") { dismiss() }
       }
+      templates
       Picker("Paper size", selection: $size) {
         ForEach(PaperSize.allCases, id: \.self) { Text($0.rawValue).tag($0) }
       }.pickerStyle(.segmented)
@@ -1896,6 +1910,42 @@ struct TemplatePicker: View {
       }.buttonStyle(.themedProminent).frame(maxWidth: .infinity, alignment: .trailing)
         .accessibilityIdentifier("confirmAddPage")
     }.padding(28).adaptiveWidth(450)
+  }
+}
+
+extension TemplatePicker {
+  // The page templates that were got from the marketplace.
+  @ViewBuilder fileprivate var templates: some View {
+    let store = MarketplaceStore.shared
+    if store.templates.isEmpty {
+      Text("Page templates from the Marketplace in the library show up here.")
+        .font(.theme(.caption)).foregroundStyle(.secondary)
+    } else {
+      VStack(alignment: .leading, spacing: 10) {
+        Text("Your templates").font(.theme(.headline))
+        ScrollView(.horizontal, showsIndicators: false) {
+          HStack(spacing: 14) {
+            ForEach(store.templates) { pack in
+              Button {
+                do {
+                  onTemplate(try store.notebook(of: pack.id))
+                  dismiss()
+                } catch { templateError = error.localizedDescription }
+              } label: {
+                VStack(spacing: 6) {
+                  PackPreview(entry: pack.entry).frame(width: 96, height: 96)
+                  Text(pack.entry.name).font(.theme(.caption)).lineLimit(1).frame(width: 96)
+                }
+              }.buttonStyle(.plain).accessibilityIdentifier("template-" + pack.id)
+                .accessibilityLabel(pack.entry.name)
+            }
+          }
+        }
+        if let templateError {
+          Text(templateError).font(.theme(.caption)).foregroundStyle(.red)
+        }
+      }
+    }
   }
 }
 
