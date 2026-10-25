@@ -100,6 +100,8 @@ page holds anything, so writing never runs out of room. Page zoom is disabled in
 
 The thumbnail button reveals pages and bookmarks; its context menu inserts, duplicates,
 reorders and deletes pages. Horizontal navigation snaps to one page. The plus button opens paper templates.
+Settings ▸ Appearance sets Light, Dark or System, the accent and second color, and the theme: Classic, Sepia, Mono, or any theme added from Files (a folder with a theme.json, fonts and icons; see [docs/THEMES.md](docs/THEMES.md)). A theme changes colors, type, icons and how round things are, never what the app does.
+
 Use the overflow menu for import, scan, paste, PDF forms, paper and page actions, and Settings. Settings (also the gear in the library) holds the preferences in one sheet: scrolling direction, infinite scrolling, adding pages by pulling past the last one, the page number and zoom indicators, Apple Pencil only, fast GPU ink, the pen gestures, stroke stabilization, which tools the toolbar shows and in what order, where undo and redo sit, the storage folder and the version.
 Navigate document opens a page-number jump, bookmarks and a PDF table of contents.
 PDF export retains outlines and remaps internal links after page reordering; links to

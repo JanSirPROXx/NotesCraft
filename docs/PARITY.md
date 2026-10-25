@@ -12,6 +12,7 @@ has not been established.
 - Named reusable elements containing handwriting, text and images; rename/delete,
   persistent storage and insertion across notebooks without asset collisions.
 - Thumbnail actions to insert, duplicate, reorder, bookmark and delete pages.
+- Appearance packages (Obsidian-style): light/dark/system, built-in themes, and added themes that can change every color of the chrome, the typeface, icons and corner roundness; no code, so they are safe to install.
 - Horizontal page snapping and PDF/typed-text search with page navigation and highlights. Zoomed in, the pages of a row come together to a thin line and share the zoom: a swipe inside a page pans it and stops at the edge, a swipe from the edge turns to the next page at the same zoom and height, as long and as fast as a swipe at fit.
 - Pencil-only drawing remains the default; fingers navigate.
 - Library rename, move, duplicate, recoverable trash, restore, permanent deletion and

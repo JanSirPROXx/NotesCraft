@@ -877,6 +877,9 @@ final class VaultUITests: XCTestCase {
       let segment = app.buttons[mode]
       XCTAssertTrue(segment.waitForExistence(timeout: 5), mode)
       segment.tap()
+      // The sheet changes scheme with an animation.
+      RunLoop.current.run(until: Date().addingTimeInterval(1))
+      capture(app, name: "Settings, \(mode)")
     }
     if let theme {
       appearance.tap()
@@ -884,6 +887,7 @@ final class VaultUITests: XCTestCase {
       XCTAssertTrue(row.waitForExistence(timeout: 5), theme)
       row.tap()
       XCTAssertTrue(row.isSelected, "\(theme) is chosen")
+      capture(app, name: "Theme gallery, \(theme)")
       app.navigationBars.buttons.element(boundBy: 0).tap()
     }
     app.buttons["Done"].tap()

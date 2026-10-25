@@ -49,6 +49,10 @@ A row (horizontal pages) is a pager with a shared zoom. `NotebookLayout` gives e
 
 `SettingsView` (Settings.swift) is the one place for preferences; it is a sheet reached from the gear in the library and from Settings in the ⋯ menu of a notebook, and the ⋯ menu otherwise only holds actions on the page and document. Preferences are `@AppStorage` values whose keys are the constants in `Preferences`; the workspace reads the same keys, so a switch is read where it is used and written in one place only. A new preference gets a key there, a control in the right section of `SettingsView`, and a UI test that flips it. The toolbar's tools and their order are `ToolbarLayout` (Core, tested), stored as two strings.
 
+## Appearance (themes)
+
+Nothing in the UI chrome has a color, font or icon of its own: ask `ThemeStore.shared` through `Color.theme(.token)`, `UIColor.theme(.token)`, `.font(.theme(size, weight))` / `.font(.theme(.caption))`, `Symbol("sf.name")` (an icon the theme may replace; `Icon.name("sf.name")` where only a symbol name is taken, as in menu items) and `.corner(radius)`. The store is `@Observable`, so a view that reads it in its body is redrawn when the theme or the mode changes; UIKit views refresh in `update`. A new color is a case of `ThemeColorToken` with a value in every built-in theme (`ThemeTests` checks completeness and contrast) and a row in docs/THEMES.md. Page content (paper, ink, covers, the screenshot tour) is not chrome and keeps its own colors. Never force a color scheme on a view: the root draws in the theme's scheme (`ThemedRoot`), and sheets use `themedSheet()`. The format, the package checks and the built-in themes are in `Theme*.swift` in Core and the store in Appearance.swift; the authoring guide is docs/THEMES.md and `docs/themes/sunset.notecrafttheme` is tested.
+
 ## Toolbar and tool state
 
 `Workspace.swift` owns tool state. `toolBar` (primary tools) and `contextualToolBar` (quick bar: undo/redo, pen style, colors, thickness presets) are SwiftUI. Every tappable control needs a minimum 44×44 pt hit area with an explicit `.contentShape`, because `.buttonStyle(.plain)` only hits drawn pixels.

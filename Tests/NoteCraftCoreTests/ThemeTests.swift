@@ -239,3 +239,38 @@ private let header = #"{"format": 1, "id": "com.example.pack", "name": "Pack""#
   defer { try? FileManager.default.removeItem(at: root) }
   #expect(throws: ThemeError.notAThemeFile) { try ThemePackage.load(from: root) }
 }
+
+// MARK: the example in the documentation
+
+private let repository = URL(fileURLWithPath: #filePath)
+  .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+
+@Test func theExampleThemeOfTheGuideIsAValidPackage() throws {
+  let folder = repository.appendingPathComponent("docs/themes/sunset.notecrafttheme")
+  let theme = try ThemePackage.load(from: folder)
+  #expect(theme.id == "com.example.sunset" && theme.name == "Sunset")
+  #expect(theme.schemes == [.light, .dark])
+  #expect(theme.typography.design == .rounded)
+  #expect(theme.icons["pencil.tip"] == .file("icons/pen.png"))
+  #expect(theme.icons["star"] == .symbol("sparkles"))
+  #expect(theme.shape.cornerScale == 1.6)
+  // Everything the guide asks of a theme: text that can be read.
+  func luminance(_ c: ThemeColor) -> Double {
+    func channel(_ v: Double) -> Double { v <= 0.03928 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+    return 0.2126 * channel(c.red) + 0.7152 * channel(c.green) + 0.0722 * channel(c.blue)
+  }
+  func contrast(_ a: ThemeColor, _ b: ThemeColor) -> Double {
+    (max(luminance(a), luminance(b)) + 0.05) / (min(luminance(a), luminance(b)) + 0.05)
+  }
+  for scheme in [ThemeScheme.light, .dark] {
+    let palette = theme.palette(for: scheme, base: .standard)
+    for (text, background) in [
+      (ThemeColorToken.textPrimary, ThemeColorToken.background), (.textPrimary, .surface),
+      (.accentText, .accent), (.toolBarText, .toolBar), (.toolSelectionText, .toolSelection),
+      (.quickBarText, .quickBar), (.sheetText, .sheet),
+    ] {
+      let ratio = contrast(palette[text]!, palette[background]!)
+      #expect(ratio >= 3, "\(scheme) \(text) on \(background): \(ratio)")
+    }
+  }
+}

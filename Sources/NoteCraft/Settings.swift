@@ -90,6 +90,8 @@ struct SettingsView: View {
         ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
       }
     }
+    // A sheet keeps the scheme it was opened in unless it is told: here the reader can change it.
+    .preferredColorScheme(ThemeStore.shared.preferredColorScheme)
     #if os(macOS)
       .frame(minWidth: 460, minHeight: 560)
     #endif

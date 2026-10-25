@@ -1,0 +1,64 @@
+{
+  "format": 1,
+  "id": "com.example.sunset",
+  "name": "Sunset",
+  "author": "NotesCraft examples",
+  "version": "1.0",
+  "colors": {
+    "light": {
+      "background": "#FFF3E6",
+      "surface": "#FFFFFF",
+      "surfaceRaised": "#FFE0C2",
+      "field": "#FFE9D6",
+      "separator": "#F2C9A3",
+      "textPrimary": "#3A1F12",
+      "textSecondary": "#8A5A3C",
+      "accent": "#E4572E",
+      "accentText": "#FFFFFF",
+      "secondaryAccent": "#F2A33A",
+      "tabBar": "#7A2E1A",
+      "toolBar": "#A23E22",
+      "toolBarText": "#FFF3E6",
+      "toolSelection": "#FFF3E6",
+      "toolSelectionText": "#7A2E1A",
+      "quickBar": "#FFFFFF",
+      "quickBarText": "#3A1F12",
+      "sheet": "#FFF3E6",
+      "sheetText": "#3A1F12",
+      "sheetSecondaryText": "#8A5A3C"
+    },
+    "dark": {
+      "background": "#1A0F0A",
+      "surface": "#26150E",
+      "surfaceRaised": "#3A2216",
+      "field": "#2F1B11",
+      "separator": "#4A2C1B",
+      "textPrimary": "#FFEBD9",
+      "textSecondary": "#C79A7A",
+      "accent": "#FF7A4D",
+      "accentText": "#1A0F0A",
+      "secondaryAccent": "#FFB347",
+      "tabBar": "#3A1308",
+      "toolBar": "#5A2110",
+      "toolBarText": "#FFEBD9",
+      "toolSelection": "#FFEBD9",
+      "toolSelectionText": "#3A1308",
+      "quickBar": "#33190F",
+      "quickBarText": "#FFEBD9",
+      "sheet": "#26150E",
+      "sheetText": "#FFEBD9",
+      "sheetSecondaryText": "#C79A7A"
+    }
+  },
+  "typography": {
+    "design": "rounded",
+    "scale": 1.0
+  },
+  "icons": {
+    "pencil.tip": "icons/pen.png",
+    "star": "symbol:sparkles"
+  },
+  "shape": {
+    "cornerScale": 1.6
+  }
+}
