@@ -30,7 +30,7 @@ struct NoteDocument: FileDocument {
           Preferences.undoRedoPosition, Preferences.toolbarOrder, Preferences.toolbarHidden,
           "appearanceTheme", "appearanceMode", "appearanceAccent", "appearanceSecondary",
           "savedStorages", "activeStorageID", "vaultBookmark", "readingPositions",
-          "marketplaceAddress",
+          "marketplaceAddress", "openDocuments",
         ] {
           UserDefaults.standard.removeObject(forKey: key)
         }

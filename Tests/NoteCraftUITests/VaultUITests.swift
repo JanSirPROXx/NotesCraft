@@ -1033,6 +1033,52 @@ final class VaultUITests: XCTestCase {
     XCTAssertFalse(element("pack-free.template.to-do-list").waitForExistence(timeout: 2))
   }
 
+  // After the iPad was off or the app was closed, it opens on the notebook and the page it was left on.
+  @MainActor func testTheAppReopensTheNotebookAndPageItWasLeftOn() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input", "--ui-test-numbered-notebook"]
+    app.launch()
+    chooseFreshStorageFolder(app)
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
+    app.buttons["New"].tap()
+    app.buttons["Notebook"].tap()
+    XCTAssertTrue(app.buttons["Create"].waitForExistence(timeout: 5))
+    app.buttons["Create"].tap()
+    XCTAssertTrue(app.descendants(matching: .any)["drawingCanvas"].firstMatch.waitForExistence(timeout: 10))
+    app.buttons["More"].tap()
+    app.buttons["documentNavigatorMenu"].tap()
+    let pageNumber = app.textFields["pageNumberField"]
+    XCTAssertTrue(pageNumber.waitForExistence(timeout: 5))
+    pageNumber.tap()
+    pageNumber.typeText(
+      String(repeating: XCUIKeyboardKey.delete.rawValue, count: (pageNumber.value as? String ?? "").count) + "5")
+    app.buttons["Go"].tap()
+    XCTAssertTrue(app.buttons["More"].waitForExistence(timeout: 5))
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+
+    // No visit to the library on the way out: the app is simply gone, as when the iPad turns off.
+    app.terminate()
+    app.launchArguments = []
+    app.launch()
+    XCTAssertTrue(app.buttons["More"].waitForExistence(timeout: 20), "the notebook is open again")
+    XCTAssertFalse(app.buttons["New"].exists, "not the library")
+    app.buttons["More"].tap()
+    app.buttons["documentNavigatorMenu"].tap()
+    XCTAssertTrue(pageNumber.waitForExistence(timeout: 5))
+    XCTAssertEqual(pageNumber.value as? String, "5", "on the page it was left on")
+    capture(app, name: "Notebook reopened on its page after relaunch")
+    app.buttons["Done"].tap()
+
+    // Leaving through the library is remembered too.
+    app.buttons["Documents"].tap()
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 10))
+    app.terminate()
+    app.launch()
+    XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20), "back in the library, where it was left")
+    XCTAssertFalse(app.buttons["More"].exists)
+  }
+
   @MainActor func testLargeNotebookKeepsOnlyVisibleCanvasesLoaded() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     defer { XCUIDevice.shared.orientation = .portrait }

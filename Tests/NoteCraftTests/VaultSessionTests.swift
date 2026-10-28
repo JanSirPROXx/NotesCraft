@@ -365,3 +365,60 @@ import Testing
   await restarted.restoreLastStorage()
   #expect(restarted.storages.count == 1)
 }
+
+// After the iPad was off, or the app was closed, it opens on the notebook and the page it was left on,
+// with the other open documents behind it, instead of on the library.
+@MainActor @Test func theAppComesBackOnTheDocumentsAndPagesItWasLeftOn() async throws {
+  let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+  let folder = temporary.appendingPathComponent("Notes")
+  let inner = folder.appendingPathComponent("Course")
+  try FileManager.default.createDirectory(at: inner, withIntermediateDirectories: true)
+  defer { try? FileManager.default.removeItem(at: temporary) }
+  let preferences = try #require(UserDefaults(suiteName: UUID().uuidString))
+  let first = folder.appendingPathComponent("First.notecraft")
+  let second = inner.appendingPathComponent("Second.notecraft")
+  let pages = (0..<5).map { _ in Page() }
+  try await PackageStore().save(NotebookPackage(notebook: Notebook(title: "First", pages: pages)), to: first)
+  try await PackageStore().save(NotebookPackage(notebook: Notebook(title: "Second", pages: pages)), to: second)
+
+  let vault = VaultController(preferences: preferences)
+  await vault.choose(folder)
+  await vault.open(try #require(vault.entries.first { $0.title == "First" }))
+  vault.rememberPage(try #require(vault.active), index: 3)
+  await vault.navigate(inner)
+  await vault.open(try #require(vault.entries.first))
+  vault.rememberPage(try #require(vault.active), index: 1)
+  // Back to the first one: it is the one in front when the app goes away.
+  await vault.selectTab(try #require(vault.sessions.first).id)
+
+  let restarted = VaultController(preferences: preferences)
+  await restarted.restoreLastStorage()
+  #expect(!restarted.showLibrary, "the notebook is open, not the library")
+  #expect(restarted.sessions.map(\.title) == ["First", "Second"], "the tabs are in their order")
+  #expect(restarted.active?.title == "First" && restarted.active?.currentPageIndex == 3)
+  #expect(restarted.sessions.last?.currentPageIndex == 1)
+  #expect(restarted.folder?.vaultPath == inner.vaultPath, "the library is in the folder it was in")
+  #expect(restarted.error == nil)
+
+  // Left in the library, it comes back in the library, with the documents still open.
+  await restarted.library()
+  let again = VaultController(preferences: preferences)
+  await again.restoreLastStorage()
+  #expect(again.showLibrary && again.sessions.count == 2)
+
+  // A document that is gone is left out without a word.
+  await again.selectTab(try #require(again.sessions.first).id)
+  try FileManager.default.removeItem(at: second)
+  let afterDelete = VaultController(preferences: preferences)
+  await afterDelete.restoreLastStorage()
+  #expect(afterDelete.sessions.map(\.title) == ["First"] && afterDelete.active?.title == "First")
+  #expect(afterDelete.error == nil)
+
+  // Choosing another folder starts from nothing, and that is what is remembered.
+  let other = temporary.appendingPathComponent("Other")
+  try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+  await afterDelete.choose(other)
+  let elsewhere = VaultController(preferences: preferences)
+  await elsewhere.restoreLastStorage()
+  #expect(elsewhere.showLibrary && elsewhere.sessions.isEmpty)
+}

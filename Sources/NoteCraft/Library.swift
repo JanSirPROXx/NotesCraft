@@ -76,6 +76,7 @@ struct VaultRoot: View {
     }
     .onChange(of: scenePhase) {
       if scenePhase != .active {
+        vault.persistOpenState()
         Task {
           for session in vault.sessions {
             vault.rememberPage(session, index: session.currentPageIndex)

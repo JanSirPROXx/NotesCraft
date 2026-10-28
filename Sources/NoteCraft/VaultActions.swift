@@ -4,6 +4,8 @@ import NoteCraftCore
 extension VaultController {
   private func finishManagement() {
     busy = false
+    // A rename or a move changed where open documents are.
+    persistOpenState()
     let resume = managing
     managing = false
     guard resume else { return }
@@ -139,6 +141,7 @@ extension VaultController {
         self.activeID = nil
         showLibrary = true
       }
+      persistOpenState()
       favorites = favorites.filter {
         $0 != entry.url.vaultPath && !$0.hasPrefix(entry.url.vaultPath + "/")
       }

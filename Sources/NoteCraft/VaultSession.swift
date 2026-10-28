@@ -15,6 +15,17 @@ private struct ReadingPosition: Codable {
   var index: Int
 }
 
+// What was open when the app last went away: which documents, which of them was in front, whether the
+// library was showing and in which folder. It comes back the way it was left, as after a restart of
+// the iPad.
+struct OpenState: Codable, Equatable {
+  var storageID: UUID?
+  var folder: String?
+  var documents: [String] = []
+  var active: String?
+  var showLibrary = true
+}
+
 struct WorkspaceTab: Identifiable {
   let id: UUID
   var title: String
@@ -75,6 +86,9 @@ struct WorkspaceTab: Identifiable {
   var storages: [SavedStorage] = []
   var activeStorageID: UUID?
   @ObservationIgnored private var restoredStorage = false
+  // While the open documents are brought back, the half-way state is not remembered.
+  @ObservationIgnored private var restoringOpenState = false
+  private static let openStateKey = "openDocuments"
   init(preferences: UserDefaults = .standard) {
     self.preferences = preferences
     if let data = preferences.data(forKey: "savedStorages") {
@@ -124,6 +138,7 @@ struct WorkspaceTab: Identifiable {
       sessions = []
       activeID = nil
       showLibrary = true
+      persistOpenState()
       favorites = Set(
         (preferences.stringArray(forKey: favoritesKey) ?? []).map {
           URL(fileURLWithPath: $0).vaultPath
@@ -152,11 +167,68 @@ struct WorkspaceTab: Identifiable {
   func restoreLastStorage() async {
     guard !restoredStorage else { return }
     restoredStorage = true
+    // Read before the storage is opened: opening it starts from nothing and would write that down.
+    let saved = savedOpenState
+    restoringOpenState = true
+    defer {
+      restoringOpenState = false
+      persistOpenState()
+    }
     if let storage = storages.first(where: { $0.id == activeStorageID }) ?? storages.first {
       await selectStorage(storage)
+      if let saved, saved.storageID == storage.id { await restoreOpenState(saved) }
     } else if let previous = previousFolder() {
       await choose(previous)
     }
+  }
+
+  // MARK: open documents
+
+  private var savedOpenState: OpenState? {
+    preferences.data(forKey: Self.openStateKey).flatMap { try? JSONDecoder().decode(OpenState.self, from: $0) }
+  }
+
+  func persistOpenState() {
+    guard !restoringOpenState, root != nil else { return }
+    let state = OpenState(
+      storageID: activeStorageID, folder: folder?.vaultPath, documents: sessions.map { $0.url.vaultPath },
+      active: active?.url.vaultPath, showLibrary: showLibrary)
+    preferences.set(try? JSONEncoder().encode(state), forKey: Self.openStateKey)
+  }
+
+  // Opens again what was open, the document that was in front first so it is there at once, then puts
+  // the tabs back in their order. A document that is gone or cannot be read is left out quietly.
+  private func restoreOpenState(_ state: OpenState) async {
+    guard let root, sessions.isEmpty else { return }
+    let inside = { (path: String) in path == root.vaultPath || path.hasPrefix(root.vaultPath + "/") }
+    var isFolder: ObjCBool = false
+    if let path = state.folder, inside(path),
+      FileManager.default.fileExists(atPath: path, isDirectory: &isFolder), isFolder.boolValue
+    {
+      await navigate(URL(fileURLWithPath: path, isDirectory: true))
+    }
+    let previousError = error
+    var listings: [String: [VaultEntry]] = [:]
+    let first = state.active.map { [$0] } ?? []
+    for path in first + state.documents.filter({ $0 != state.active }) where inside(path) {
+      let parent = URL(fileURLWithPath: path).deletingLastPathComponent()
+      if listings[parent.path] == nil { listings[parent.path] = (try? await files.list(parent)) ?? [] }
+      guard let entry = listings[parent.path]?.first(where: { $0.url.vaultPath == path }),
+        entry.kind != .folder
+      else { continue }
+      await open(entry)
+    }
+    // Neither a failed open nor a locked PDF is worth a dialog at launch.
+    error = previousError
+    lockedPDF = nil
+    let order = Dictionary(uniqueKeysWithValues: state.documents.enumerated().map { ($1, $0) })
+    sessions.sort { (order[$0.url.vaultPath] ?? .max) < (order[$1.url.vaultPath] ?? .max) }
+    if let path = state.active, let session = sessions.first(where: { $0.url.vaultPath == path }) {
+      activeID = session.id
+    } else {
+      activeID = sessions.last?.id
+    }
+    showLibrary = state.showLibrary || sessions.isEmpty
   }
   func previousFolder() -> URL? {
     guard let data = preferences.data(forKey: "vaultBookmark") else { return nil }
@@ -230,6 +302,7 @@ struct WorkspaceTab: Identifiable {
   func navigate(_ url: URL) async {
     folder = url
     await refresh()
+    persistOpenState()
   }
   func open(_ entry: VaultEntry) async {
     if entry.kind == .folder {
@@ -239,6 +312,7 @@ struct WorkspaceTab: Identifiable {
     if let existing = sessions.first(where: { $0.url.vaultPath == entry.url.vaultPath }) {
       activeID = existing.id
       showLibrary = false
+      persistOpenState()
       return
     }
     busy = true
@@ -310,6 +384,7 @@ struct WorkspaceTab: Identifiable {
       sessions.append(session)
       activeID = session.id
       showLibrary = false
+      persistOpenState()
     } catch PackageError.lockedPDF {
       lockedPDF = entry
     } catch { self.error = error.localizedDescription }
@@ -412,6 +487,7 @@ struct WorkspaceTab: Identifiable {
       }
       session.saveTask?.cancel()
       sessions.removeAll { $0.id == session.id }
+      persistOpenState()
       await refresh()
       let candidates = try await files.list(destination.deletingLastPathComponent())
       if let copy = candidates.first(where: {
@@ -427,6 +503,7 @@ struct WorkspaceTab: Identifiable {
       rememberPage(previous, index: previous.currentPageIndex)
     }
     showLibrary = true
+    persistOpenState()
     if let previous { await save(previous) }
     await refresh()
   }
@@ -437,6 +514,7 @@ struct WorkspaceTab: Identifiable {
     }
     activeID = id
     showLibrary = false
+    persistOpenState()
     if let previous { await save(previous) }
   }
   func create(title: String, paper: Paper, whiteboard: Bool = false) async {
