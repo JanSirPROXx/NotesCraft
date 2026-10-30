@@ -21,6 +21,7 @@ enum Preferences {
   static let toolbarHidden = "toolbarHidden"
   static let calculatorColor = "calculatorColorHex"
   static let calculatorWidth = "calculatorWidth"
+  static let calculatorIntroSeen = "calculatorIntroSeen"
 }
 
 // Where undo and redo sit in the bar that floats over the page.

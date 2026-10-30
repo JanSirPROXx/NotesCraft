@@ -1,6 +1,17 @@
 import XCTest
 
 final class CalculatorUITests: XCTestCase {
+  // The first pick of the pen shows its tutorial; tests that want to write dismiss it.
+  @MainActor private func chooseCalculator(_ app: XCUIApplication) {
+    app.buttons["Calculator"].tap()
+    let done = app.buttons["calculatorIntroDone"]
+    if done.waitForExistence(timeout: 4) {
+      done.tap()
+      expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: done)
+      waitForExpectations(timeout: 5)
+    }
+  }
+
   @MainActor private func openNotebook(_ app: XCUIApplication) -> XCUIElement {
     chooseFreshStorageFolder(app)
     XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 20))
@@ -40,7 +51,7 @@ final class CalculatorUITests: XCTestCase {
     app.launch()
     let canvas = openNotebook(app)
     XCTAssertTrue(app.buttons["Calculator"].waitForExistence(timeout: 5), "The tool is on the bar")
-    app.buttons["Calculator"].tap()
+    chooseCalculator(app)
     writeCalculation(canvas, row: 0.2)
     let answered = NSPredicate(format: "value CONTAINS '1 calculations'")
     expectation(for: answered, evaluatedWith: canvas)
@@ -72,7 +83,7 @@ final class CalculatorUITests: XCTestCase {
     app.launchArguments = ["--ui-test-reset-input"]
     app.launch()
     let canvas = openNotebook(app)
-    app.buttons["Calculator"].tap()
+    chooseCalculator(app)
     writeCalculation(canvas, row: 0.2)
     expectation(for: NSPredicate(format: "value CONTAINS '1 calculations'"), evaluatedWith: canvas)
     waitForExpectations(timeout: 10)
@@ -88,5 +99,35 @@ final class CalculatorUITests: XCTestCase {
     app.buttons["calculationApply"].tap()
     XCTAssertFalse(field.waitForExistence(timeout: 2))
     XCTAssertEqual(canvas.value as? String, "6 strokes, 1 calculations")
+  }
+
+  @MainActor func testTheTutorialShowsTheFirstTimeAndFromTheSettings() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input"]
+    app.launch()
+    _ = openNotebook(app)
+    let intro = app.staticTexts["calculatorIntroTitle"]
+    app.buttons["Calculator"].tap()
+    XCTAssertTrue(intro.waitForExistence(timeout: 5), "The first pick shows the tutorial")
+    Thread.sleep(forTimeInterval: 1.2)
+    let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    shot.name = "Calculator tutorial"
+    shot.lifetime = .keepAlways
+    add(shot)
+    app.buttons["calculatorIntroDone"].tap()
+    expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: intro)
+    waitForExpectations(timeout: 5)
+
+    // Picking it again, even after another tool, does not show it again.
+    app.buttons["Pen"].tap()
+    app.buttons["Calculator"].tap()
+    XCTAssertFalse(intro.waitForExistence(timeout: 2), "Only the first time")
+
+    // The settings of the pen reopen it.
+    app.buttons["Calculator"].tap()
+    XCTAssertTrue(app.buttons["calculatorHowItWorks"].waitForExistence(timeout: 5))
+    app.buttons["calculatorHowItWorks"].tap()
+    XCTAssertTrue(intro.waitForExistence(timeout: 5))
   }
 }

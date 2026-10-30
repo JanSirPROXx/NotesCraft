@@ -74,6 +74,7 @@ Rules that hold the feature together:
 - An answer is a `TextBox` with a `CalculationLink` naming its strokes. It is inserted without its own undo step (one undo takes the `=` and the answer), nothing is recalculated on open, and `Workspace.edit` drops an answer whose strokes are gone (`Calculator.pruned`).
 - Nothing runs while writing. After the second bar of an `=` the coordinator waits `patience`; any pen-down cancels it. Reading is async and off the main actor; the dots stay at least `shortestReading` so a fast reading does not flash. A reading that is missing or below `minimumConfidence` becomes `?`, never a number.
 - Glow and dots are layers in `CalculatorEffectsView`, driven by `CanvasConfiguration.calculatorActivities`. They never repaint tiles; state changes only when an animation starts or ends. Reduce Motion gets a plain fade.
+- The first pick of the pen shows `CalculatorIntroView` (a looping drawn demo and two sentences; `Preferences.calculatorIntroSeen`), and the pen's settings reopen it ("How it works"). The demo is drawn in a `Canvas`, not a video, so it needs no asset and shows the pen's colour; Reduce Motion gets the finished picture. Do not put an `accessibilityIdentifier` on a container: it replaces those of the views inside.
 - No recognizer is bundled yet (`NoModelRecognizer`), so a calculation ends as `?` and is corrected by a finger tap (Pencil-only on) or Selection ▸ Edit calculation. UI tests use `--ui-test-calculator-reading=<expression>` to stand in for the model.
 
 ## Build and test

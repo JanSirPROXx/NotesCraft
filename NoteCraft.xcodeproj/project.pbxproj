@@ -23,6 +23,7 @@
 		2909CBA2FB81F6F155603B49 /* DocumentControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40382019061DCF24C84687A9 /* DocumentControls.swift */; };
 		2BA5A5BF940C394839DB21F5 /* ThemeFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B754F3B2834AAA98C7E9B6 /* ThemeFile.swift */; };
 		2BBCBF5ABFB7A70C69FF84EB /* Catalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491817940CCD75660ABADCE6 /* Catalog.swift */; };
+		2CD76E33579B398189346B4F /* CalculatorIntro.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5441C71EE12D185F91C863A9 /* CalculatorIntro.swift */; };
 		2E56118CAF0505CF95D4D1F0 /* VaultActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 082B492A0CAE47C877AA7C1E /* VaultActions.swift */; };
 		2F8CD8EA4BCD64BD87624623 /* Renderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224B6213A14759EFA003EB49 /* Renderer.swift */; };
 		3138C2BB8C6C9F38597468C0 /* DocumentScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = C34A621480C559D993C764C4 /* DocumentScanner.swift */; };
@@ -195,6 +196,7 @@
 		4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = NoteCraftCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		5065DAF78CF6E5410A820AA1 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		508F352E349747AA65DE46CE /* WorkspaceCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceCommands.swift; sourceTree = "<group>"; };
+		5441C71EE12D185F91C863A9 /* CalculatorIntro.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculatorIntro.swift; sourceTree = "<group>"; };
 		55A77DA39E354AAC0A865DE7 /* Gathering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Gathering.swift; sourceTree = "<group>"; };
 		5606E86DCC1CB0C10BA82BED /* ToolbarLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarLayoutTests.swift; sourceTree = "<group>"; };
 		59824A39DB8CA45EC1323726 /* PencilEstimatesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PencilEstimatesTests.swift; sourceTree = "<group>"; };
@@ -378,6 +380,7 @@
 				C472370B5CC4EB7E758E048D /* CalculationEditor.swift */,
 				ACF49034729FED3ACF48742B /* CalculatorCoordinator.swift */,
 				30EC408F97EC1A4C07BC34A6 /* CalculatorEffects.swift */,
+				5441C71EE12D185F91C863A9 /* CalculatorIntro.swift */,
 				40382019061DCF24C84687A9 /* DocumentControls.swift */,
 				C34A621480C559D993C764C4 /* DocumentScanner.swift */,
 				A2D8EDF0ECB550E22A35AEE8 /* DocumentSearch.swift */,
@@ -660,6 +663,7 @@
 				63503593570D1D8CDF937F25 /* CalculationEditor.swift in Sources */,
 				455F414916F9BFE929EE1F99 /* CalculatorCoordinator.swift in Sources */,
 				E6329745984F10BA6A378E77 /* CalculatorEffects.swift in Sources */,
+				2CD76E33579B398189346B4F /* CalculatorIntro.swift in Sources */,
 				2909CBA2FB81F6F155603B49 /* DocumentControls.swift in Sources */,
 				3138C2BB8C6C9F38597468C0 /* DocumentScanner.swift in Sources */,
 				C87DCE397B1F922A2B2A3E7F /* DocumentSearch.swift in Sources */,

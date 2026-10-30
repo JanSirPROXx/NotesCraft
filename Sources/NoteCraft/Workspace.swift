@@ -45,6 +45,8 @@ struct Workspace: View {
   @AppStorage("inkColorHex") private var colorHex = "#1F2B3D"
   @AppStorage(Preferences.calculatorColor) private var calculatorColorHex = InkColor.blue.hex
   @AppStorage(Preferences.calculatorWidth) private var calculatorWidth = 2.5
+  @AppStorage(Preferences.calculatorIntroSeen) private var calculatorIntroSeen = false
+  @State private var calculatorIntro = false
   @AppStorage("penWidth") private var penWidth = 2.5
   @AppStorage("highlighterWidth") private var highlighterWidth = 16.0
   @AppStorage("eraserWidth") private var eraserWidth = 12.0
@@ -389,6 +391,12 @@ struct Workspace: View {
       }
     }
     .sheet(isPresented: $textSheet) { textEditor }
+    .sheet(isPresented: $calculatorIntro, onDismiss: { calculatorIntroSeen = true }) {
+      CalculatorIntroView(color: InkColor(hex: calculatorColorHex) ?? .blue) {
+        calculatorIntro = false
+      }
+      .presentationDetents([.height(470)]).presentationDragIndicator(.visible)
+    }
     .sheet(item: $calculationEdit) { edit in
       CalculationEditor(
         expression: edit.expression,
@@ -613,6 +621,8 @@ struct Workspace: View {
     selection = []
     commitInlineText()
     if item == .elements || item == .image { settings = true }
+    // The first time the calculator pen is picked it says what it does.
+    if item == .calculator && !calculatorIntroSeen { calculatorIntro = true }
   }
   private var workspaceActions: WorkspaceActions {
     WorkspaceActions(
@@ -805,6 +815,10 @@ struct Workspace: View {
       case .calculator:
         Text("Write a calculation and end it with =. The answer is written next to it.")
           .font(.theme(.callout))
+        Button("How it works") {
+          settings = false
+          calculatorIntro = true
+        }.accessibilityIdentifier("calculatorHowItWorks")
         PointSlider(title: "Thickness", value: widthBinding, range: 0.5...12)
         ColorPicker("Custom color", selection: $customColor).onChange(of: customColor) {
           color = convertColor(customColor)
