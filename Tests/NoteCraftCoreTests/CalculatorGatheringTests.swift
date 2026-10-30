@@ -286,3 +286,97 @@ func worksAtEveryHandwritingSize(_ height: Double) throws {
   #expect(fixed.calculation?.strokeIDs == unsure.calculation?.strokeIDs)
   #expect(fixed.layoutBounds.width >= unsure.layoutBounds.width)
 }
+
+// "9+2" over a bar over "11", then "=": the layout of the fraction in the iPad screenshot (pixels
+// are taken as points; only the proportions matter). The "=" stands at the height of the bar.
+private func fraction(scale: Double = 1, dx: Double = 0, dy: Double = 0) -> [Stroke] {
+  func mark(_ x0: Double, _ y0: Double, _ x1: Double, _ y1: Double) -> Stroke {
+    var s = Stroke(
+      samples: [
+        Sample(point: Point((x0 + dx) * scale, (y0 + dy) * scale)),
+        Sample(point: Point((x1 + dx) * scale, (y1 + dy) * scale)),
+      ], color: .blue, width: 2.5, tool: .pen, style: .ballpoint)
+    s.calculator = true
+    return s
+  }
+  return [
+    mark(1182, 750, 1212, 800),  // 9
+    mark(1240, 775, 1262, 775),  // + (bar)
+    mark(1251, 765, 1251, 786),  // + (stem)
+    mark(1275, 758, 1305, 792),  // 2
+    mark(1160, 810, 1332, 814),  // the fraction bar
+    mark(1212, 845, 1226, 878),  // 1
+    mark(1245, 845, 1262, 878),  // 1
+    mark(1360, 808, 1405, 808),  // = (upper bar)
+    mark(1360, 822, 1405, 822),  // = (lower bar)
+  ]
+}
+
+@Test func aFractionIsReadWholeNotJustItsNumerator() throws {
+  let strokes = fraction()
+  let p = page(strokes)
+  let g = try gathered(p)
+  #expect(Set(g.strokeIDs) == Set(strokes.map(\.id)), "numerator, bar and denominator all belong")
+  // The glow's box covers the whole fraction, over and under the bar.
+  #expect(g.bounds.y < 760 && g.bounds.y + g.bounds.height > 870)
+}
+
+@Test func theAnswerBesideAFractionIsCentredOnTheEquals() throws {
+  let g = try gathered(page(fraction()))
+  let markCentre = g.mark.bounds.y + g.mark.bounds.height / 2
+  // Not on the foot of the numerator (about 800), but a digit centred on the "=".
+  #expect(abs(g.baseline - (markCentre + g.glyphHeight / 2)) < 1)
+  #expect(g.glyphHeight > 25 && g.glyphHeight < 60, "a digit's height, not the fraction's")
+  let box = Calculator.answerBox(
+    for: Calculator.outcome(forExpression: "11/11"), gathering: g, color: .blue, fontName: nil,
+    ascender: 0.9, recognizerVersion: 0)
+  let middle = box.origin.y + 0.9 * box.size - g.glyphHeight / 2
+  #expect(abs(middle - markCentre) < 2)
+}
+
+@Test(arguments: [0.4, 1.0, 2.5])
+func aFractionIsReadWholeAtAnySize(_ scale: Double) throws {
+  let strokes = fraction(scale: scale, dx: -900, dy: -600)
+  let g = try gathered(page(strokes))
+  #expect(Set(g.strokeIDs) == Set(strokes.map(\.id)))
+}
+
+@Test func aMinusBetweenNumbersIsNoFractionBar() throws {
+  // "12 - 3 =": a flat stroke with nothing over or under it stays a minus.
+  var w = Writer()
+  w.digits(2)
+  let mid = w.baseline - w.height / 2
+  var minus = Stroke(samples: [Sample(point: Point(w.x, mid)), Sample(point: Point(w.x + 11, mid))])
+  minus.calculator = true
+  w.strokes.append(minus)
+  w.x += 20
+  w.digit(); w.equals()
+  let p = page(w.strokes)
+  let g = try gathered(p)
+  #expect(g.strokes.count == p.strokes.count)
+  #expect(abs(g.baseline - 100) < 2, "plain writing keeps the baseline of its digits")
+}
+
+@Test func writingAboveAFractionLineIsNotPulledIn() throws {
+  // A finished calculation one line up, not above this fraction's bar: it is far and not over it.
+  var upper = Writer(baseline: 560)
+  upper.x = 40
+  upper.digits(2); upper.plus(); upper.digits(2)
+  let g = try gathered(page(upper.strokes + fraction()))
+  #expect(Set(g.strokeIDs).isDisjoint(with: upper.strokes.map(\.id)))
+}
+
+@Test func aBarWithOnlyANumeratorStaysABar() throws {
+  // Writing over a line with nothing under it is not a fraction: a numerator that is well above the
+  // band is not reached.
+  var strokes = fraction()
+  strokes.removeSubrange(5...6)
+  strokes = strokes.enumerated().map { index, stroke in
+    guard index < 4 else { return stroke }
+    var moved = stroke
+    for i in moved.samples.indices { moved.samples[i].point.y -= 30 }
+    return moved
+  }
+  let g = try gathered(page(strokes))
+  #expect(!g.strokeIDs.contains(strokes[0].id))
+}

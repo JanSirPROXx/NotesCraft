@@ -278,7 +278,7 @@ installiert ist 26.1. Er bleibt eine optionale zweite Meinung für Ziffern, soba
 Recognizer (`NoModelRecognizer`) meldet "nicht erkannt", das Ergebnis wird also zum `?`, und das Korrektur-Sheet
 erlaubt die Eingabe der Rechnung per Tastatur (die dann ausgerechnet wird). Eine geratene Zahl gibt es nie.
 
-Gebaut und getestet (354 Core-Tests, 3 iPad-UI-Tests):
+Gebaut und getestet (360 Core-Tests, 3 iPad-UI-Tests):
 - Werkzeug "Calculator" in der Leiste (nach "Text", vor "Read only"), eigene Farbe (Standard Blau, im Quick Bar
   änderbar) und Stärke; Striche tragen `calculator: true` und sind sonst normale Stift-Striche.
 - Exakte Arithmetik, englische Notation, Prozent wie der iPad-Rechner, `undefined`/`too large` bei Division durch 0
@@ -286,6 +286,11 @@ Gebaut und getestet (354 Core-Tests, 3 iPad-UI-Tests):
 - `=`-Erkennung (zwei flache, übereinanderliegende Striche, der zweite eben geschrieben), Zusammenfassen der Striche
   (nur Calculator-Tinte, adaptives Zeilenband, adaptive Lücke, gelöste Rechnungen und Antworten als Grenzen, Text
   rechts vom `=` heißt Gleichung), Schrift von 6 bis 90 pt, volle Seite mit 1800 Strichen: 50 Anfragen unter einer Sekunde.
+- Brüche (aus Phase 3a vorgezogen, nur das Zusammenfassen, nicht das Lesen): Ein flacher Strich mit Schrift darüber
+  **und** darunter ist ein Bruchstrich; Zähler und Nenner bis zwei Ziffernhöhen Abstand gehören zur Rechnung, auch
+  Brüche in Brüchen. Ein Minus ohne Schrift darüber und darunter bleibt ein Minus. Die Antwort steht bei einem Bruch
+  auf der Höhe des `=` und nicht auf dem Fuß des Zählers. Gefunden beim Test am iPad: Vorher zählte nur, was im Band
+  der `=`-Zeile lag, also oft nur der Zähler.
 - Ablauf: 0.3 s Geduld (jeder Stift-Kontakt bricht ab), Glow mit Halo und Lichtstreifen, drei pulsierende Punkte
   (mindestens 0.5 s), Antwort als `TextBox` in Handschrift-Font (`Noteworthy-Light`), Größe und Grundlinie aus der
   Schrift. Ein Undo entfernt `=` und Antwort. Antworten ohne Rechen-Striche werden entfernt.

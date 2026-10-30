@@ -99,11 +99,21 @@ public enum CalculatorTrigger {
       from: mark, others: others, solved: solved, barriers: barriers, half: 2.5 * w, gap: 3 * w, cy: cy)
     guard !found.isEmpty else { return nil }
     let heights = found.map { $0.bounds.height }.sorted()
-    let glyph = max(heights[min(heights.count - 1, Int(Double(heights.count) * 0.75))], w)
+    var glyph = max(heights[min(heights.count - 1, Int(Double(heights.count) * 0.75))], w)
     found = walk(
       from: mark, others: others, solved: solved, barriers: barriers, half: 0.9 * glyph,
       gap: 1.5 * glyph, cy: cy)
     guard !found.isEmpty else { return nil }
+
+    // A fraction reaches above and below the line the "=" stands on: the writing over and under
+    // a bar belongs to the calculation although it is outside the band.
+    let (members, onAxis) = attachingFractions(to: found, others: others, glyph: glyph)
+    found = members
+    if onAxis {
+      // The bar and the signs are flat; the height of a digit is what sets the answer's size.
+      let digits = found.filter { Line($0) == nil }.map { $0.bounds.height }.sorted()
+      if !digits.isEmpty { glyph = digits[min(digits.count - 1, Int(Double(digits.count) * 0.75))] }
+    }
 
     // Anything written to the right of the "=" makes this an equation, not a request to solve.
     let rightEdge = mark.bounds.x + mark.bounds.width
@@ -123,10 +133,56 @@ public enum CalculatorTrigger {
         x: x0, y: y0, width: max(box.x + box.width, b.x + b.width) - x0,
         height: max(box.y + box.height, b.y + b.height) - y0)
     }
+    // On a line of plain writing the answer stands on the digits' baseline. Beside a fraction that
+    // would be the foot of the numerator, so it is centred on the "=" instead, as a digit would be.
     let tall = found.filter { $0.bounds.height >= 0.6 * glyph }.map { $0.bounds.y + $0.bounds.height }.sorted()
-    let baseline = tall.isEmpty ? cy + glyph / 2 : tall[tall.count / 2]
+    let baseline = onAxis || tall.isEmpty ? cy + glyph / 2 : tall[tall.count / 2]
     return Gathering(
       strokes: strokes, mark: mark, bounds: box, glyphHeight: glyph, baseline: baseline)
+  }
+
+  // A flat stroke with writing both over and under it, inside its width, is a fraction bar. What sits
+  // over and under it, up to two digit heights away, is added; writing that was added may hold a
+  // bar of its own (a fraction in a fraction), so this goes round a few times. A minus has nothing
+  // over or under it, so it never counts as a bar.
+  private static func attachingFractions(
+    to found: [Stroke], others: [Stroke], glyph: Double
+  ) -> (strokes: [Stroke], onAxis: Bool) {
+    var members = found
+    var inside = Set(found.map(\.id))
+    var onAxis = false
+    var bars = found.filter { Line($0) != nil }
+    var rounds = 0
+    while !bars.isEmpty, rounds < 3 {
+      rounds += 1
+      var added: [Stroke] = []
+      for bar in bars {
+        let b = bar.bounds
+        let centre = b.y + b.height / 2
+        let slack = 0.3 * glyph
+        var over: [Stroke] = []
+        var under: [Stroke] = []
+        // Judged on everything near, what the band already took included: a bar needs writing
+        // on both sides, wherever that was found.
+        for s in others {
+          let r = s.bounds
+          let overlap = min(r.x + r.width, b.x + b.width + slack) - max(r.x, b.x - slack)
+          guard overlap >= 0.5 * max(r.width, 1) else { continue }
+          let offset = r.y + r.height / 2 - centre
+          if offset < -0.15 * glyph, -offset <= 2 * glyph, r.y + r.height <= centre + 0.2 * glyph {
+            over.append(s)
+          } else if offset > 0.15 * glyph, offset <= 2 * glyph, r.y >= centre - 0.2 * glyph {
+            under.append(s)
+          }
+        }
+        guard !over.isEmpty, !under.isEmpty else { continue }
+        onAxis = true
+        for s in over + under where inside.insert(s.id).inserted { added.append(s) }
+      }
+      members += added
+      bars = added.filter { Line($0) != nil }
+    }
+    return (members, onAxis)
   }
 
   // Walks left from the "=" and takes every stroke in the band while the gap to what is taken
