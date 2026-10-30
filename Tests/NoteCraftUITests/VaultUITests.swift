@@ -741,6 +741,8 @@ final class VaultUITests: XCTestCase {
     let storage = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Storage folder'"))
     scrollTo(storage.firstMatch)
     XCTAssertTrue(storage.firstMatch.exists, "Settings opened from the library has a storage section")
+    // The sheet lists lazily, so the button under the heading is built only once it is near the screen.
+    scrollTo(app.buttons["Add storage folder…"])
     XCTAssertTrue(app.buttons["Add storage folder…"].exists)
     scrollTo(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Version'")).firstMatch)
     XCTAssertTrue(
