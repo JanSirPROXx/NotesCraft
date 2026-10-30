@@ -65,6 +65,17 @@ A free catalog of packs (`theme`, `sticker`, `template`, `planner`); the guide f
 
 `Workspace.swift` owns tool state. `toolBar` (primary tools) and `contextualToolBar` (quick bar: undo/redo, pen style, colors, thickness presets) are SwiftUI. Every tappable control needs a minimum 44×44 pt hit area with an explicit `.contentShape`, because `.buttonStyle(.plain)` only hits drawn pixels.
 
+## Calculator pen
+
+Write a calculation with the calculator pen, finish it with `=`, and the answer is written next to it; the concept, decisions and phases are in docs/CALCULATOR.md. Pieces: Core `Calculator/Expression.swift` (exact `Decimal` arithmetic and the parser, English notation: `.` is the decimal point, `,` only groups thousands, anything unreadable is an error and never a guess), `Gathering.swift` (`CalculatorTrigger.gathering(for:on:)`: is the stroke just written the second bar of an `=`, and which strokes make up the calculation), `Reading.swift` (`ExpressionRecognizing`, `Calculator.outcome`, the answer `TextBox`, `pruned`); the app has `CalculatorCoordinator` (patience, glow and dots, reading off the main actor, inserting the answer), `CalculatorEffects.swift` (the Core Animation layers in `DrawingView`) and `CalculationEditor` (hand correction).
+
+Rules that hold the feature together:
+- The pen is a *tool of the bar* only. The canvas gets `.pen` plus `CanvasConfiguration.calculator`, and the stroke is stored as a `pen` stroke with `calculator: true` (docs/FORMAT.md), so older builds still read the page. Only such strokes are ever read, never by colour. Set the marker where the stroke is made (`DrawingView.finish`) so the stroke equals `pendingStroke` and takes the fast path into the page cache.
+- An answer is a `TextBox` with a `CalculationLink` naming its strokes. It is inserted without its own undo step (one undo takes the `=` and the answer), nothing is recalculated on open, and `Workspace.edit` drops an answer whose strokes are gone (`Calculator.pruned`).
+- Nothing runs while writing. After the second bar of an `=` the coordinator waits `patience`; any pen-down cancels it. Reading is async and off the main actor; the dots stay at least `shortestReading` so a fast reading does not flash. A reading that is missing or below `minimumConfidence` becomes `?`, never a number.
+- Glow and dots are layers in `CalculatorEffectsView`, driven by `CanvasConfiguration.calculatorActivities`. They never repaint tiles; state changes only when an animation starts or ends. Reduce Motion gets a plain fade.
+- No recognizer is bundled yet (`NoModelRecognizer`), so a calculation ends as `?` and is corrected by a finger tap (Pencil-only on) or Selection ▸ Edit calculation. UI tests use `--ui-test-calculator-reading=<expression>` to stand in for the model.
+
 ## Build and test
 
 ```sh

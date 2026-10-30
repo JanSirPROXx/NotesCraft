@@ -1,7 +1,7 @@
 # Calculator Pen – Konzept und Plan
 
-Status: Phase 0 erledigt, Phase 1 in Arbeit (siehe Abschnitt 12). Ersetzt den Abschnitt "Calculator pen" in
-[`IDEAS.md`](IDEAS.md).
+Status: Phase 0 und 1 erledigt (Gerüst ohne Modell), Phase 2 (Modell) ist der nächste Schritt, siehe Abschnitt 12.
+Ersetzt den Abschnitt "Calculator pen" in [`IDEAS.md`](IDEAS.md).
 
 Ziel: Ein eigener Stift in der Toolbar. Wer damit eine Rechnung schreibt und `=` setzt, bekommt das Ergebnis
 dahinter geschrieben, wie im Rechner der iPad-App (Math Notes). Die Rechnung leuchtet kurz auf, drei Punkte
@@ -76,7 +76,7 @@ Pen-up (calculator stroke)
 | Baustein | Ort | Hinweis |
 | --- | --- | --- |
 | Parser, Evaluator, Solver, Grammatik, Gatherer, LayoutAnalyzer | `Sources/NoteCraftCore/Calculator/` | Reines Swift, mit `swift test` auf macOS testbar. |
-| `SymbolRecognizing` (Protokoll) + `FixtureRecognizer` | Core | Tests und Phase 1 laufen ohne Modell auf Ground-Truth-Fixtures. |
+| `ExpressionRecognizing` (Protokoll), `FixedRecognizer`, `NoModelRecognizer` | Core, `Calculator/Reading.swift` | Tests und Phase 1 laufen ohne Modell. In Phase 2 wird das Protokoll auf Zeichen mit Alternativen verfeinert. |
 | `CoreMLSymbolRecognizer`, Modell `.mlpackage` | `Sources/NoteCraft/` | Nur dünner Wrapper, keine Logik. |
 | `CalculatorEngine` (Actor), Debounce, Abbruch | `Sources/NoteCraft/` | Alles Schwere außerhalb des Main-Actors. |
 | Glow, Punkte, Ergebnis-Einblendung | `NativeCanvas.swift` / eigene Datei | Core-Animation-Layer im `inkOverlay`, siehe 8. |
@@ -274,9 +274,32 @@ Jede Phase wird in kleinen Conventional-Commits geliefert (`feat:`, `test:`).
 `FORMAT.md` festgehalten (Abschnitt 2). Der `PKStrokeRecognizer`-Test entfällt vorerst: Er braucht das iOS-27-SDK,
 installiert ist 26.1. Er bleibt eine optionale zweite Meinung für Ziffern, sobald das SDK da ist.
 
-**Phase 1 liefert bewusst ein Gerüst, keine Erkennung:** Ohne Modell kennt die App keine Zeichen. Der echte Recognizer
-meldet "nicht erkannt", das Ergebnis wird also zum `?` und das Popover erlaubt die Eingabe der Rechnung per Tastatur
-(die dann ausgerechnet wird). Eine geratene Zahl gibt es nie.
+**Phase 1 ist erledigt, bewusst als Gerüst ohne Erkennung:** Ohne Modell kennt die App keine Zeichen. Der echte
+Recognizer (`NoModelRecognizer`) meldet "nicht erkannt", das Ergebnis wird also zum `?`, und das Korrektur-Sheet
+erlaubt die Eingabe der Rechnung per Tastatur (die dann ausgerechnet wird). Eine geratene Zahl gibt es nie.
+
+Gebaut und getestet (354 Core-Tests, 3 iPad-UI-Tests):
+- Werkzeug "Calculator" in der Leiste (nach "Text", vor "Read only"), eigene Farbe (Standard Blau, im Quick Bar
+  änderbar) und Stärke; Striche tragen `calculator: true` und sind sonst normale Stift-Striche.
+- Exakte Arithmetik, englische Notation, Prozent wie der iPad-Rechner, `undefined`/`too large` bei Division durch 0
+  und Überlauf, 5000 zufällige Eingaben ohne Absturz.
+- `=`-Erkennung (zwei flache, übereinanderliegende Striche, der zweite eben geschrieben), Zusammenfassen der Striche
+  (nur Calculator-Tinte, adaptives Zeilenband, adaptive Lücke, gelöste Rechnungen und Antworten als Grenzen, Text
+  rechts vom `=` heißt Gleichung), Schrift von 6 bis 90 pt, volle Seite mit 1800 Strichen: 50 Anfragen unter einer Sekunde.
+- Ablauf: 0.3 s Geduld (jeder Stift-Kontakt bricht ab), Glow mit Halo und Lichtstreifen, drei pulsierende Punkte
+  (mindestens 0.5 s), Antwort als `TextBox` in Handschrift-Font (`Noteworthy-Light`), Größe und Grundlinie aus der
+  Schrift. Ein Undo entfernt `=` und Antwort. Antworten ohne Rechen-Striche werden entfernt.
+- Korrektur: Finger-Tipp auf die Antwort (bei "Apple Pencil only", wie im Normalfall) oder Auswahl ▸ "Edit calculation".
+
+**Bekannte Lücken, bewusst offen für Phase 2–4:**
+- Keine echte Erkennung. Alles endet als `?`, bis das Modell da ist.
+- Die Schriftgröße der Antwort nimmt das 75. Perzentil der Strichhöhen; ein hohes Pluszeichen kann sie nach oben
+  ziehen. Mit echten Ziffern am Gerät nachjustieren (Median ohne Operatoren, sobald Zeichen bekannt sind).
+- Wird die Rechnung nur verschoben oder teilweise überschrieben, bleibt die Antwort stehen oder wird entfernt; ein
+  automatisches Neuberechnen gibt es erst in Phase 4.
+- Ein Finger-Tipp auf die Antwort öffnet das Korrektur-Sheet nur bei "Apple Pencil only"; ist die Einstellung aus,
+  malt der Finger stattdessen.
+- Glow, Punkte und Zeiten sind nur im Simulator gesehen. Das Gefühl am iPad mit Pencil bewertest du.
 
 ## 13. Risiken
 
