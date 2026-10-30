@@ -1,6 +1,7 @@
 # Calculator Pen – Konzept und Plan
 
-Status: Entwurf, noch nichts implementiert. Ersetzt den Abschnitt "Calculator pen" in [`IDEAS.md`](IDEAS.md).
+Status: Phase 0 erledigt, Phase 1 in Arbeit (siehe Abschnitt 12). Ersetzt den Abschnitt "Calculator pen" in
+[`IDEAS.md`](IDEAS.md).
 
 Ziel: Ein eigener Stift in der Toolbar. Wer damit eine Rechnung schreibt und `=` setzt, bekommt das Ergebnis
 dahinter geschrieben, wie im Rechner der iPad-App (Math Notes). Die Rechnung leuchtet kurz auf, drei Punkte
@@ -37,9 +38,12 @@ bundled on-device recognizer for the calculator pen"). `PARITY.md` führt "math 
 - **Text-Objekte können Schriftart.** `TextBox` hat `fontName`, `size`, `color`, `rotation`; Renderer und PDF-Export
   zeichnen sie schon. Ergebnis als `TextBox` kostet keinen neuen Render-Pfad.
 - **Undo sind Snapshots** (`history.undo: [NotebookPackage]`). Das Ergebnis muss sich in den Undo-Schritt des `=` einfügen.
-- **Dateiformat:** Version 1, optionale Felder sind kompatibel. Ältere App-Versionen lehnen aber einen unbekannten
-  `InkTool`-Wert ab (die Seite wäre dort nicht lesbar). Für eine reine Eigennutzung ok; falls andere alte
-  Versionen nutzen: Calculator-Striche als `pen` mit Marker-Feld speichern. Entscheidung in Phase 0.
+- **Dateiformat (entschieden in Phase 0):** Ein unbekannter `InkTool`-Wert würde in älteren App-Versionen die ganze
+  Seite unlesbar machen. Deshalb gibt es `InkTool.calculator` nur als **Werkzeug in der Leiste**. Der Strich selbst
+  ist ein normaler `pen`-Strich mit dem optionalen Feld `calculator: true`. Ältere Versionen zeigen ihn als
+  gewöhnliche Tinte und ignorieren den Marker. Die Zeichen-Pipeline bleibt dadurch unverändert: Der Canvas bekommt
+  `.pen` und ein Flag, und der abgelegte Strich ist identisch mit dem gezeichneten (der schnelle Anhänge-Pfad des
+  Seiten-Caches vergleicht beide).
 
 ## 3. Ablauf aus Nutzersicht
 
@@ -221,9 +225,10 @@ abgebrochen.
 
 ## 9. Datenmodell
 
-- `InkTool.calculator` (neuer Fall); `Stroke.tool == .calculator`, Farbe frei wählbar.
+- `InkTool.calculator` (nur Werkzeug); `Stroke.calculator: Bool` (optional gespeichert), Farbe frei wählbar.
 - `TextBox.calculation: CalculationLink?` (optional, fehlt in alten Dateien): `strokeIDs`, kanonischer Ausdruck
-  (z. B. `12*3+4`), `kind` (`result` | `definition` | `equation`), `state`, `recognizerVersion`.
+  (z. B. `12*3+4`), `state` (`done` | `uncertain`), `recognizerVersion`. Ein Feld `kind`
+  (`result` | `definition` | `equation`) kommt mit Phase 3b, wenn es gebraucht wird.
 - Beim Öffnen wird **nichts neu gerechnet**; gespeicherte Ergebnisse bleiben, auch wenn sich das Modell ändert.
   `recognizerVersion` erlaubt ein bewusstes "Neu lesen".
 - **Randfälle:** Eingabe-Striche radiert oder verschoben → Ergebnis wird `stale`, neu berechnet oder entfernt;
@@ -264,6 +269,14 @@ abgebrochen.
 | 4 – Feinschliff (mittel) | Personalisierung, Neuberechnen bei Änderung, Randfälle (Lasso, Elements), Split View/Slide Over | Auf dem iPad abgenommen |
 
 Jede Phase wird in kleinen Conventional-Commits geliefert (`feat:`, `test:`).
+
+**Phase 0 erledigt:** Leitplanken in `Plan.md`, `AGENTS.md`, `PARITY.md` und `PRIVACY.md` angepasst, Format in
+`FORMAT.md` festgehalten (Abschnitt 2). Der `PKStrokeRecognizer`-Test entfällt vorerst: Er braucht das iOS-27-SDK,
+installiert ist 26.1. Er bleibt eine optionale zweite Meinung für Ziffern, sobald das SDK da ist.
+
+**Phase 1 liefert bewusst ein Gerüst, keine Erkennung:** Ohne Modell kennt die App keine Zeichen. Der echte Recognizer
+meldet "nicht erkannt", das Ergebnis wird also zum `?` und das Popover erlaubt die Eingabe der Rechnung per Tastatur
+(die dann ausgerechnet wird). Eine geratene Zahl gibt es nie.
 
 ## 13. Risiken
 

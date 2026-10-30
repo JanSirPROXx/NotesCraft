@@ -21,6 +21,8 @@ may include `fontName`, `alignment`, `background`, `border`, `boxWidth` and `rot
 optional fields retain default rendering. Asset paths may not traverse directories.
 Invalid geometry, empty notebooks, missing media and future versions are rejected.
 
+Calculator pen ([`CALCULATOR.md`](CALCULATOR.md)): a stroke written with it is stored as an ordinary `pen` stroke plus `calculator: true`, and the result is an ordinary text box that may carry a `calculation` object (`strokeIDs`, the canonical `expression`, `state` `done` or `uncertain`, `recognizerVersion`). Earlier builds ignore both keys, so they show the ink as a normal pen and the result as plain text. A stored result is never recomputed on open.
+
 Notebook `kind` optionally identifies `notebook` or `whiteboard`; absent values are paged
 notebooks. Optional `viewport` retains whiteboard scale and offset. Whiteboard coordinates can extend beyond the initial background dimensions.
 

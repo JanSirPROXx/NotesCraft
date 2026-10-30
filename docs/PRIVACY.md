@@ -27,6 +27,9 @@ in Settings.
 **Photos.** When you insert a picture, the app uses Apple's photo picker. NotesCraft only receives
 the pictures you select and does not get access to the rest of your library.
 
+**Calculator pen.** When you write a calculation with the calculator pen, the strokes are read by a
+small recognizer that is part of the app and runs on your device. Nothing you write is sent anywhere.
+
 **Settings.** Preferences such as the selected pen, colours, scribble and layout options, and your
 last reading position in each document are kept in the app's local settings on the device.
 

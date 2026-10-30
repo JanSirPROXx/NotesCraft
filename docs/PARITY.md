@@ -80,10 +80,12 @@ Not built yet, in the order they matter for writing:
 - The pencil grain is laid out in page coordinates at two texels per point and sampled without
   smoothing, so it shows as small squares at high zoom.
 
-Handwriting recognition, spell check of handwriting and math assist depend on a recognition model
-and stay out of scope together with the items below.
+Handwriting recognition and spell check of handwriting depend on a recognition model and stay out
+of scope together with the items below. The one exception is the calculator pen
+([`CALCULATOR.md`](CALCULATOR.md)): a small recognizer for digits and operators bundled in the app
+and run on the device, with no network use.
 
-Accounts, proprietary cloud collaboration, marketplace and AI features are outside the
+Accounts, proprietary cloud collaboration, marketplace and cloud or AI services are outside the
 local clean-room scope described in Plan.md.
 
 ## Verification

@@ -67,7 +67,7 @@ You are a Staff Apple Platforms Engineer (iOS & macOS). Your task is to architec
   4. `UI Layer` (Toolbars, document management, canvas presentation).
 - **Cross-Platform UI (iOS & macOS):** Unified SwiftUI interface backed by platform-native AppKit/UIKit bridges where low-level canvas event handling and document integration require it.
 - **Concurrency:** Modern Swift Concurrency (`async/await`, structured concurrency, actors for heavy background serializing/rasterizing, strictly MainActor-isolated UI).
-- **No Fluff:** Do not implement AI summaries, voice transcriptions, or proprietary sync servers.
+- **No Fluff:** Do not implement AI summaries, voice transcriptions, or proprietary sync servers. The calculator pen (`docs/CALCULATOR.md`) is the one allowed exception: a small bundled recognizer for digits and operators that runs on the device, with no network use.
 
 ---
 

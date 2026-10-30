@@ -7,7 +7,7 @@ remaining feature gaps in [`docs/PARITY.md`](docs/PARITY.md).
 
 ## Guardrails (from Plan.md)
 
-- Lean: Apple frameworks only, no third-party dependencies, no backend, accounts or AI features.
+- Lean: Apple frameworks only, no third-party dependencies, no backend, accounts or cloud/AI services. The one bundled model is the on-device symbol recognizer of the calculator pen ([`docs/CALCULATOR.md`](docs/CALCULATOR.md)); nothing it reads leaves the device.
 - GoodNotes parity for layout, tool hierarchy and gestures. Tap a selected tool again for its settings.
 - Document based: files open and autosave in place (iCloud Drive, OneDrive, local) through file coordination.
 - Performance first: Pencil-to-screen latency must feel like paper; target 120 Hz on ProMotion.
