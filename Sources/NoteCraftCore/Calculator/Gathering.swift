@@ -14,6 +14,9 @@ public struct EqualsMark: Equatable, Sendable {
 public struct Gathering: Equatable, Sendable {
   // Left to right, the two lines of the "=" included.
   public var strokes: [Stroke]
+  // The same strokes without the "=", in the order they were written: the order is what tells which
+  // strokes make one symbol.
+  public var writing: [Stroke]
   public var mark: EqualsMark
   public var bounds: Rect
   // Height of a typical digit, and the line the writing stands on.
@@ -137,8 +140,10 @@ public enum CalculatorTrigger {
     // would be the foot of the numerator, so it is centred on the "=" instead, as a digit would be.
     let tall = found.filter { $0.bounds.height >= 0.6 * glyph }.map { $0.bounds.y + $0.bounds.height }.sorted()
     let baseline = onAxis || tall.isEmpty ? cy + glyph / 2 : tall[tall.count / 2]
+    let written = Set(found.map(\.id))
     return Gathering(
-      strokes: strokes, mark: mark, bounds: box, glyphHeight: glyph, baseline: baseline)
+      strokes: strokes, writing: open.filter { written.contains($0.id) }, mark: mark, bounds: box,
+      glyphHeight: glyph, baseline: baseline)
   }
 
   // A flat stroke with writing both over and under it, inside its width, is a fraction bar. What sits
