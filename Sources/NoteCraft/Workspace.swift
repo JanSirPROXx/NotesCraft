@@ -623,6 +623,7 @@ struct Workspace: View {
     if item == .elements || item == .image { settings = true }
     // The first time the calculator pen is picked it says what it does.
     if item == .calculator && !calculatorIntroSeen { calculatorIntro = true }
+    if item == .calculator { CalculatorCorpusStore.shared.warmUp() }
   }
   private var workspaceActions: WorkspaceActions {
     WorkspaceActions(
@@ -1606,6 +1607,12 @@ struct Workspace: View {
     calculationEdit = CalculationEdit(id: box.id, expression: link.expression)
   }
   private func applyCalculation(_ outcome: CalculationOutcome, to id: UUID) {
+    // What the reader says the writing was is the best sample there is of how it is written.
+    for page in document.package.notebook.pages {
+      guard let link = page.texts.first(where: { $0.id == id })?.calculation else { continue }
+      let written = page.strokes.filter { link.strokeIDs.contains($0.id) }.map { $0.samples.map(\.point) }
+      CalculatorCorpusStore.shared.add(kind: .calculation, label: outcome.expression, strokes: written)
+    }
     edit { package in
       for p in package.notebook.pages.indices {
         guard let t = package.notebook.pages[p].texts.firstIndex(where: { $0.id == id }) else { continue }

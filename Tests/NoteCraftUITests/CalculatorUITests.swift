@@ -79,8 +79,8 @@ final class CalculatorUITests: XCTestCase {
   @MainActor func testAnUnreadableCalculationCanBeTypedIn() throws {
     continueAfterFailure = false
     let app = XCUIApplication()
-    // No recognizer is bundled yet, so the answer is a question mark.
-    app.launchArguments = ["--ui-test-reset-input"]
+    // A calculation that cannot be read ends as a question mark, which is then typed in.
+    app.launchArguments = ["--ui-test-reset-input", "--ui-test-no-recognizer"]
     app.launch()
     let canvas = openNotebook(app)
     chooseCalculator(app)
@@ -129,5 +129,72 @@ final class CalculatorUITests: XCTestCase {
     XCTAssertTrue(app.buttons["calculatorHowItWorks"].waitForExistence(timeout: 5))
     app.buttons["calculatorHowItWorks"].tap()
     XCTAssertTrue(intro.waitForExistence(timeout: 5))
+  }
+
+  @MainActor func testTheTrainerSavesASampleAndCountsIt() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input"]
+    app.launch()
+    _ = openNotebook(app)
+    app.buttons["More"].tap()
+    app.buttons["Settings"].tap()
+    let link = app.descendants(matching: .any)["teachHandwriting"].firstMatch
+    var swipes = 0
+    while !link.exists && swipes < 5 {
+      app.swipeUp()
+      swipes += 1
+    }
+    XCTAssertTrue(link.waitForExistence(timeout: 5), "Settings has the trainer")
+    link.tap()
+    let prompt = app.descendants(matching: .any)["trainerPrompt"].firstMatch
+    XCTAssertTrue(prompt.waitForExistence(timeout: 5))
+    let count = app.staticTexts["trainerCount"]
+    XCTAssertEqual(count.label, "0 symbols and 0 calculations saved")
+    XCTAssertFalse(app.buttons["trainerSave"].isEnabled, "Nothing to save yet")
+
+    // Write on the pad below the prompt with a finger, then save.
+    // The pad is the white area just above the Clear and Skip buttons.
+    let skip = app.buttons["Skip"].frame
+    let pad = app.coordinate(withNormalizedOffset: .zero)
+      .withOffset(CGVector(dx: prompt.frame.midX, dy: skip.minY - 100))
+    pad.withOffset(CGVector(dx: -40, dy: -50)).press(
+      forDuration: 0.05, thenDragTo: pad.withOffset(CGVector(dx: 30, dy: 50)))
+    XCTAssertTrue(app.buttons["trainerSave"].isEnabled)
+    app.buttons["trainerSave"].tap()
+    XCTAssertEqual(count.label, "1 symbols and 0 calculations saved")
+    XCTAssertFalse(app.buttons["trainerSave"].isEnabled, "The pad is clear for the next symbol")
+  }
+
+  // No reading is given to the app here: the pen reads "1 + 1" from the strokes by itself.
+  @MainActor func testThePenReadsAPlainCalculationItself() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-test-reset-input"]
+    app.launch()
+    let canvas = openNotebook(app)
+    chooseCalculator(app)
+    func point(_ x: Double, _ y: Double) -> XCUICoordinate {
+      canvas.coordinate(withNormalizedOffset: CGVector(dx: x, dy: y))
+    }
+    func drag(_ x0: Double, _ y0: Double, _ x1: Double, _ y1: Double) {
+      point(x0, y0).press(forDuration: 0.05, thenDragTo: point(x1, y1))
+    }
+    let y = 0.2
+    drag(0.20, y - 0.03, 0.20, y + 0.03)  // 1
+    drag(0.26, y, 0.34, y)  // + (bar)
+    drag(0.30, y - 0.035, 0.30, y + 0.035)  // + (stem)
+    drag(0.40, y - 0.03, 0.40, y + 0.03)  // 1
+    drag(0.46, y - 0.01, 0.56, y - 0.01)  // = (upper bar)
+    drag(0.46, y + 0.01, 0.56, y + 0.01)  // = (lower bar)
+    expectation(for: NSPredicate(format: "value CONTAINS '1 calculations'"), evaluatedWith: canvas)
+    waitForExpectations(timeout: 10)
+    changeSetting(app, "Apple Pencil only")
+    // Where the answer stands: to the right of the "=", on the line.
+    point(0.63, y).tap()
+    let field = app.textFields["calculationField"]
+    XCTAssertTrue(field.waitForExistence(timeout: 5), app.debugDescription)
+    XCTAssertEqual(field.value as? String, "1+1", "The pen read what was written")
+    XCTAssertEqual(app.staticTexts["calculationPreview"].label, "2")
   }
 }

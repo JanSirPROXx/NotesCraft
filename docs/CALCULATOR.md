@@ -1,6 +1,7 @@
 # Calculator Pen – Konzept und Plan
 
-Status: Phase 0 und 1 erledigt (Gerüst ohne Modell), Phase 2 (Modell) ist der nächste Schritt, siehe Abschnitt 12.
+Status: Phase 0 und 1 erledigt, Phase 2 als Template-Erkenner geliefert (an echter Handschrift noch nicht gemessen),
+siehe Abschnitt 12.
 Ersetzt den Abschnitt "Calculator pen" in [`IDEAS.md`](IDEAS.md).
 
 Ziel: Ein eigener Stift in der Toolbar. Wer damit eine Rechnung schreibt und `=` setzt, bekommt das Ergebnis
@@ -297,7 +298,7 @@ Gebaut und getestet (360 Core-Tests, 3 iPad-UI-Tests):
 - Korrektur: Finger-Tipp auf die Antwort (bei "Apple Pencil only", wie im Normalfall) oder Auswahl ▸ "Edit calculation".
 
 **Bekannte Lücken, bewusst offen für Phase 2–4:**
-- Keine echte Erkennung. Alles endet als `?`, bis das Modell da ist.
+- (Erledigt in Phase 2: Es gibt jetzt einen Erkenner, siehe unten.)
 - Die Schriftgröße der Antwort nimmt das 75. Perzentil der Strichhöhen; ein hohes Pluszeichen kann sie nach oben
   ziehen. Mit echten Ziffern am Gerät nachjustieren (Median ohne Operatoren, sobald Zeichen bekannt sind).
 - Wird die Rechnung nur verschoben oder teilweise überschrieben, bleibt die Antwort stehen oder wird entfernt; ein
@@ -305,6 +306,52 @@ Gebaut und getestet (360 Core-Tests, 3 iPad-UI-Tests):
 - Ein Finger-Tipp auf die Antwort öffnet das Korrektur-Sheet nur bei "Apple Pencil only"; ist die Einstellung aus,
   malt der Finger stattdessen.
 - Glow, Punkte und Zeiten sind nur im Simulator gesehen. Das Gefühl am iPad mit Pencil bewertest du.
+
+### Phase 2: Erkenner (geliefert), mit einer Abweichung vom Plan
+
+**Entscheidung:** Statt sofort ein trainiertes Core-ML-Netz zu bauen, ist der erste Erkenner ein **Template-Erkenner**
+in reinem Swift (`SymbolClassifier`): Ein Zeichen wird als Punktwolke mit den bekannten Formen verglichen, die
+nächste gewinnt. Grund: Es gab keine Handschriftdaten, ein Netz hätte sich nicht sinnvoll trainieren lassen. Der
+Template-Erkenner funktioniert schon mit wenigen Beispielen, wird mit **deinen** Proben sofort besser, ist im Test
+messbar und braucht keine Python-Toolchain. `ExpressionRecognizing` bleibt gleich; ein Core-ML-Modell kann später
+dahinter einziehen, falls der Benchmark an echter Schrift es verlangt.
+
+Gebaut (Core, `Calculator/`):
+- `Glyphs.swift`: Strichformen der Zeichen (`0–9 + − × ÷ ( )`) in mehreren Schreibweisen; `StockTemplates` macht
+  daraus verformte Vorlagen (fest, immer dieselben). Das ist der Start, bevor es Proben gibt.
+- `SymbolClassifier.swift`: Normalisierung (24 Punkte, Schwerpunkt, Größe), Chamfer-Abstand, frühes Abbrechen.
+- `LineReader.swift`: Zerlegt die Striche in Symbole (Programmierung über aufeinanderfolgende Striche, bis vier),
+  liest eine Zeile von links nach rechts mit Brüchen (Bruchstrich mit Schrift darüber und darunter), und nutzt die
+  **Grammatik als Korrektiv**: Ein unklares Symbol behält seine Alternativen, ist nur eine davon eine Rechnung, gilt
+  sie; sind es mehrere, ist die Lesung nicht sicher. Auch die Aufteilung der Striche gilt als Lesung: gibt es eine
+  fast gleich gute andere Aufteilung mit anderem Ergebnis, ist das Ergebnis unsicher. Die Konfidenz ist die des
+  unsichersten Symbols. Symbole, die sich in einer Zeile überlagern (eine `8` aus zwei Ringen als `00`, ein `+` als `-`
+  und `1`), sind keine Zeile und werden nicht gelesen.
+- `Corpus.swift`: Format der Proben (Zeichen und ganze Rechnungen), Vorlagen aus Zeichen-Proben, Trainings-Aufgaben.
+- App: `CalculatorCorpusStore` (eine Datei in Application Support), `CalculatorTrainer` (Einstellungen ▸ Calculator
+  pen ▸ "Teach your handwriting", im Vollbild), Korrekturen im Sheet werden als Rechnungs-Probe gemerkt.
+
+**Gemessen (synthetisch, nicht an echter Schrift):** 900 zufällige Ausdrücke mit verbogenen Zeichen, drei Stärken der
+Verformung: bei normaler Verformung 90 % richtig **und** sicher, bei starker 50 %, der Rest `?`, und **kein einziger
+falscher Ausdruck wurde als sicher ausgegeben**. Genau diese Eigenschaft sichert der Benchmark: `swift test -c release
+-Xswiftc -enable-testing --filter SymbolRecognition` mit `NOTECRAFT_RECOGNITION_BENCHMARK=1` (2 s). Die normale
+Test-Suite führt eine kleine Stichprobe mit denselben zwei Zusagen aus. Eine Lesung dauert im optimierten Build etwa
+9 ms. Die Verformung ist **mein** Modell von Handschrift; wie gut es echte Schrift trifft, zeigt erst dein Gegentest.
+
+**Bewusste Einschränkungen:**
+- Kein handgeschriebenes `/`: Es ist von einer schrägen `1` nicht zu trennen. Division wird mit `÷` oder Bruchstrich
+  geschrieben (getippt im Korrektur-Sheet geht `/`). Der Punkt wird an seiner Größe erkannt, ein Komma gibt es nicht.
+- Noch nicht gelesen: Hochgestelltes (Potenzen), `√`, `%`, Buchstaben (Variablen, Gleichungen), mehrzeilige Rechnungen.
+  Die Rechen-Engine kennt Potenz, Wurzel und Prozent bereits; es fehlt das Lesen (Phase 3).
+- Die Stock-Vorlagen kommen aus meinem Kopf, nicht aus Daten. Deine Proben haben Vorrang nur dadurch, dass sie
+  näher liegen; ein Gewicht für eigene Proben gibt es noch nicht.
+- Das Gewicht bei zwei fast gleichen Symbolen (`7`/`1`, `4`/`9`) kommt aus dem Rand zwischen Nummer eins und zwei; die
+  Schwellen (`farthest`, `certainMargin`, `goodFit`) sind an synthetischen Daten eingestellt und an echter Schrift
+  nachzustellen.
+
+**Was ich von dir brauche, um die Schwellen an echte Schrift zu bringen:** im Trainer pro Zeichen 5 bis 10 Proben
+schreiben (Symbole), danach 20 bis 30 Rechnungen (Rechnungen), und die Datei über "Share samples" schicken oder
+ablegen. Daraus wird ein Benchmark an deiner Schrift, der die Schwellen festlegt.
 
 ## 13. Risiken
 

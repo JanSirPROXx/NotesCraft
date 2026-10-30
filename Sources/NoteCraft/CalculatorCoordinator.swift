@@ -17,7 +17,8 @@ import SwiftUI
 @MainActor @Observable final class CalculatorCoordinator {
   // What the canvases show; filtered by page where it is used.
   private(set) var activities: [CalculatorActivity] = []
-  @ObservationIgnored var recognizer: any ExpressionRecognizing = CalculatorCoordinator.launchRecognizer()
+  // Tests that have no handwriting to read stand in a recognizer here; nil reads with the pen's own.
+  @ObservationIgnored var recognizerOverride: (any ExpressionRecognizing)? = CalculatorCoordinator.launchRecognizer()
   @ObservationIgnored private var waiting: Task<Void, Never>?
 
   // After the second bar of a "=" the pen may still add to it (an equation, a digit). Anything
@@ -30,12 +31,13 @@ import SwiftUI
 
   // UI tests have no handwriting to read: `--ui-test-calculator-reading=12*3+4` makes every request
   // read that calculation.
-  private static func launchRecognizer() -> any ExpressionRecognizing {
+  private static func launchRecognizer() -> (any ExpressionRecognizing)? {
     let prefix = "--ui-test-calculator-reading="
     if let argument = CommandLine.arguments.first(where: { $0.hasPrefix(prefix) }) {
       return FixedRecognizer(String(argument.dropFirst(prefix.count)))
     }
-    return NoModelRecognizer()
+    // `--ui-test-no-recognizer`: every calculation is unreadable, as before a recognizer existed.
+    return CommandLine.arguments.contains("--ui-test-no-recognizer") ? NoModelRecognizer() : nil
   }
 
   // Pen down anywhere: the writing goes on, so a request that is still waiting is dropped.
@@ -68,7 +70,7 @@ import SwiftUI
     var activity = CalculatorActivity(pageID: pageID, gathering: gathering, color: color)
     activities.append(activity)
     let started = ContinuousClock.now
-    let recognizer = recognizer
+    let recognizer: any ExpressionRecognizing = recognizerOverride ?? CalculatorCorpusStore.shared.recognizer
     let reading = await Task.detached(priority: .userInitiated) { await recognizer.read(gathering) }.value
     let outcome = Calculator.outcome(for: reading)
     let spent = started.duration(to: .now)

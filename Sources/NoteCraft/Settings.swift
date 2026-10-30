@@ -72,6 +72,7 @@ struct SettingsView: View {
   @AppStorage(Preferences.circleToLasso) private var circleToLasso = true
   @AppStorage(Preferences.stabilization) private var stabilization = 0.0
   @AppStorage(Preferences.undoRedoPosition) private var undoRedo = UndoRedoPosition.left
+  @State private var trainer = false
 
   init(storage: SettingsStorage? = nil) { self.storage = storage }
 
@@ -82,6 +83,7 @@ struct SettingsView: View {
         pencilSection
         gestureSection
         toolbarSection
+        calculatorSection
         appearanceSection
         if let storage { storageSection(storage) }
         marketplaceSection
@@ -170,6 +172,35 @@ struct SettingsView: View {
       }
     } header: {
       Text("Toolbar")
+    }
+  }
+
+  private var calculatorSection: some View {
+    Section {
+      Button {
+        trainer = true
+      } label: {
+        HStack {
+          Text("Teach your handwriting")
+          Spacer()
+          Symbol("chevron.right").font(.theme(13, .semibold)).opacity(0.5)
+        }.contentShape(Rectangle())
+      }
+      .buttonStyle(.plain).accessibilityIdentifier("teachHandwriting")
+      #if os(iOS)
+        .fullScreenCover(isPresented: $trainer) {
+          NavigationStack { CalculatorTrainer() }
+            .preferredColorScheme(ThemeStore.shared.preferredColorScheme)
+        }
+      #else
+        .sheet(isPresented: $trainer) { NavigationStack { CalculatorTrainer() } }
+      #endif
+    } header: {
+      Text("Calculator pen")
+    } footer: {
+      Text(
+        "Write each symbol a few times and the pen reads your hand more surely. "
+          + "Samples stay on this iPad.")
     }
   }
 
