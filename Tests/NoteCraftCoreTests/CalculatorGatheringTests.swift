@@ -270,3 +270,19 @@ func worksAtEveryHandwritingSize(_ height: Double) throws {
   // 50 triggers in well under a second: one is far below a frame.
   #expect(Date().timeIntervalSince(start) < 1)
 }
+
+@Test func aHandCorrectionReplacesTheAnswerInPlace() throws {
+  var w = Writer(baseline: 200, height: 30)
+  w.digits(2); w.equals()
+  let g = try gathered(page(w.strokes))
+  let unsure = Calculator.answerBox(
+    for: Calculator.outcome(for: nil), gathering: g, color: .blue, fontName: nil, ascender: 0.9,
+    recognizerVersion: 0)
+  #expect(unsure.text == "?" && unsure.calculation?.state == .uncertain)
+  let fixed = Calculator.corrected(unsure, with: Calculator.outcome(forExpression: "12*3+4"))
+  #expect(fixed.text == "40" && fixed.calculation?.state == .done)
+  #expect(fixed.calculation?.expression == "12*3+4")
+  #expect(fixed.origin == unsure.origin && fixed.size == unsure.size && fixed.id == unsure.id)
+  #expect(fixed.calculation?.strokeIDs == unsure.calculation?.strokeIDs)
+  #expect(fixed.layoutBounds.width >= unsure.layoutBounds.width)
+}

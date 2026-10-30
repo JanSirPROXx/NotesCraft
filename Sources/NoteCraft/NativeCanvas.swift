@@ -46,6 +46,8 @@ import SwiftUI
   var shapeKind: ShapeKind? = nil
   // The pen is the calculator pen: ordinary pen ink, marked so a calculation is read from it alone.
   var calculator = false
+  // Calculations being worked out on this page: they light up and show waiting dots.
+  var calculatorActivities: [CalculatorActivity] = []
 }
 extension CanvasConfiguration {
   // Pens whose width follows the pen through a model; nil for the others.
@@ -250,6 +252,9 @@ enum PencilAction {
           if oldValue?.pencilOnly == true && configuration?.pencilOnly == false {
             pencilSeen = false
           }
+          if oldValue?.calculatorActivities != configuration?.calculatorActivities {
+            syncCalculatorEffects()
+          }
         #endif
       }
     }
@@ -310,6 +315,7 @@ enum PencilAction {
     private func syncOverlayScale() {
       let scale = tiled ? overlayScale : contentScaleFactor
       inkOverlay?.contentScaleFactor = scale
+      calculatorEffects?.setLayerScale(scale)
       // On a page in tiles the GPU view is placed for each stroke (`placeGPUInkWindow`).
       if !tiled { metalInk?.contentScaleFactor = scale }
     }
@@ -357,7 +363,14 @@ enum PencilAction {
     // only a sliver of ink instead of re-blitting the cached page beneath it, and the compositor
     // blends the two on the GPU. The page view is only touched again when the pen lifts.
     private(set) var inkOverlay: InkOverlayView?
+    private var calculatorEffects: CalculatorEffectsView?
     var drawsInkInOverlay: Bool { inkOverlay != nil }
+    func syncCalculatorEffects() {
+      guard let calculatorEffects, let configuration, bounds.width > 0 else { return }
+      let zoom = configuration.viewport?.scale ?? bounds.width / configuration.page.dimensions.x
+      calculatorEffects.apply(
+        configuration.calculatorActivities, map: { [unowned self] in viewPoint($0) }, zoom: zoom)
+    }
     private(set) var metalInk: MetalInkView?
     var drawsInkOnGPU: Bool { metalInk != nil && configuration?.gpuInk == true }
     override var contentScaleFactor: CGFloat {
@@ -367,6 +380,7 @@ enum PencilAction {
       super.layoutSubviews()
       tileView?.frame = bounds
       inkOverlay?.frame = bounds
+      calculatorEffects?.frame = bounds
       if !tiled { metalInk?.frame = bounds }
     }
     private func installInkOverlay() {
@@ -379,6 +393,9 @@ enum PencilAction {
       overlay.clearsContextBeforeDrawing = true
       addSubview(overlay)
       inkOverlay = overlay
+      let effects = CalculatorEffectsView(frame: bounds)
+      addSubview(effects)
+      calculatorEffects = effects
       // Above the overlay: the live stroke is the topmost thing on the page.
       if let gpu = MetalInkView.make(frame: bounds) {
         addSubview(gpu)
@@ -666,8 +683,8 @@ enum PencilAction {
     private lazy var fingerTap = UITapGestureRecognizer(
       target: self, action: #selector(fingerTapped(_:)))
     @objc private func fingerTapped(_ gesture: UITapGestureRecognizer) {
-      guard gesture.state == .ended, let configuration, configuration.tool == .lasso,
-        activeTouch == nil
+      guard gesture.state == .ended, let configuration,
+        configuration.tool == .lasso || configuration.calculator, activeTouch == nil
       else { return }
       let p = gesture.location(in: self)
       let scale = bounds.width / configuration.page.dimensions.x

@@ -88,12 +88,27 @@ public enum Calculator {
     box.size = size
     box.color = color
     box.fontName = fontName
-    // A box is as wide as its answer, so it is not a 280 pt hit area that swallows the page.
-    box.boxWidth = max(size, Double(outcome.text.count) * size * 0.62 + size * 0.3)
+    box.boxWidth = fittedWidth(of: outcome.text, size: size)
     box.calculation = CalculationLink(
       strokeIDs: gathering.strokeIDs, expression: outcome.expression, state: outcome.state,
       recognizerVersion: recognizerVersion)
     return box
+  }
+
+  // A box is as wide as its answer, so it is not a 280 pt hit area that swallows the page.
+  static func fittedWidth(of text: String, size: Double) -> Double {
+    max(size, Double(text.count) * size * 0.62 + size * 0.3)
+  }
+
+  // The same answer box after the calculation was corrected by hand: new text and width, same
+  // place, size and writing it belongs to.
+  public static func corrected(_ box: TextBox, with outcome: CalculationOutcome) -> TextBox {
+    var result = box
+    result.text = outcome.text
+    result.boxWidth = fittedWidth(of: outcome.text, size: box.size)
+    result.calculation?.expression = outcome.expression
+    result.calculation?.state = outcome.state
+    return result
   }
 
   // An answer whose writing is gone (erased, cut) no longer answers anything.

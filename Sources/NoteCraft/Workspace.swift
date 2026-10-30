@@ -40,6 +40,8 @@ struct Workspace: View {
   @Environment(\.openWindow) private var openWindow
   @State private var tool: InkTool = .pen
   @State private var previousTool: InkTool = .pen
+  @State private var calculator = CalculatorCoordinator()
+  @State private var calculationEdit: CalculationEdit?
   @AppStorage("inkColorHex") private var colorHex = "#1F2B3D"
   @AppStorage(Preferences.calculatorColor) private var calculatorColorHex = InkColor.blue.hex
   @AppStorage(Preferences.calculatorWidth) private var calculatorWidth = 2.5
@@ -387,6 +389,23 @@ struct Workspace: View {
       }
     }
     .sheet(isPresented: $textSheet) { textEditor }
+    .sheet(item: $calculationEdit) { edit in
+      CalculationEditor(
+        expression: edit.expression,
+        onApply: { outcome in
+          applyCalculation(outcome, to: edit.id)
+          calculationEdit = nil
+        },
+        onRemove: {
+          self.edit { package in
+            for p in package.notebook.pages.indices {
+              package.notebook.pages[p].texts.removeAll { $0.id == edit.id }
+            }
+          }
+          calculationEdit = nil
+        },
+        onCancel: { calculationEdit = nil })
+    }
     .sheet(isPresented: $saveElementSheet) {
       VStack(alignment: .leading, spacing: 20) {
         Text("Save element").font(.theme(.title2).bold())
@@ -939,6 +958,7 @@ struct Workspace: View {
             scribbleHint = ScribbleHint(
               page: index, stroke: s, revision: document.package.notebook.revision)
           }
+          if s.calculator { requestCalculation(after: s, pageIndex: index) }
         },
         onGesture: { points in
           activePage = index
@@ -964,6 +984,7 @@ struct Workspace: View {
           activePage = index
           insertPoint = point
           if tool == .readOnly { followLink(at: point, on: p) }
+          if tool == .calculator { openCalculation(at: point, on: p, tolerance: 10 / viewScale) }
           if tool == .lasso { selectObject(at: point, on: p, viewScale: viewScale) }
           if tool == .text {
             // A tap beside a selected text box first lets go of it; the next one starts a new box.
@@ -1038,6 +1059,7 @@ struct Workspace: View {
           selection = [id]
         },
         onTouchDown: {
+          calculator.penWentDown()
           if pasteSpot != nil { pasteSpot = nil }
           if scribbleHint != nil { scribbleHint = nil }
         },
@@ -1072,7 +1094,8 @@ struct Workspace: View {
           ? documentSearch.results.first(where: { $0.pageID == p.id })?.highlights ?? [] : [],
         tip: PenTip(sharpness: tipSharpness, pressure: tipPressure, flatness: tipFlatness),
         stabilization: stabilization, shapeKind: tool == .shapes ? shapeKind : nil,
-        calculator: tool == .calculator)
+        calculator: tool == .calculator,
+        calculatorActivities: calculator.activities.filter { $0.pageID == p.id })
   }
   private func pageView(
     _ p: Page, index: Int, availableWidth: Double, availableHeight: Double? = nil,
@@ -1219,6 +1242,15 @@ struct Workspace: View {
               Text("Light").tag(1)
               Text("Solid").tag(2)
             }.pickerStyle(.segmented).padding(.vertical, 4)
+          }
+          Divider().padding(.vertical, 4)
+        }
+        if selection.count == 1, let box = page.texts.first(where: { selection.contains($0.id) }),
+          box.calculation != nil
+        {
+          menuRow("Edit calculation", "plus.forwardslash.minus") {
+            selectionMenuPresented = false
+            editCalculation(box)
           }
           Divider().padding(.vertical, 4)
         }
@@ -1516,7 +1548,57 @@ struct Workspace: View {
     }
     redoStack = []
     mutation(&document.package)
+    dropOrphanedAnswers()
     document.package.notebook.revision += 1
+  }
+  // An answer whose writing was erased, cut or replaced answers nothing any more.
+  private func dropOrphanedAnswers() {
+    for index in document.package.notebook.pages.indices
+    where document.package.notebook.pages[index].texts.contains(where: { $0.calculation != nil }) {
+      let current = document.package.notebook.pages[index]
+      let cleaned = Calculator.pruned(current)
+      if cleaned.texts.count != current.texts.count {
+        document.package.notebook.pages[index] = cleaned
+      }
+    }
+  }
+  private func requestCalculation(after stroke: Stroke, pageIndex: Int) {
+    guard pageIndex < document.package.notebook.pages.count else { return }
+    let pageID = document.package.notebook.pages[pageIndex].id
+    calculator.strokeEnded(
+      stroke, pageID: pageID, color: color,
+      page: { document.package.notebook.pages.first { $0.id == pageID } },
+      insert: { box in
+        // Part of the undo step of the "=" that asked for it: one undo takes both away.
+        guard let at = document.package.notebook.pages.firstIndex(where: { $0.id == pageID })
+        else { return }
+        document.package.notebook.pages[at].texts.append(box)
+        document.package.notebook.revision += 1
+      })
+  }
+  private func openCalculation(at point: Point, on p: Page, tolerance: Double) {
+    guard
+      let box = p.texts.last(where: { text in
+        guard text.calculation != nil else { return false }
+        let r = text.layoutBounds
+        return point.x >= r.x - tolerance && point.x <= r.x + r.width + tolerance
+          && point.y >= r.y - tolerance && point.y <= r.y + r.height + tolerance
+      })
+    else { return }
+    editCalculation(box)
+  }
+  private func editCalculation(_ box: TextBox) {
+    guard let link = box.calculation else { return }
+    calculationEdit = CalculationEdit(id: box.id, expression: link.expression)
+  }
+  private func applyCalculation(_ outcome: CalculationOutcome, to id: UUID) {
+    edit { package in
+      for p in package.notebook.pages.indices {
+        guard let t = package.notebook.pages[p].texts.firstIndex(where: { $0.id == id }) else { continue }
+        package.notebook.pages[p].texts[t] = Calculator.corrected(
+          package.notebook.pages[p].texts[t], with: outcome)
+      }
+    }
   }
   private func undo() {
     guard let old = undoStack.popLast() else { return }
