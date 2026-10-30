@@ -1115,7 +1115,7 @@ struct Workspace: View {
       .accessibilityElement()
       .accessibilityLabel("Drawing canvas")
       .accessibilityIdentifier("drawingCanvas")
-      .accessibilityValue("\(p.strokes.count) strokes")
+      .accessibilityValue(CanvasConfiguration.accessibilitySummary(of: p))
       .overlay(alignment: .topLeading) {
         selectionBar(p, index: index, pageWidth: w, boardHeight: boardHeight, scale: viewScale)
       }

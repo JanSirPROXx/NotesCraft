@@ -50,6 +50,12 @@ import SwiftUI
   var calculatorActivities: [CalculatorActivity] = []
 }
 extension CanvasConfiguration {
+  // What the canvas tells accessibility and UI tests; the calculations are named only when there are some.
+  static func accessibilitySummary(of page: Page) -> String {
+    let answers = page.texts.filter { $0.calculation != nil }.count
+    return "\(page.strokes.count) strokes" + (answers > 0 ? ", \(answers) calculations" : "")
+  }
+  var accessibilitySummary: String { Self.accessibilitySummary(of: page) }
   // Pens whose width follows the pen through a model; nil for the others.
   var widthModel: WidthModel? { tool == .pen ? WidthModel(style: style, tip: tip) : nil }
 }
@@ -66,7 +72,7 @@ enum PencilAction {
       view.setAccessibilityElement(true)
       view.setAccessibilityLabel("Drawing canvas")
       view.setAccessibilityIdentifier("drawingCanvas")
-      view.setAccessibilityValue("\(configuration.page.strokes.count) strokes")
+      view.setAccessibilityValue(configuration.accessibilitySummary)
     }
   }
   @MainActor final class DrawingView: NSView {
@@ -231,7 +237,7 @@ enum PencilAction {
       view.isAccessibilityElement = true
       view.accessibilityLabel = "Drawing canvas"
       view.accessibilityIdentifier = "drawingCanvas"
-      view.accessibilityValue = "\(configuration.page.strokes.count) strokes"
+      view.accessibilityValue = configuration.accessibilitySummary
       view.accessibilityTraits = .allowsDirectInteraction
       view.configureScrolling()
     }

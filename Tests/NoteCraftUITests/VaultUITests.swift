@@ -1147,10 +1147,6 @@ final class VaultUITests: XCTestCase {
     }
     return false
   }
-  // The control of a switch sits at the trailing end of its row; the middle of the row is its label.
-  @MainActor private func flip(_ toggle: XCUIElement, at x: Double = 0.93) {
-    toggle.coordinate(withNormalizedOffset: CGVector(dx: x, dy: 0.5)).tap()
-  }
   // The settings sheet lists lazily: drag it up in small steps until the control is on screen and
   // clear of the title bar that the list scrolls under. A drag that ends in a hold has no momentum.
   @MainActor private func scrollSheet(_ app: XCUIApplication, to element: XCUIElement) {
@@ -1168,20 +1164,6 @@ final class VaultUITests: XCTestCase {
         withVelocity: .slow, thenHoldForDuration: 0.2)
       steps += 1
     }
-  }
-  // Settings is a sheet: open it from the ⋯ menu of a notebook, use one control, close it.
-  @MainActor private func changeSetting(_ app: XCUIApplication, _ name: String) {
-    app.buttons["More"].tap()
-    app.buttons["Settings"].tap()
-    let any = app.descendants(matching: .any)[name].firstMatch
-    XCTAssertTrue(any.waitForExistence(timeout: 5), name)
-    // A switch is turned by its own control, not by the row around it.
-    if app.switches[name].exists {
-      flip(app.switches[name])
-    } else {
-      any.tap()
-    }
-    app.buttons["Done"].tap()
   }
   @MainActor private func searchMarketplace(_ app: XCUIApplication, _ text: String) {
     if app.buttons["Clear search"].exists { app.buttons["Clear search"].tap() }
