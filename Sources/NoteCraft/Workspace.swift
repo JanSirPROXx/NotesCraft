@@ -41,6 +41,8 @@ struct Workspace: View {
   @State private var tool: InkTool = .pen
   @State private var previousTool: InkTool = .pen
   @AppStorage("inkColorHex") private var colorHex = "#1F2B3D"
+  @AppStorage(Preferences.calculatorColor) private var calculatorColorHex = InkColor.blue.hex
+  @AppStorage(Preferences.calculatorWidth) private var calculatorWidth = 2.5
   @AppStorage("penWidth") private var penWidth = 2.5
   @AppStorage("highlighterWidth") private var highlighterWidth = 16.0
   @AppStorage("eraserWidth") private var eraserWidth = 12.0
@@ -173,8 +175,12 @@ struct Workspace: View {
   }
   private var accent: Color { Color.theme(.accent) }
   private var color: InkColor {
-    get { InkColor(hex: colorHex) ?? .ink }
-    nonmutating set { colorHex = newValue.hex }
+    get {
+      tool == .calculator ? InkColor(hex: calculatorColorHex) ?? .blue : InkColor(hex: colorHex) ?? .ink
+    }
+    nonmutating set {
+      if tool == .calculator { calculatorColorHex = newValue.hex } else { colorHex = newValue.hex }
+    }
   }
   private var colorBinding: Binding<InkColor> {
     Binding(get: { color }, set: { color = $0 })
@@ -186,6 +192,7 @@ struct Workspace: View {
       switch tool {
       case .highlighter: highlighterWidth
       case .eraser: eraserWidth
+      case .calculator: calculatorWidth
       default: penWidth
       }
     }
@@ -193,6 +200,7 @@ struct Workspace: View {
       switch tool {
       case .highlighter: highlighterWidth = newValue
       case .eraser: eraserWidth = newValue
+      case .calculator: calculatorWidth = newValue
       default: penWidth = newValue
       }
     }
@@ -667,7 +675,7 @@ struct Workspace: View {
     HStack(spacing: 12) {
       if undoRedoPosition == .left { undoRedoButtons }
 
-      if [.pen, .highlighter, .shapes].contains(tool) {
+      if [.pen, .highlighter, .shapes, .calculator].contains(tool) {
         Divider().frame(height: 24)
         if tool == .shapes {
           Button {
@@ -730,7 +738,7 @@ struct Workspace: View {
         Toggle("Text", isOn: $selectTexts)
       }
       if undoRedoPosition == .right {
-        if [.pen, .highlighter, .shapes, .eraser, .lasso].contains(tool) {
+        if [.pen, .highlighter, .shapes, .calculator, .eraser, .lasso].contains(tool) {
           Divider().frame(height: 24)
         }
         undoRedoButtons
@@ -775,6 +783,16 @@ struct Workspace: View {
         Toggle("Erase highlighter only", isOn: $highlighterOnly)
         Toggle("Auto-deselect", isOn: $autoDeselect)
         PointSlider(title: "Radius", value: widthBinding, range: 3...40)
+      case .calculator:
+        Text("Write a calculation and end it with =. The answer is written next to it.")
+          .font(.theme(.callout))
+        PointSlider(title: "Thickness", value: widthBinding, range: 0.5...12)
+        ColorPicker("Custom color", selection: $customColor).onChange(of: customColor) {
+          color = convertColor(customColor)
+        }
+        TextField("Hex color, e.g. #265DD4", text: $hexColor).onSubmit {
+          if let parsed = InkColor(hex: hexColor) { color = parsed }
+        }
       case .highlighter:
         Toggle("Draw straight lines", isOn: $straightHighlight)
         PointSlider(title: "Width", value: widthBinding, range: 6...40)
@@ -872,8 +890,9 @@ struct Workspace: View {
     _ p: Page, index: Int, boardHeight: Double?, viewScale: Double
   ) -> CanvasConfiguration {
       CanvasConfiguration(
-        page: displayPage(p, index: index), assets: document.package.assets, tool: tool,
-        color: color, width: width, style: penStyle,
+        page: displayPage(p, index: index), assets: document.package.assets,
+        tool: tool == .calculator ? .pen : tool,
+        color: color, width: width, style: tool == .calculator ? .ballpoint : penStyle,
         pencilOnly: pencilOnly, selection: index == activePage ? selection : [],
         onStroke: { stroke in
           activePage = index
@@ -1046,13 +1065,14 @@ struct Workspace: View {
             appendPage(next)
           } : nil,
         onPagePull: { pagePullProgress = $0 }, horizontalPages: horizontal,
-        holdToShape: holdToShape,
-        scribblePreview: scratchToErase, gpuInk: gpuInk,
+        holdToShape: holdToShape && tool != .calculator,
+        scribblePreview: scratchToErase && tool != .calculator, gpuInk: gpuInk,
         eraserMode: eraserMode, highlighterOnly: highlighterOnly,
         searchHighlights: searchVisible
           ? documentSearch.results.first(where: { $0.pageID == p.id })?.highlights ?? [] : [],
         tip: PenTip(sharpness: tipSharpness, pressure: tipPressure, flatness: tipFlatness),
-        stabilization: stabilization, shapeKind: tool == .shapes ? shapeKind : nil)
+        stabilization: stabilization, shapeKind: tool == .shapes ? shapeKind : nil,
+        calculator: tool == .calculator)
   }
   private func pageView(
     _ p: Page, index: Int, availableWidth: Double, availableHeight: Double? = nil,

@@ -19,6 +19,8 @@ enum Preferences {
   static let undoRedoPosition = "undoRedoPosition"
   static let toolbarOrder = "toolbarOrder"
   static let toolbarHidden = "toolbarHidden"
+  static let calculatorColor = "calculatorColorHex"
+  static let calculatorWidth = "calculatorWidth"
 }
 
 // Where undo and redo sit in the bar that floats over the page.
@@ -38,6 +40,7 @@ extension InkTool {
     case .elements: "star.square"
     case .image: "photo"
     case .text: "textformat"
+    case .calculator: "plus.forwardslash.minus"
     case .readOnly: "hand.draw"
     }
   }

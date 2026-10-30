@@ -12,12 +12,15 @@ import Testing
 
 @Test func aStoredLayoutComesBackAsItWasSaved() {
   var layout = ToolbarLayout.standard
-  layout.order = [.text, .pen, .eraser, .highlighter, .shapes, .lasso, .elements, .image, .readOnly]
+  layout.order = [
+    .text, .pen, .eraser, .highlighter, .shapes, .lasso, .elements, .image, .calculator, .readOnly,
+  ]
   layout.setVisible(.shapes, false)
   layout.setVisible(.readOnly, false)
   let restored = ToolbarLayout(storedOrder: layout.storedOrder, storedHidden: layout.storedHidden)
   #expect(restored == layout)
-  #expect(restored.visible == [.text, .pen, .eraser, .highlighter, .lasso, .elements, .image])
+  #expect(
+    restored.visible == [.text, .pen, .eraser, .highlighter, .lasso, .elements, .image, .calculator])
 }
 
 @Test func aToolFromALaterVersionTurnsUpAtTheEnd() {

@@ -44,6 +44,8 @@ import SwiftUI
   var stabilization = 0.0
   // With the shapes tool: the shape inserted by tapping or dragging; nil keeps freehand recognition.
   var shapeKind: ShapeKind? = nil
+  // The pen is the calculator pen: ordinary pen ink, marked so a calculation is read from it alone.
+  var calculator = false
 }
 extension CanvasConfiguration {
   // Pens whose width follows the pen through a model; nil for the others.
@@ -2025,7 +2027,7 @@ extension DrawingView {
       return
     }
     switch configuration.tool {
-    case .pen, .highlighter, .shapes:
+    case .pen, .highlighter, .shapes, .calculator:
       // A held shape is committed exactly as previewed, with its spec so it stays editable. It
       // must not go through the path below: stabilization would append the raw pen-up point and
       // draw a stray line from the end of the shape to wherever the pen was lifted.
@@ -2039,11 +2041,14 @@ extension DrawingView {
       {
         samples.append(Sample(point: raw, pressure: last.pressure, altitude: last.altitude))
       }
-      let stroke = Stroke(
+      var stroke = Stroke(
         samples: samples, color: configuration.color, width: configuration.width,
         tool: configuration.tool, style: configuration.style,
         tip: configuration.style == .fountain && configuration.tool == .pen
           ? configuration.tip : nil)
+      // Set here, not by the owner, so the stroke on the page equals `pendingStroke` and goes
+      // into the page cache without a redraw.
+      stroke.calculator = configuration.calculator && configuration.tool == .pen
       // An inserted shape is rebuilt by the owner from the drag, so the raw drag is never shown.
       if !(configuration.tool == .shapes && configuration.shapeKind != nil) {
         input.pendingStroke = stroke
