@@ -99,6 +99,16 @@ struct SettingsView: View {
     }
     // A sheet keeps the scheme it was opened in unless it is told: here the reader can change it.
     .preferredColorScheme(ThemeStore.shared.preferredColorScheme)
+    // Shown from here and not from its row in the list: a row that scrolls out of sight takes the
+    // presentation with it, and the pad would vanish under the pen.
+    #if os(iOS)
+      .fullScreenCover(isPresented: $trainer) {
+        NavigationStack { CalculatorTrainer() }
+          .preferredColorScheme(ThemeStore.shared.preferredColorScheme)
+      }
+    #else
+      .sheet(isPresented: $trainer) { NavigationStack { CalculatorTrainer() } }
+    #endif
     #if os(macOS)
       .frame(minWidth: 460, minHeight: 560)
     #endif
@@ -187,14 +197,6 @@ struct SettingsView: View {
         }.contentShape(Rectangle())
       }
       .buttonStyle(.plain).accessibilityIdentifier("teachHandwriting")
-      #if os(iOS)
-        .fullScreenCover(isPresented: $trainer) {
-          NavigationStack { CalculatorTrainer() }
-            .preferredColorScheme(ThemeStore.shared.preferredColorScheme)
-        }
-      #else
-        .sheet(isPresented: $trainer) { NavigationStack { CalculatorTrainer() } }
-      #endif
     } header: {
       Text("Calculator pen")
     } footer: {
