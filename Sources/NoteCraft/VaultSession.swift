@@ -517,6 +517,31 @@ struct WorkspaceTab: Identifiable {
     persistOpenState()
     if let previous { await save(previous) }
   }
+  // Closes a document's tab. It is saved first and stays open if that fails, so closing never costs
+  // what was written. Then the neighbouring tab comes up, or the library when none is left.
+  func closeTab(_ id: UUID) async {
+    guard let session = sessions.first(where: { $0.id == id }) else { return }
+    rememberPage(session, index: session.currentPageIndex)
+    session.saveTask?.cancel()
+    while session.saving { try? await Task.sleep(for: .milliseconds(20)) }
+    await save(session)
+    guard !session.dirty else {
+      error = "Unable to close \"\(session.title)\" because its changes could not be saved."
+      return
+    }
+    let position = sessions.firstIndex { $0.id == id } ?? 0
+    sessions.removeAll { $0.id == id }
+    if activeID == id {
+      if sessions.isEmpty {
+        activeID = nil
+        showLibrary = true
+      } else {
+        activeID = sessions[min(position, sessions.count - 1)].id
+      }
+    }
+    persistOpenState()
+    if showLibrary { await refresh() }
+  }
   func create(title: String, paper: Paper, whiteboard: Bool = false) async {
     guard let folder else { return }
     var notebook = Notebook(title: title, pages: [Page(paper: paper)])

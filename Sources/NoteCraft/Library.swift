@@ -34,6 +34,7 @@ struct VaultRoot: View {
               set: { vault.rememberPage(session, index: $0) }), fileURL: session.url,
             onBack: { Task { await vault.library() } }, tabs: vault.tabs,
             onSelectTab: { id in Task { await vault.selectTab(id) } },
+            onCloseTab: { id in Task { await vault.closeTab(id) } },
             history: session.history
           )
           .id(session.id)
@@ -319,14 +320,23 @@ struct Library: View {
       if !vault.sessions.isEmpty {
         Text("OPEN DOCUMENTS").font(.theme(11, .medium)).foregroundStyle(secondary)
         ForEach(vault.sessions) { session in
-          Button {
-            Task { await vault.selectTab(session.id) }
-          } label: {
-            Label(
-              session.title,
-              systemImage: Icon.name(session.entryKind == .markdown ? "doc.text" : "book.closed")
-            ).lineLimit(1).font(.theme(13))
-          }.padding(.vertical, 4)
+          HStack(spacing: 6) {
+            Button {
+              Task { await vault.selectTab(session.id) }
+            } label: {
+              Label(
+                session.title,
+                systemImage: Icon.name(session.entryKind == .markdown ? "doc.text" : "book.closed")
+              ).lineLimit(1).font(.theme(13)).frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            Button {
+              Task { await vault.closeTab(session.id) }
+            } label: {
+              Symbol("xmark").font(.theme(11, .bold)).opacity(0.7).frame(width: 36, height: 32)
+                .contentShape(Rectangle())
+            }.accessibilityLabel("Close \(session.title)").accessibilityIdentifier("closeOpenDocument")
+          }.padding(.vertical, 2)
         }
       }
     }.buttonStyle(.plain).padding(22).frame(maxHeight: .infinity).background(
