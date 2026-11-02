@@ -27,6 +27,7 @@ struct Workspace: View {
   var onBack: (() -> Void)? = nil
   var tabs: [WorkspaceTab] = []
   var onSelectTab: ((UUID) -> Void)? = nil
+  var onCloseTab: ((UUID) -> Void)? = nil
   var history: EditHistory = EditHistory()
   @Environment(\.dismiss) private var dismiss
   #if os(iOS)
@@ -450,9 +451,13 @@ struct Workspace: View {
         DocumentScanner(onScan: insertScans, onError: { errorMessage = $0 })
       }
     #endif
-    .fileImporter(isPresented: $importer, allowedContentTypes: [importType]) { result in
-      importFile(result)
-    }
+    // On a view of its own: the library above holds a file importer too (for the storage folder), and
+    // two importers on the same chain of views leave the inner one without a picker.
+    .background(
+      Color.clear.fileImporter(isPresented: $importer, allowedContentTypes: [importType]) { result in
+        importFile(result)
+      }
+    )
     .fileExporter(
       isPresented: $exporter, document: NotebookExport(data: exportData), contentType: exportType,
       defaultFilename: notebook.title
@@ -500,7 +505,7 @@ struct Workspace: View {
       Divider()
       Button("Import PDF", systemImage: Icon.name("doc")) {
         importType = .pdf
-        importer = true
+        presentImporter()
       }
       Button("Photo library", systemImage: Icon.name("photo.on.rectangle")) { photoLibrary = true }
       #if os(iOS)
@@ -574,17 +579,29 @@ struct Workspace: View {
         HStack(spacing: 0) {
           if tabs.isEmpty { Text(notebook.title).padding(.horizontal, 20).frame(height: 34) }
           ForEach(tabs) { tab in
-            Button {
-              onSelectTab?(tab.id)
-            } label: {
-              Label(tab.selected ? notebook.title : tab.title, systemImage: Icon.name("book.closed"))
-                .lineLimit(1).padding(.horizontal, 18)
-                .frame(height: 40).contentShape(Rectangle())
-                .background(
-                  tab.selected ? Color.theme(.toolBarText).opacity(0.2) : .clear, ignoresSafeAreaEdges: []
-                )
-                .clipShape(UnevenRoundedRectangle(topLeadingRadius: 9, topTrailingRadius: 9))
-            }.buttonStyle(.plain)
+            let title = tab.selected ? notebook.title : tab.title
+            HStack(spacing: 0) {
+              Button {
+                onSelectTab?(tab.id)
+              } label: {
+                Label(title, systemImage: Icon.name("book.closed"))
+                  .lineLimit(1).padding(.leading, 18).padding(.trailing, onCloseTab == nil ? 18 : 4)
+                  .frame(height: 40).contentShape(Rectangle())
+              }.buttonStyle(.plain)
+              if let onCloseTab {
+                Button {
+                  onCloseTab(tab.id)
+                } label: {
+                  Symbol("xmark").font(.theme(11, .bold)).opacity(0.75)
+                    .frame(width: 40, height: 40).contentShape(Rectangle())
+                }.buttonStyle(.plain).accessibilityLabel("Close \(title)")
+                  .accessibilityIdentifier("closeTab")
+              }
+            }
+            .background(
+              tab.selected ? Color.theme(.toolBarText).opacity(0.2) : .clear, ignoresSafeAreaEdges: []
+            )
+            .clipShape(UnevenRoundedRectangle(topLeadingRadius: 9, topTrailingRadius: 9))
           }
         }
       }
@@ -844,7 +861,7 @@ struct Workspace: View {
         Button("Files") {
           settings = false
           importType = .image
-          importer = true
+          presentImporter()
         }
         Button("Photo library") {
           settings = false
@@ -1011,7 +1028,7 @@ struct Workspace: View {
             } else {
               selection = []
               importType = .image
-              importer = true
+              presentImporter()
             }
           }
           if tool == .elements { insertSticker(point) }
@@ -1916,6 +1933,15 @@ struct Workspace: View {
         activePage = i
       }
     }
+  }
+  // Asks for a file of `importType`. On iPad it is the system picker shown from UIKit (see
+  // `FilePicker`); the Mac build that hosts the tests keeps SwiftUI's importer.
+  private func presentImporter() {
+    #if os(iOS)
+      FilePicker.open(types: [importType]) { result in importFile(result) }
+    #else
+      importer = true
+    #endif
   }
   private func importFile(_ result: Result<URL, Error>) {
     do {
