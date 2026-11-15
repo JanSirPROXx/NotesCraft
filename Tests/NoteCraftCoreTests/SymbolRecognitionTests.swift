@@ -47,8 +47,10 @@ private struct Tally {
   }
 }
 
-private func calculations(strength: Double, count: Int = 300, seed: UInt64 = 777) -> Tally {
-  let reader = LineReader(classifier: stock)
+private func calculations(
+  strength: Double, count: Int = 300, seed: UInt64 = 777, classifier: any SymbolClassifying = stock
+) -> Tally {
+  let reader = LineReader(classifier: classifier)
   var rng = SeededGenerator(seed: seed)
   var tally = Tally()
   for i in 0..<count {
@@ -185,4 +187,15 @@ func aWrongReadingIsNeverPresentedAsCertain(_ strength: Double) {
     #expect(Date().timeIntervalSince(start) < 0.25)
   #endif
   _ = start
+}
+
+// The pretrained network on the same hand-bent glyphs. They are not what it was taught (digits from
+// MNIST and from people with a pen), so this is a second opinion; the measure on real pen strokes is
+// RealStrokeBenchmarkTests.
+@Test(arguments: [0.8, 1.0])
+func thePretrainedNetworkReadsBentGlyphsWithoutTrustingAWrongOne(_ strength: Double) {
+  let t = calculations(strength: strength, count: fullBenchmark ? 300 : 40, classifier: NeuralSymbolClassifier())
+  print("pretrained, strength \(strength): right and sure \(t.rightSure), right unsure \(t.rightUnsure), wrong sure \(t.wrongSure), wrong unsure \(t.wrongUnsure), unread \(t.unread) of \(t.total)")
+  #expect(t.wrongSure <= t.total / 50, "\(t.wrongSureCases)")
+  #expect(Double(t.rightSure) / Double(t.total) >= 0.5, "right and sure: \(t.rightSure) of \(t.total)")
 }

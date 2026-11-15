@@ -11,6 +11,7 @@
 		09A3CCC7CD2B29965035D363 /* RepositoryCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C58A88AAE207F5544C088D5C /* RepositoryCatalogTests.swift */; };
 		0E2795E90A38662D48D1EB94 /* Library.swift in Sources */ = {isa = PBXBuildFile; fileRef = 940A74F57C8C2CF21AC1D574 /* Library.swift */; };
 		0E286A03829BC9BE229C59DE /* Workspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60AAD7C60FE3807BE65F423F /* Workspace.swift */; };
+		1047004B50A8651B3E2517C5 /* SymbolNetWeights.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E92A6A387C396B6BB8052A2 /* SymbolNetWeights.swift */; };
 		13BFD03872D4CADCF0728368 /* ShapeRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D38B019CE3F18AD600FCB7C /* ShapeRecognizer.swift */; };
 		15F2850DE834897B5C12E4E6 /* MarketplaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0047EEF2CF9975FC86BA699 /* MarketplaceView.swift */; };
 		16152D6F0A7C8389E5F96201 /* Marketplace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63844C17B301B1A25EC84E49 /* Marketplace.swift */; };
@@ -37,6 +38,7 @@
 		3E952648E767FEC70D33824C /* PDFForms.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBB02F7D207B76F150CD3E09 /* PDFForms.swift */; };
 		3EFD1D73D2E02ACE21E09D06 /* NativeCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6961F7917F77CAD924567EC6 /* NativeCanvas.swift */; };
 		402A5233AF586A01C487D525 /* Gathering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55A77DA39E354AAC0A865DE7 /* Gathering.swift */; };
+		4042DA76170C95D31C0B3C11 /* NeuralSymbols.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE72426C5BAEFEB2C0B605C2 /* NeuralSymbols.swift */; };
 		40555B9AE0FA507BB0B60545 /* ThemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D63E1AA610B0CE7819272789 /* ThemeTests.swift */; };
 		4197184DA179923480375AC1 /* CatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8B652F550F895664FEDE991 /* CatalogTests.swift */; };
 		455F414916F9BFE929EE1F99 /* CalculatorCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACF49034729FED3ACF48742B /* CalculatorCoordinator.swift */; };
@@ -55,11 +57,13 @@
 		5FB3F6D7D5D4A247F692DBF7 /* ZipArchive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 197E1B13953424E7468F53A0 /* ZipArchive.swift */; };
 		63503593570D1D8CDF937F25 /* CalculationEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C472370B5CC4EB7E758E048D /* CalculationEditor.swift */; };
 		6C4E643AF11E2A4A6EDC89D4 /* PageTiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37B21641AEDCABD54630F887 /* PageTiles.swift */; };
+		6F3BD3BB6DA25666D01D1146 /* SymbolNet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD7DEA63D417BEF38F2950BA /* SymbolNet.swift */; };
 		70983F5CE1C7B37D2D003C68 /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAEDCF2464F505B39B0EDDB7 /* Storage.swift */; };
 		775186395F5DA5278A26A401 /* CalculatorCorpusStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0CCD92C7C9DBC3E7B1C70D /* CalculatorCorpusStore.swift */; };
 		795730C897D8C8B52E7DEAC4 /* WidthTrackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84C124651AE5264B8AA2F90F /* WidthTrackTests.swift */; };
 		7A338AABE332B7C4357F39EF /* CalculatorUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F3119186D91CBCC5012A10 /* CalculatorUITests.swift */; };
 		7A3E64B70B987982AF7ABC23 /* Scrubber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9108854B56A21A71CB5B4632 /* Scrubber.swift */; };
+		7B4D2CD2BE2F996C66995826 /* SymbolRaster.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6622A50AFFFA9AEAA00E6A16 /* SymbolRaster.swift */; };
 		7D7EA6D71C672EF446B68D67 /* PageDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15AC7B4093AC8F2D1AD542A0 /* PageDiff.swift */; };
 		7DABD64630190458F73E0643 /* ScrubberTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DDBBDC3CA309B61BBDF4E16 /* ScrubberTests.swift */; };
 		7EC54F90D9D3B6D387946D28 /* EraseSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CB304711543F998B0B73322 /* EraseSession.swift */; };
@@ -85,6 +89,7 @@
 		A43579F439E4E01D9F10DCE2 /* Shapes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B63B23C1154FDC27E76662B8 /* Shapes.swift */; };
 		A730C8D0B89E35777A03FFE6 /* InkSmoother.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6468239C62CD91E6D4D35465 /* InkSmoother.swift */; };
 		AF1CD09F689443B75C2D5CF7 /* VaultManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABB273F19C18B6124D82D232 /* VaultManagement.swift */; };
+		AF6C4E2A2EE07437E9323394 /* RealStrokeBenchmarkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B482E2B1DF4D65F493D006EA /* RealStrokeBenchmarkTests.swift */; };
 		AFCA6FA4889F0886ED4ABB5F /* ImportEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7498B04DDA06141A375AD880 /* ImportEngine.swift */; };
 		B1278694EAC63090BE61F2EB /* InkWidths.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE42574D448530FC992981D6 /* InkWidths.swift */; };
 		B597467C5E1E5B97A1745E31 /* CalculatorModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 446857E89CCB977B45588E74 /* CalculatorModelTests.swift */; };
@@ -96,6 +101,7 @@
 		C121720AD51294B1B8AD0F35 /* Pack.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0D67FAF173B828191A6C358 /* Pack.swift */; };
 		C2D1F481499E76BBE63220CC /* NotebookDocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D444877F5E64EF227951121 /* NotebookDocumentView.swift */; };
 		C410B0FA00E91CC6E9D93300 /* VaultCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 327B668A8960E2B8A8C80F45 /* VaultCover.swift */; };
+		C516B41AFED21359E149C82E /* SymbolNetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E59A75E5C1571D5B562A3732 /* SymbolNetTests.swift */; };
 		C749B4E2D92EDC728A6FF056 /* ScribblePerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BEFB5FFC666C8AD680794AD /* ScribblePerformanceTests.swift */; };
 		C87DCE397B1F922A2B2A3E7F /* DocumentSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2D8EDF0ECB550E22A35AEE8 /* DocumentSearch.swift */; };
 		C89409F71FE8853E13F8E328 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB364BB9C08BDF203F68B72A /* App.swift */; };
@@ -194,6 +200,7 @@
 		2BEFB5FFC666C8AD680794AD /* ScribblePerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScribblePerformanceTests.swift; sourceTree = "<group>"; };
 		2CE25C9D08742478F1554ABA /* LibrarySheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySheets.swift; sourceTree = "<group>"; };
 		2D38B019CE3F18AD600FCB7C /* ShapeRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeRecognizer.swift; sourceTree = "<group>"; };
+		2E92A6A387C396B6BB8052A2 /* SymbolNetWeights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolNetWeights.swift; sourceTree = "<group>"; };
 		30EC408F97EC1A4C07BC34A6 /* CalculatorEffects.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculatorEffects.swift; sourceTree = "<group>"; };
 		327B668A8960E2B8A8C80F45 /* VaultCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultCover.swift; sourceTree = "<group>"; };
 		3338F9FEC504B25F904A7165 /* PencilEstimates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PencilEstimates.swift; sourceTree = "<group>"; };
@@ -222,6 +229,7 @@
 		63844C17B301B1A25EC84E49 /* Marketplace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Marketplace.swift; sourceTree = "<group>"; };
 		6465C672F7146612E59C45C9 /* ToolbarLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarLayout.swift; sourceTree = "<group>"; };
 		6468239C62CD91E6D4D35465 /* InkSmoother.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InkSmoother.swift; sourceTree = "<group>"; };
+		6622A50AFFFA9AEAA00E6A16 /* SymbolRaster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolRaster.swift; sourceTree = "<group>"; };
 		663DD69F1824E7553B014EFC /* ExpressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpressionTests.swift; sourceTree = "<group>"; };
 		6961F7917F77CAD924567EC6 /* NativeCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCanvas.swift; sourceTree = "<group>"; };
 		7498B04DDA06141A375AD880 /* ImportEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportEngine.swift; sourceTree = "<group>"; };
@@ -248,6 +256,7 @@
 		ACF49034729FED3ACF48742B /* CalculatorCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculatorCoordinator.swift; sourceTree = "<group>"; };
 		B0E29D5CFE38AB19018FD578 /* QuickBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickBar.swift; sourceTree = "<group>"; };
 		B139E3D4DFB68EE9C51955D0 /* LiveInkPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveInkPlan.swift; sourceTree = "<group>"; };
+		B482E2B1DF4D65F493D006EA /* RealStrokeBenchmarkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealStrokeBenchmarkTests.swift; sourceTree = "<group>"; };
 		B63B23C1154FDC27E76662B8 /* Shapes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shapes.swift; sourceTree = "<group>"; };
 		B849D6A7C0C98C175565CA1D /* Expression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Expression.swift; sourceTree = "<group>"; };
 		B8B652F550F895664FEDE991 /* CatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogTests.swift; sourceTree = "<group>"; };
@@ -271,7 +280,9 @@
 		D63E1AA610B0CE7819272789 /* ThemeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeTests.swift; sourceTree = "<group>"; };
 		DC0F0A9A567741EBB11E3961 /* ElementClip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElementClip.swift; sourceTree = "<group>"; };
 		DCBBD880B488E8E9D9F78307 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		DD7DEA63D417BEF38F2950BA /* SymbolNet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolNet.swift; sourceTree = "<group>"; };
 		E53FA053B01B52E525809AEF /* Scribble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scribble.swift; sourceTree = "<group>"; };
+		E59A75E5C1571D5B562A3732 /* SymbolNetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolNetTests.swift; sourceTree = "<group>"; };
 		E8BC9AC85E86D2733B45E486 /* TileGridTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TileGridTests.swift; sourceTree = "<group>"; };
 		E8F3119186D91CBCC5012A10 /* CalculatorUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculatorUITests.swift; sourceTree = "<group>"; };
 		EBB02F7D207B76F150CD3E09 /* PDFForms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFForms.swift; sourceTree = "<group>"; };
@@ -282,6 +293,7 @@
 		F8269ECE70D39556F15E0F34 /* TileGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TileGrid.swift; sourceTree = "<group>"; };
 		FB4C68FF01D54B2CAEAB8A78 /* PencilGrain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PencilGrain.swift; sourceTree = "<group>"; };
 		FDC7C0DC30B9DDAFD228FBAD /* CurveFitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurveFitter.swift; sourceTree = "<group>"; };
+		FE72426C5BAEFEB2C0B605C2 /* NeuralSymbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeuralSymbols.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -352,8 +364,12 @@
 				55A77DA39E354AAC0A865DE7 /* Gathering.swift */,
 				9554A68C960BEFE2B57745A3 /* Glyphs.swift */,
 				CF920F328BE449760F917E86 /* LineReader.swift */,
+				FE72426C5BAEFEB2C0B605C2 /* NeuralSymbols.swift */,
 				296E94926C25A3ADEF5E4052 /* Reading.swift */,
 				5B3109C5F0E965538075EAE6 /* SymbolClassifier.swift */,
+				DD7DEA63D417BEF38F2950BA /* SymbolNet.swift */,
+				2E92A6A387C396B6BB8052A2 /* SymbolNetWeights.swift */,
+				6622A50AFFFA9AEAA00E6A16 /* SymbolRaster.swift */,
 			);
 			path = Calculator;
 			sourceTree = "<group>";
@@ -373,10 +389,12 @@
 				13AA84BC046E7845B9AA8EB0 /* PageDiffTests.swift */,
 				59824A39DB8CA45EC1323726 /* PencilEstimatesTests.swift */,
 				C5AA859D671952F8943916D1 /* PencilInkTests.swift */,
+				B482E2B1DF4D65F493D006EA /* RealStrokeBenchmarkTests.swift */,
 				C58A88AAE207F5544C088D5C /* RepositoryCatalogTests.swift */,
 				2BEFB5FFC666C8AD680794AD /* ScribblePerformanceTests.swift */,
 				5DDBBDC3CA309B61BBDF4E16 /* ScrubberTests.swift */,
 				8C6CA8AE2045682013E613E6 /* ShapeTests.swift */,
+				E59A75E5C1571D5B562A3732 /* SymbolNetTests.swift */,
 				C004B3C2A5052E666E95988A /* SymbolRecognitionTests.swift */,
 				F774439CAB96F189D99FBBA6 /* SynthWriter.swift */,
 				D63E1AA610B0CE7819272789 /* ThemeTests.swift */,
@@ -637,10 +655,12 @@
 				9BC28203EE87614242F3B8FF /* PageDiffTests.swift in Sources */,
 				4CCE5AF05E383D1CC1D9FEC4 /* PencilEstimatesTests.swift in Sources */,
 				4829659B0A6615277BDC81EA /* PencilInkTests.swift in Sources */,
+				AF6C4E2A2EE07437E9323394 /* RealStrokeBenchmarkTests.swift in Sources */,
 				09A3CCC7CD2B29965035D363 /* RepositoryCatalogTests.swift in Sources */,
 				C749B4E2D92EDC728A6FF056 /* ScribblePerformanceTests.swift in Sources */,
 				7DABD64630190458F73E0643 /* ScrubberTests.swift in Sources */,
 				9669A46A095DCCDE46AB4F9A /* ShapeTests.swift in Sources */,
+				C516B41AFED21359E149C82E /* SymbolNetTests.swift in Sources */,
 				839D6C96CF3DD83C85656F09 /* SymbolRecognitionTests.swift in Sources */,
 				3E0F54020FFC48C93878EAEF /* SynthWriter.swift in Sources */,
 				40555B9AE0FA507BB0B60545 /* ThemeTests.swift in Sources */,
@@ -672,6 +692,7 @@
 				B1278694EAC63090BE61F2EB /* InkWidths.swift in Sources */,
 				FF8109C6E0E0654680FCCC82 /* LineReader.swift in Sources */,
 				1847B6051A23D921B4FC3E07 /* Models.swift in Sources */,
+				4042DA76170C95D31C0B3C11 /* NeuralSymbols.swift in Sources */,
 				4E999AB2836EE8A6925FA9C3 /* NotebookLayout.swift in Sources */,
 				C121720AD51294B1B8AD0F35 /* Pack.swift in Sources */,
 				7D7EA6D71C672EF446B68D67 /* PageDiff.swift in Sources */,
@@ -686,6 +707,9 @@
 				A43579F439E4E01D9F10DCE2 /* Shapes.swift in Sources */,
 				70983F5CE1C7B37D2D003C68 /* Storage.swift in Sources */,
 				F37A889FD2FF7D7F3C263230 /* SymbolClassifier.swift in Sources */,
+				6F3BD3BB6DA25666D01D1146 /* SymbolNet.swift in Sources */,
+				1047004B50A8651B3E2517C5 /* SymbolNetWeights.swift in Sources */,
+				7B4D2CD2BE2F996C66995826 /* SymbolRaster.swift in Sources */,
 				F0ACCA7B201D9F7999A4E32B /* Theme.swift in Sources */,
 				B74A2249797B9208302F73C1 /* ThemeBuiltIn.swift in Sources */,
 				2BA5A5BF940C394839DB21F5 /* ThemeFile.swift in Sources */,

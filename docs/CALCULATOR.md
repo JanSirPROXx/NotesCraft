@@ -1,6 +1,7 @@
 # Calculator Pen – Konzept und Plan
 
-Status: Phase 0 und 1 erledigt, Phase 2 als Template-Erkenner geliefert (an echter Handschrift noch nicht gemessen),
+Status: Phase 0 und 1 erledigt, Phase 2 als Template-Erkenner geliefert (an echter Handschrift noch nicht gemessen), dazu ein
+vortrainiertes Netz als Alternative (Phase 2b, an Stiftdaten fremder Schreiber gemessen),
 siehe Abschnitt 12.
 Ersetzt den Abschnitt "Calculator pen" in [`IDEAS.md`](IDEAS.md).
 
@@ -352,6 +353,64 @@ Test-Suite führt eine kleine Stichprobe mit denselben zwei Zusagen aus. Eine Le
 **Was ich von dir brauche, um die Schwellen an echte Schrift zu bringen:** im Trainer pro Zeichen 5 bis 10 Proben
 schreiben (Symbole), danach 20 bis 30 Rechnungen (Rechnungen), und die Datei über "Share samples" schicken oder
 ablegen. Daraus wird ein Benchmark an deiner Schrift, der die Schwellen festlegt.
+
+### Phase 2b: vortrainiertes Modell (geliefert), wählbar neben der eigenen Schrift
+
+Der Template-Erkenner liest auf echter Schrift schlecht, solange die eigenen Proben fehlen: Mit den Stock-Formen
+allein sind nur **64 %** der Ziffern von Schreibern, die er nie gesehen hat, richtig. Deshalb gibt es ein zweites,
+vortrainiertes Modell, das ohne Training funktioniert. Einstellungen ▸ Calculator pen wählt, womit der Stift liest
+(`Preferences.calculatorRecognition`, Standard: vortrainiert):
+
+| Wahl | Erkenner | Lernt aus |
+| --- | --- | --- |
+| Pretrained model | `PretrainedRecognizer` (`NeuralSymbolClassifier`) | öffentlichen Daten, siehe unten; deine Proben werden nicht gelesen |
+| My handwriting | `TemplateRecognizer` (`SymbolClassifier`) | Stock-Formen und deine Proben aus dem Trainer |
+
+Beide laufen durch denselben `LineReader` (Zerlegen in Symbole, Zeilenlayout, Grammatik, Konfidenz). Er fragt nur noch
+ein `SymbolClassifying`: welche Symbole die Striche sein können, wie sicher das ist, was die Lesung kostet.
+
+**Das Netz** (`SymbolNet.swift`, reines Swift, kein Core ML, damit es auf dem iPad und in `swift test` identisch läuft):
+zwei 3×3-Faltungen mit Pooling, zwei Dense-Schichten, 106 000 Zahlen (212 KB als float16). Eingabe ist ein 28×28-Bild
+der Striche eines Symbols, gebaut wie bei MNIST (`SymbolRaster.swift`: lange Seite auf 20 px, Schwerpunkt in die
+Mitte, 2,2 px Strichbreite). Ausgabe sind 17 Wahrscheinlichkeiten: die 16 Symbole und **"kein Symbol"** (zwei Symbole
+als eines geschnitten, Gekritzel, ein Schrägstrich). Diese Klasse ersetzt die feste Breitengrenze des Template-Lesers
+(`widestGroup`) und lässt den Leser eine schlechte Zerlegung von einer guten unterscheiden. Eine Ziffer gilt als
+sicher, wenn das Netz fast seine ganze Überzeugung auf sie legt (`NeuralSymbolClassifier.unsureGap`/`sureGap`);
+"kein Symbol" zählt dabei als Rivale wie jedes andere Symbol.
+
+**Woher die Zahlen kommen** (`scripts/symbols/train_symbols.py`, PyTorch, deterministisch für einen Seed, lädt nur
+diese zwei Datensätze):
+- **MNIST** (Y. LeCun et al., aus den NIST Special Databases 1 und 3): 60 000 Ziffernbilder. Es gibt keinen
+  ausdrücklichen Lizenztext; im Modell stecken nur Gewichte, keine Bilder.
+- **Pen-Based Recognition of Handwritten Digits** (E. Alpaydin, F. Alimoglu, UCI Machine Learning Repository,
+  **CC BY 4.0**, Namensnennung): Ziffern von 44 Schreibern mit einem Stift auf einem Tablet, als Striche. Die 30
+  Schreiber des Trainingsteils werden zum Training genutzt, die **14 anderen nie**.
+- Operatoren (`+ - × ÷ ( )`) und die Klasse "kein Symbol" werden in dem Skript als Striche gezeichnet (Neigung,
+  Streckung, Wellen, Zittern; Paare aus je zwei Symbolen, Gekritzel, Schrägstriche). Ein Minus darf bis etwa 20° kippen,
+  ein Schrägstrich ist erst ab 30° einer: beide Bereiche dürfen sich im Training nicht überlappen (das war der erste
+  Fehler: ein Minus wurde in der Hälfte der Fälle abgelehnt).
+- `SymbolRaster` und `render` im Skript sind derselbe Algorithmus; `SymbolNetTests` vergleicht beide an festen Strichen.
+  Ändert sich einer, muss der andere folgen und das Netz neu trainiert werden.
+
+**Gemessen** (nicht trainierte Schreiber, echte Stiftstriche; `NOTECRAFT_PENDIGITS=<pendigits-orig.tes> swift test -c release
+-Xswiftc -enable-testing --filter RealStroke`, die Datei ist `pendigits-orig.tes.Z` von archive.ics.uci.edu/dataset/81
+mit `gzip -d` entpackt):
+
+| | Vortrainiertes Modell | Stock-Formen |
+| --- | --- | --- |
+| einzelne Ziffern (3498 von 14 Schreibern) | **98,0 %** richtig, 1,2 % abgelehnt | 63,8 % richtig |
+| 300 Rechnungen aus diesen Ziffern und gezeichneten Operatoren | 228 richtig **und** sicher, 45 richtig aber unsicher (`?`), 8 falsch aber unsicher, 17 nicht gelesen, **2 falsch und sicher** | 0 richtig und sicher |
+
+Die zwei falschen und sicheren Lesungen waren beide eine 9, die als 7 gelesen wurde. Das Netz ist bei etwa 0,1 % der
+Ziffern sicher und falsch; das lässt sich mit Schwellen nicht wegbekommen (bei Konfidenz 0,9 bleiben 2 von 3498). Anders
+als beim Template-Leser (kein einziger sicherer Fehler in 900 synthetischen Rechnungen) ist das hier gemessen und
+nicht durch den Aufbau zugesichert; ein falsches Ergebnis lässt sich durch Tippen auf die Antwort korrigieren, und die
+Korrektur wird als Probe gemerkt. Auf den verbogenen Stock-Glyphen (`SymbolRecognitionTests`, 300 Rechnungen je Stärke):
+264 und 212 richtig und sicher, kein sicherer Fehler.
+
+**Noch nicht gemessen:** Schrift auf dem iPad mit dem Pencil. Die Daten stammen von einem Tablet aus den 1990ern (100-ms-Takt)
+und von Formularen von Angestellten und Schülern (NIST); Neigung, Tempo und Strichbreite des Pencils können abweichen. Auch Operatoren sind nur gezeichnet,
+nicht von Menschen geschrieben. Wer Ziffern häufiger falsch gelesen bekommt, wählt "My handwriting" und schreibt Proben.
 
 ## 13. Risiken
 

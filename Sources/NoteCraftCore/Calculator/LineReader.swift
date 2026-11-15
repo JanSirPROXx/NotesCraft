@@ -10,19 +10,14 @@ import Foundation
 // reading's confidence is that of its least certain symbol.
 
 public struct LineReader: Sendable {
-  let classifier: SymbolClassifier
+  // Says which symbols a few strokes may be: the template matcher, or the pretrained network.
+  let classifier: any SymbolClassifying
 
-  public init(classifier: SymbolClassifier) { self.classifier = classifier }
+  public init(classifier: any SymbolClassifying) { self.classifier = classifier }
 
-  // A group of strokes further than this from every template is no symbol of the alphabet.
-  static let farthest = 0.09
-  // A symbol whose nearest shape is this much nearer than the next one is certain.
+  // A symbol whose margin (see `SymbolCandidates`) is at least this is certain.
   static let certainMargin = 0.35
-  // What each symbol costs on top of its distance, so one clean symbol beats two bad halves.
-  static let groupCost = 0.03
   static let mostAmbiguous = 7
-  // A symbol this near its template is a good fit; the usual one is at 0.03.
-  static let goodFit = 0.055
 
   struct Piece {
     var char: String
@@ -51,8 +46,8 @@ public struct LineReader: Sendable {
     // calculation (a "1" and a "4" that are also one "4"), nobody can say which was written.
     for alternative in segmenter.alternatives(to: best) {
       // Only a cut that fits every one of its symbols well, and costs little more, is a rival.
-      guard alternative.cost <= best.cost + 0.06,
-        alternative.symbols.allSatisfy({ $0.options[0].distance <= Self.goodFit }),
+      guard alternative.cost <= best.cost + classifier.rivalSlack,
+        alternative.symbols.allSatisfy({ $0.options[0].distance <= classifier.goodFit }),
         let other = resolve(alternative.symbols, height: h), other.expression != reading.expression
       else { continue }
       reading.confidence = min(reading.confidence, 0.5)
@@ -140,7 +135,7 @@ public struct LineReader: Sendable {
           guard cost[start] < .infinity, start * 1000 + end != group,
             let symbol = symbol(start, end)
           else { continue }
-          let total = cost[start] + symbol.options[0].distance + LineReader.groupCost
+          let total = cost[start] + symbol.options[0].distance + reader.classifier.groupCost
           if total < cost[end] {
             cost[end] = total
             from[end] = start
@@ -170,7 +165,7 @@ public struct LineReader: Sendable {
       // Strokes of one symbol touch or nearly: each is within a quarter of a digit of the others.
       // The widest symbol of several strokes is about 0.6 of a digit's height; two symbols side by
       // side are wider than that.
-      guard b.width <= 0.85 * h, b.height <= 1.3 * h else { return nil }
+      guard b.width <= classifier.widestGroup * h, b.height <= 1.3 * h else { return nil }
       var joined = box(of: [group[0]])
       for stroke in group.dropFirst() {
         let r = box(of: [stroke])
@@ -183,23 +178,9 @@ public struct LineReader: Sendable {
           height: max(joined.y + joined.height, r.y + r.height) - y0)
       }
     }
-    let ranking = classifier.ranked(group)
-    guard let first = ranking.first, first.distance <= Self.farthest else { return nil }
-    var options: [Piece] = []
-    for (symbol, distance) in ranking.prefix(3) {
-      let char = symbol == "÷" ? "/" : symbol
-      // ÷ and / read alike; keep the better of the two once.
-      if options.contains(where: { $0.char == char }) { continue }
-      options.append(Piece(char: char, distance: distance))
-    }
-    let second = ranking.count > 1 ? ranking[1].distance : first.distance * 4
-    let margin = second > 0 ? max(0, (second - first.distance) / second) : 0
-    // A shape that is not clear keeps its runner-up, and a third that is as near.
-    var kept = [options[0]]
-    if margin < Self.certainMargin {
-      for option in options.dropFirst() where option.distance <= second * 1.0001 + 0.005 { kept.append(option) }
-    }
-    return Symbol(options: kept, margin: kept.count > 1 || margin >= Self.certainMargin ? margin : 1, box: b)
+    guard let found = classifier.candidates(group) else { return nil }
+    return Symbol(
+      options: found.options.map { Piece(char: $0.symbol, distance: $0.cost) }, margin: found.margin, box: b)
   }
 
   // MARK: reading the expression
@@ -327,7 +308,7 @@ public struct TemplateRecognizer: ExpressionRecognizing {
   public var version = 1
   private let reader: LineReader
 
-  public init(classifier: SymbolClassifier) { reader = LineReader(classifier: classifier) }
+  public init(classifier: any SymbolClassifying) { reader = LineReader(classifier: classifier) }
 
   // Stock shapes only, until there are samples of the reader's own hand.
   public init() { self.init(classifier: SymbolClassifier(templates: StockTemplates.make())) }

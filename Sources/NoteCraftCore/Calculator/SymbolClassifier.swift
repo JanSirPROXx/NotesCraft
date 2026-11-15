@@ -157,6 +157,70 @@ public final class SymbolClassifier: Sendable {
   }
 }
 
+// What a reader needs to know about a few strokes: which symbols they may be, how sure that is, and
+// how the cost of a reading is counted. The template matcher and the pretrained network both say
+// it, so the rest of the reading (cutting the strokes into symbols, the layout, the grammar) is
+// the same for both.
+public struct SymbolCandidate: Sendable, Equatable {
+  public var symbol: String
+  // What this reading costs, lower is better. Cuts of the strokes into symbols are compared by it.
+  public var cost: Double
+}
+
+public struct SymbolCandidates: Sendable, Equatable {
+  // Best first, never empty. More than one only where the shape is not clear.
+  public var options: [SymbolCandidate]
+  // 0 to 1, how much better the first is than anything else; `LineReader.certainMargin` and more is certain.
+  public var margin: Double
+}
+
+public protocol SymbolClassifying: Sendable {
+  // Nil when the strokes are no symbol of the alphabet (nothing drawn, or two symbols as one).
+  func candidates(_ strokes: [[Point]]) -> SymbolCandidates?
+  // What each symbol costs on top of its own cost, so one clean symbol beats two bad halves.
+  var groupCost: Double { get }
+  // A symbol at most this costly is a good fit.
+  var goodFit: Double { get }
+  // A cut of the strokes costing at most this much more than the best one is a rival reading.
+  var rivalSlack: Double { get }
+  // The widest a symbol of several strokes may be, in digit heights. A "5" with a long top bar is
+  // nearly as wide as it is tall; two symbols side by side are wider than a classifier that has no
+  // "not a symbol" class of its own can be allowed to look at.
+  var widestGroup: Double { get }
+}
+
+extension SymbolClassifier: SymbolClassifying {
+  // A group of strokes further than this from every template is no symbol of the alphabet.
+  static let farthest = 0.09
+
+  public var groupCost: Double { 0.03 }
+  // A symbol this near its template is a good fit; the usual one is at 0.03.
+  public var goodFit: Double { 0.055 }
+  public var rivalSlack: Double { 0.06 }
+  public var widestGroup: Double { 0.85 }
+
+  public func candidates(_ group: [[Point]]) -> SymbolCandidates? {
+    let ranking = ranked(group)
+    guard let first = ranking.first, first.distance <= Self.farthest else { return nil }
+    var options: [SymbolCandidate] = []
+    for (symbol, distance) in ranking.prefix(3) {
+      let char = symbol == "÷" ? "/" : symbol
+      // ÷ and / read alike; keep the better of the two once.
+      if options.contains(where: { $0.symbol == char }) { continue }
+      options.append(SymbolCandidate(symbol: char, cost: distance))
+    }
+    let second = ranking.count > 1 ? ranking[1].distance : first.distance * 4
+    let margin = second > 0 ? max(0, (second - first.distance) / second) : 0
+    // A shape that is not clear keeps its runner-up, and a third that is as near.
+    var kept = [options[0]]
+    if margin < LineReader.certainMargin {
+      for option in options.dropFirst() where option.cost <= second * 1.0001 + 0.005 { kept.append(option) }
+    }
+    return SymbolCandidates(
+      options: kept, margin: kept.count > 1 || margin >= LineReader.certainMargin ? margin : 1)
+  }
+}
+
 public enum StockTemplates {
   // Each stock glyph, bent out of shape a few times, so a template stands for how a symbol is
   // written and not for one drawing of it. Always the same set.

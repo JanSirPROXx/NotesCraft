@@ -36,6 +36,25 @@ struct SynthWriter {
     return (maxX - minX) * height * scale
   }
 
+  // Strokes that somebody really wrote, `height` tall at most, drawn at `origin` (its top left).
+  // Returns the width it took.
+  @discardableResult
+  mutating func write(strokes written: [[Point]], at origin: Point, height: Double) -> Double {
+    let all = written.flatMap { $0 }
+    let minX = all.map(\.x).min()!, maxX = all.map(\.x).max()!
+    let minY = all.map(\.y).min()!, maxY = all.map(\.y).max()!
+    let scale = height / max(maxY - minY, maxX - minX, 1e-9)
+    for stroke in written {
+      var s = Stroke(
+        samples: stroke.map {
+          Sample(point: Point(origin.x + ($0.x - minX) * scale, origin.y + ($0.y - minY) * scale))
+        }, color: .blue, width: 2.5, tool: .pen, style: .ballpoint)
+      s.calculator = true
+      strokes.append(s)
+    }
+    return (maxX - minX) * scale
+  }
+
   // A line of symbols: "12+3*4". Division is written as ÷.
   @discardableResult
   mutating func line(_ text: String, from x: Double, top: Double, scale: Double = 1) -> Double {
