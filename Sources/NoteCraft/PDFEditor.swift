@@ -271,5 +271,5 @@ import SwiftUI
 
 private enum PDFOpenError: LocalizedError {
   case wrongPassword
-  var errorDescription: String? { "The password is incorrect. Try again." }
+  var errorDescription: String? { tr("The password is incorrect. Try again.") }
 }

@@ -29,6 +29,8 @@ struct NoteDocument: FileDocument {
           Preferences.pullToAddPage, Preferences.showPageIndicator, Preferences.showZoomIndicator,
           Preferences.undoRedoPosition, Preferences.toolbarOrder, Preferences.toolbarHidden,
           Preferences.calculatorColor, Preferences.calculatorWidth, Preferences.calculatorIntroSeen,
+          Preferences.calculatorRecognition,
+          LanguageStore.defaultsKey,
           "appearanceTheme", "appearanceMode", "appearanceAccent", "appearanceSecondary",
           "savedStorages", "activeStorageID", "vaultBookmark", "readingPositions",
           "marketplaceAddress", "openDocuments",

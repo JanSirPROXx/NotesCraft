@@ -16,13 +16,13 @@ public enum ZipError: Error, Equatable, LocalizedError {
 
   public var errorDescription: String? {
     switch self {
-    case .notAZip: "This is not a pack file."
-    case .unsupported(let what): "The pack uses \(what), which is not supported."
-    case .unsafePath(let path): "The pack holds “\(path)”, a path that is not allowed."
-    case .duplicate(let path): "The pack holds “\(path)” twice."
-    case .tooLarge(let what): "\(what) is too large."
-    case .tooManyEntries: "The pack has too many files."
-    case .corrupt(let path): "“\(path)” in the pack is damaged."
+    case .notAZip: coreText("This is not a pack file.")
+    case .unsupported(let what): coreText("The pack uses \(what), which is not supported.")
+    case .unsafePath(let path): coreText("The pack holds “\(path)”, a path that is not allowed.")
+    case .duplicate(let path): coreText("The pack holds “\(path)” twice.")
+    case .tooLarge(let what): coreText("\(what) is too large.")
+    case .tooManyEntries: coreText("The pack has too many files.")
+    case .corrupt(let path): coreText("“\(path)” in the pack is damaged.")
     }
   }
 }
@@ -41,7 +41,7 @@ public enum ZipArchive {
 
   // All the files of an archive, by path. Folders are not listed.
   public static func read(_ data: Data, limits: ZipLimits = .pack) throws -> [String: Data] {
-    guard data.count <= limits.maxArchiveBytes else { throw ZipError.tooLarge("The pack") }
+    guard data.count <= limits.maxArchiveBytes else { throw ZipError.tooLarge(coreText("The pack")) }
     guard data.count >= 22 else { throw ZipError.notAZip }
     let bytes = [UInt8](data)
 
@@ -111,7 +111,7 @@ public enum ZipArchive {
       if compressed == 0xFFFF_FFFF || size == 0xFFFF_FFFF { throw ZipError.unsupported("zip64") }
       guard size <= limits.maxEntryBytes else { throw ZipError.tooLarge("“\(name)”") }
       total += size
-      guard total <= limits.maxTotalBytes else { throw ZipError.tooLarge("The pack") }
+      guard total <= limits.maxTotalBytes else { throw ZipError.tooLarge(coreText("The pack")) }
 
       // The data sits after the local header, whose own lengths of name and extra may differ.
       guard localOffset + 30 <= bytes.count, u32(localOffset) == 0x0403_4b50 else {

@@ -11,13 +11,13 @@ public enum PackError: Error, Equatable, LocalizedError {
 
   public var errorDescription: String? {
     switch self {
-    case .wrongSize: "The download is not the size the catalog promised."
-    case .wrongHash: "The download is not what the catalog promised, so it was thrown away."
-    case .noManifest: "The pack has no pack.json."
-    case .manifestDoesNotMatch(let what): "The pack says another \(what) than the catalog."
-    case .unexpectedFile(let path): "The pack holds “\(path)”, which does not belong in it."
-    case .wrongKind: "The pack is not of the kind it should be."
-    case .invalidContent(let why): "The pack is not valid: \(why)."
+    case .wrongSize: coreText("The download is not the size the catalog promised.")
+    case .wrongHash: coreText("The download is not what the catalog promised, so it was thrown away.")
+    case .noManifest: coreText("The pack has no pack.json.")
+    case .manifestDoesNotMatch(let what): coreText("The pack says another \(what) than the catalog.")
+    case .unexpectedFile(let path): coreText("The pack holds “\(path)”, which does not belong in it.")
+    case .wrongKind: coreText("The pack is not of the kind it should be.")
+    case .invalidContent(let why): coreText("The pack is not valid: \(why).")
     }
   }
 }

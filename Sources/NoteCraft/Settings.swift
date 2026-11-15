@@ -22,12 +22,88 @@ enum Preferences {
   static let calculatorColor = "calculatorColorHex"
   static let calculatorWidth = "calculatorWidth"
   static let calculatorIntroSeen = "calculatorIntroSeen"
+  static let calculatorRecognition = "calculatorRecognition"
+}
+
+// What the calculator pen reads handwriting with: the network that comes with the app, or shapes
+// that are matched against the symbols the reader taught it (docs/CALCULATOR.md).
+enum CalculatorRecognition: String, CaseIterable {
+  case pretrained, personal
+
+  var title: String { self == .pretrained ? tr("Pretrained model") : tr("My handwriting") }
+  var detail: String {
+    self == .pretrained
+      ? tr("Reads digits and operators out of the box. Nothing to teach.")
+      : tr("Reads with the symbols you write in the trainer, and basic shapes for the rest.")
+  }
+
+  // The choice as it is stored; without one the pretrained model reads.
+  static var current: CalculatorRecognition {
+    UserDefaults.standard.string(forKey: Preferences.calculatorRecognition)
+      .flatMap(CalculatorRecognition.init(rawValue:)) ?? .pretrained
+  }
 }
 
 // Where undo and redo sit in the bar that floats over the page.
 enum UndoRedoPosition: String, CaseIterable {
   case left, right
-  var title: String { self == .left ? "Left" : "Right" }
+  var title: String { self == .left ? tr("Left") : tr("Right") }
+}
+
+extension Theme {
+  // The themes that come with the app are named in the language that is chosen; one that was
+  // added keeps the name its author gave it.
+  var displayName: String {
+    switch id {
+    case "app.notecraft.classic": tr("Classic")
+    case "app.notecraft.sepia": tr("Sepia")
+    case "app.notecraft.mono": tr("Mono")
+    default: name
+    }
+  }
+}
+
+extension EraserMode {
+  var title: String {
+    switch self {
+    case .precision: tr("Precision")
+    case .stroke: tr("Stroke")
+    case .entireStroke: tr("Entire stroke")
+    }
+  }
+}
+
+extension PenStyle {
+  var title: String {
+    switch self {
+    case .fountain: tr("Fountain")
+    case .ballpoint: tr("Ballpoint")
+    case .brush: tr("Brush")
+    case .pencil: tr("Pencil")
+    }
+  }
+  var accessibilityName: String {
+    switch self {
+    case .fountain: tr("Fountain pen")
+    case .ballpoint: tr("Ballpoint pen")
+    case .brush: tr("Brush pen")
+    case .pencil: tr("Pencil")
+    }
+  }
+}
+
+extension VaultEntryKind {
+  var title: String {
+    switch self {
+    case .folder: tr("Folder")
+    case .notebook: tr("Notebook")
+    case .whiteboard: tr("Whiteboard")
+    case .pdf: tr("PDF")
+    case .markdown: tr("Text document")
+    case .image: tr("Image")
+    case .other: tr("File")
+    }
+  }
 }
 
 extension InkTool {
@@ -45,7 +121,20 @@ extension InkTool {
     case .readOnly: "hand.draw"
     }
   }
-  var title: String { self == .readOnly ? "Read only" : rawValue.capitalized }
+  var title: String {
+    switch self {
+    case .pen: tr("Pen")
+    case .eraser: tr("Eraser")
+    case .highlighter: tr("Highlighter")
+    case .shapes: tr("Shapes")
+    case .lasso: tr("Lasso")
+    case .elements: tr("Elements")
+    case .image: tr("Image")
+    case .text: tr("Text")
+    case .calculator: tr("Calculator")
+    case .readOnly: tr("Read only")
+    }
+  }
 }
 
 // What the library tells the settings about where the notebooks live.
@@ -73,6 +162,7 @@ struct SettingsView: View {
   @AppStorage(Preferences.stabilization) private var stabilization = 0.0
   @AppStorage(Preferences.undoRedoPosition) private var undoRedo = UndoRedoPosition.left
   @State private var trainer = false
+  @AppStorage(Preferences.calculatorRecognition) private var recognition = CalculatorRecognition.pretrained
 
   init(storage: SettingsStorage? = nil) { self.storage = storage }
 
@@ -84,12 +174,13 @@ struct SettingsView: View {
         gestureSection
         toolbarSection
         calculatorSection
+        languageSection
         appearanceSection
         if let storage { storageSection(storage) }
         marketplaceSection
         aboutSection
       }
-      .navigationTitle("Settings")
+      .navigationTitle(tr("Settings"))
       #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
       #endif
@@ -146,12 +237,18 @@ struct SettingsView: View {
     } header: {
       Text("Apple Pencil")
     } footer: {
-      Text(
-        (pencilOnly
-          ? "Apple Pencil writes and one finger moves the page. "
-          : "One finger draws and two fingers move the page. ")
-          + "Fast GPU ink draws the line you are writing on the GPU for the lowest latency. "
-          + "What a double tap or squeeze of the Pencil does follows Settings ▸ Apple Pencil.")
+      VStack(alignment: .leading, spacing: 6) {
+        if pencilOnly {
+          Text("Apple Pencil writes and one finger moves the page.")
+        } else {
+          Text("One finger draws and two fingers move the page.")
+        }
+        Text(
+          """
+          Fast GPU ink draws the line you are writing on the GPU for the lowest latency. \
+          What a double tap or squeeze of the Pencil does follows Settings ▸ Apple Pencil.
+          """)
+      }
     }
   }
 
@@ -168,9 +265,11 @@ struct SettingsView: View {
       Text("Pen and gestures")
     } footer: {
       Text(
-        "Hold the pen still at the end of a line to straighten it into a shape. Scribble over ink "
-          + "to erase it. Hold the pen still on a loop you drew to select what it encloses. "
-          + "Stabilization steadies the line you write.")
+        """
+        Hold the pen still at the end of a line to straighten it into a shape. Scribble over ink \
+        to erase it. Hold the pen still on a loop you drew to select what it encloses. \
+        Stabilization steadies the line you write.
+        """)
     }
   }
 
@@ -187,6 +286,23 @@ struct SettingsView: View {
 
   private var calculatorSection: some View {
     Section {
+      // Plain rows with a checkmark, like the languages: a Picker in this list is not safe on iPadOS 26.
+      ForEach(CalculatorRecognition.allCases, id: \.self) { choice in
+        Button {
+          recognition = choice
+        } label: {
+          HStack {
+            VStack(alignment: .leading, spacing: 2) {
+              Text(choice.title)
+              Text(choice.detail).font(.theme(.caption)).opacity(0.7)
+            }
+            Spacer()
+            if recognition == choice { Symbol("checkmark").foregroundStyle(Color.theme(.accent)) }
+          }.contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).accessibilityIdentifier("recognition-" + choice.rawValue)
+        .accessibilityAddTraits(recognition == choice ? .isSelected : [])
+      }
       Button {
         trainer = true
       } label: {
@@ -201,8 +317,33 @@ struct SettingsView: View {
       Text("Calculator pen")
     } footer: {
       Text(
-        "Write each symbol a few times and the pen reads your hand more surely. "
-          + "Samples stay on this iPad.")
+        "The pretrained model was trained on public handwriting and runs on this iPad. Write each symbol a few times in the trainer and choose My handwriting for a pen that reads your hand. Samples stay on this iPad.")
+    }
+  }
+
+  private var languageSection: some View {
+    let languages = LanguageStore.shared
+    return Section {
+      // Plain rows with a checkmark, not a Picker: a Picker (menu or page) here aborted the app on
+      // iPadOS 26 in UIKit's focus system after a language was chosen.
+      ForEach(AppLanguage.allCases) { language in
+        Button {
+          languages.select(language)
+        } label: {
+          HStack {
+            if let name = language.nativeName { Text(verbatim: name) } else { Text("System") }
+            Spacer()
+            if languages.selection == language { Symbol("checkmark").foregroundStyle(Color.theme(.accent)) }
+          }.contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).accessibilityIdentifier("language-" + language.rawValue)
+        .accessibilityAddTraits(languages.selection == language ? .isSelected : [])
+      }
+    } header: {
+      Text("Language")
+    } footer: {
+      Text(
+        "NotesCraft uses the language of this iPad unless you choose one here. What the system itself shows, such as the file picker, always follows the iPad.")
     }
   }
 
@@ -218,7 +359,7 @@ struct SettingsView: View {
       NavigationLink {
         ThemeGallery()
       } label: {
-        LabeledContent("Theme", value: store.current.name)
+        LabeledContent("Theme", value: store.current.displayName)
       }
       ColorPicker(
         "Accent color",
@@ -239,10 +380,11 @@ struct SettingsView: View {
     } header: {
       Text("Appearance")
     } footer: {
-      Text(
-        store.mode == .system
-          ? "Light or dark as the iPad is set. A theme that is only light or only dark keeps its own."
-          : "Themes change the colors, type and icons of the app, never what it does.")
+      if store.mode == .system {
+        Text("Light or dark as the iPad is set. A theme that is only light or only dark keeps its own.")
+      } else {
+        Text("Themes change the colors, type and icons of the app, never what it does.")
+      }
     }
   }
 
@@ -257,8 +399,10 @@ struct SettingsView: View {
       Text("Storage")
     } footer: {
       Text(
-        "Notebooks are plain .notecraft packages in the folder you chose, so Files, iCloud Drive "
-          + "and other apps can see and back them up.")
+        """
+        Notebooks are plain .notecraft packages in the folder you chose, so Files, iCloud Drive \
+        and other apps can see and back them up.
+        """)
     }
   }
 
@@ -332,7 +476,7 @@ struct ToolbarSettings: View {
           .disabled(layout.isStandard)
       }
     }
-    .navigationTitle("Customize toolbar")
+    .navigationTitle(tr("Customize toolbar"))
     #if os(iOS)
       .navigationBarTitleDisplayMode(.inline)
       .environment(\.editMode, .constant(.active))
@@ -356,7 +500,7 @@ struct ThemeGallery: View {
             HStack(spacing: 14) {
               ThemePreview(theme: theme)
               VStack(alignment: .leading, spacing: 2) {
-                Text(theme.name).font(.theme(.body)).foregroundStyle(.primary)
+                Text(theme.displayName).font(.theme(.body)).foregroundStyle(.primary)
                 Text(Self.detail(theme)).font(.theme(.caption)).foregroundStyle(.secondary)
               }
               Spacer(minLength: 0)
@@ -376,14 +520,16 @@ struct ThemeGallery: View {
         }
       } footer: {
         Text(
-          "A theme is a folder ending in .notecrafttheme with a theme.json, and the fonts and icons "
-            + "it names. Swipe an added theme to remove it.")
+          """
+          A theme is a folder ending in .notecrafttheme with a theme.json, and the fonts and icons \
+          it names. Swipe an added theme to remove it.
+          """)
       }
       Section {
         Button("Add a theme…") { importing = true }.accessibilityIdentifier("addTheme")
       }
     }
-    .navigationTitle("Theme")
+    .navigationTitle(tr("Theme"))
     #if os(iOS)
       .navigationBarTitleDisplayMode(.inline)
     #endif
@@ -394,7 +540,7 @@ struct ThemeGallery: View {
       } catch { message = error.localizedDescription }
     }
     .alert(
-      "This theme could not be added",
+      tr("This theme could not be added"),
       isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })
     ) {
       Button("OK") { message = nil }

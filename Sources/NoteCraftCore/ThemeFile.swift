@@ -15,17 +15,17 @@ public enum ThemeError: Error, Equatable, LocalizedError {
 
   public var errorDescription: String? {
     switch self {
-    case .notAThemeFile: "This is not a NotesCraft theme: there is no readable theme.json."
-    case .unsupportedFormat(let n): "This theme uses format \(n), which this version cannot read."
-    case .invalidID(let id): "“\(id)” is not a valid theme id (lowercase letters, digits, dots, dashes; 3 to 64 characters)."
-    case .missingName: "The theme has no name."
-    case .invalidColor(let token, let value): "The color “\(token)” is “\(value)”, which is not a color like #RRGGBB."
-    case .invalidIcon(let name): "The icon “\(name)” must be “symbol:name” or a path to an image."
-    case .invalidPath(let path): "“\(path)” points outside the theme."
-    case .unsupportedFile(let path): "“\(path)” is a kind of file a theme cannot hold."
-    case .missingFile(let path): "The theme names “\(path)”, which is not in it."
-    case .tooLarge(let what): "\(what) is too large for a theme."
-    case .tooManyFiles: "The theme has too many files."
+    case .notAThemeFile: coreText("This is not a NotesCraft theme: there is no readable theme.json.")
+    case .unsupportedFormat(let n): coreText("This theme uses format \(n), which this version cannot read.")
+    case .invalidID(let id): coreText("“\(id)” is not a valid theme id (lowercase letters, digits, dots, dashes; 3 to 64 characters).")
+    case .missingName: coreText("The theme has no name.")
+    case .invalidColor(let token, let value): coreText("The color “\(token)” is “\(value)”, which is not a color like #RRGGBB.")
+    case .invalidIcon(let name): coreText("The icon “\(name)” must be “symbol:name” or a path to an image.")
+    case .invalidPath(let path): coreText("“\(path)” points outside the theme.")
+    case .unsupportedFile(let path): coreText("“\(path)” is a kind of file a theme cannot hold.")
+    case .missingFile(let path): coreText("The theme names “\(path)”, which is not in it.")
+    case .tooLarge(let what): coreText("\(what) is too large for a theme.")
+    case .tooManyFiles: coreText("The theme has too many files.")
     }
   }
 }
@@ -189,7 +189,7 @@ public enum ThemePackage {
       files += 1
       bytes += values.fileSize ?? 0
       guard files <= maxFiles else { throw ThemeError.tooManyFiles }
-      guard bytes <= maxTotalBytes else { throw ThemeError.tooLarge("The package") }
+      guard bytes <= maxTotalBytes else { throw ThemeError.tooLarge(coreText("The package")) }
       let ext = url.pathExtension.lowercased()
       let allowed =
         relative == ThemeFile.fileName || fontExtensions.contains(ext)

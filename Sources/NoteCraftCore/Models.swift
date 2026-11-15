@@ -65,13 +65,13 @@ public enum PaperPattern: String, Codable, CaseIterable, Sendable {
   case blank, ruled, dotted, squared, planner, graph, fineGraph
   public var title: String {
     switch self {
-    case .blank: "Blank"
-    case .ruled: "Lined"
-    case .dotted: "Dotted"
-    case .squared: "Large squares"
-    case .planner: "Weekly planner"
-    case .graph: "Grid · 5 mm"
-    case .fineGraph: "Grid · 2.5 mm"
+    case .blank: coreText("Blank")
+    case .ruled: coreText("Lined")
+    case .dotted: coreText("Dotted")
+    case .squared: coreText("Large squares")
+    case .planner: coreText("Weekly planner")
+    case .graph: coreText("Grid · 5 mm")
+    case .fineGraph: coreText("Grid · 2.5 mm")
     }
   }
 }
@@ -95,11 +95,14 @@ public struct Paper: Codable, Equatable, Sendable {
     self.landscape = landscape
     self.color = color
   }
-  public static let colors: [(name: String, color: InkColor?)] = [
-    ("White", nil), ("Cream", InkColor(hex: "#FFF8E7")), ("Yellow", InkColor(hex: "#FEF7C3")),
-    ("Blue", InkColor(hex: "#E8F0FE")), ("Mint", InkColor(hex: "#E6F4EA")),
-    ("Gray", InkColor(hex: "#ECEFF1")),
-  ]
+  // A computed list, not a stored one, so the names follow the language that is chosen.
+  public static var colors: [(name: String, color: InkColor?)] {
+    [
+      (coreText("White"), nil), (coreText("Cream"), InkColor(hex: "#FFF8E7")),
+      (coreText("Yellow"), InkColor(hex: "#FEF7C3")), (coreText("Blue"), InkColor(hex: "#E8F0FE")),
+      (coreText("Mint"), InkColor(hex: "#E6F4EA")), (coreText("Gray"), InkColor(hex: "#ECEFF1")),
+    ]
+  }
   public var dimensions: Point {
     landscape ? Point(size.dimensions.y, size.dimensions.x) : size.dimensions
   }
@@ -359,7 +362,7 @@ public struct Notebook: Codable, Equatable, Sendable {
   public var title: String
   public var pages: [Page]
   public var revision: UInt64 = 0
-  public init(title: String = "Untitled notebook", pages: [Page] = [Page()]) {
+  public init(title: String = coreText("Untitled notebook"), pages: [Page] = [Page()]) {
     self.title = title
     self.pages = pages
   }

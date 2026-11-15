@@ -183,9 +183,9 @@ public enum VaultOperationError: LocalizedError {
   case invalidName, invalidDestination, destinationExists
   public var errorDescription: String? {
     switch self {
-    case .invalidName: return "Enter a name without slashes, colons or a leading dot."
-    case .invalidDestination: return "Choose a different folder inside your storage folder."
-    case .destinationExists: return "An item with this name already exists. Nothing was replaced."
+    case .invalidName: return coreText("Enter a name without slashes, colons or a leading dot.")
+    case .invalidDestination: return coreText("Choose a different folder inside your storage folder.")
+    case .destinationExists: return coreText("An item with this name already exists. Nothing was replaced.")
     }
   }
 }

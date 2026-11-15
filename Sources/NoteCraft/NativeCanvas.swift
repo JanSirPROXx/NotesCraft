@@ -2305,7 +2305,7 @@ extension DrawingView {
         if content.width <= size.width { offset.x = -insetX }
         if content.height <= size.height { offset.y = -spareY }
         if offset != scroll.contentOffset { scroll.contentOffset = offset }
-        scroll.accessibilityValue = "Zoom \(Int(scroll.zoomScale * 100)) percent"
+        scroll.accessibilityValue = tr("Zoom \(Int(scroll.zoomScale * 100)) percent")
         scroll.accessibilityIdentifier = "notebookZoomSurface"
       }
     }

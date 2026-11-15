@@ -40,7 +40,7 @@
       isHidden = true
       alpha = 0
       accessibilityIdentifier = "zoomIndicator"
-      accessibilityLabel = "Fit to width"
+      accessibilityLabel = tr("Fit to width")
       accessibilityTraits = .button
       addTarget(self, action: #selector(tapped), for: .touchUpInside)
     }
@@ -148,7 +148,7 @@
       thumb.isUserInteractionEnabled = false
       thumb.accessibilityIdentifier = "pageScrubber"
       thumb.isAccessibilityElement = true
-      thumb.accessibilityLabel = "Page scrubber"
+      thumb.accessibilityLabel = tr("Page scrubber")
       addSubview(thumb)
       let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterial))
       blur.isUserInteractionEnabled = false

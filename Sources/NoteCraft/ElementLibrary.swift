@@ -24,7 +24,7 @@ import SwiftUI
         var page = Page(paper: Paper(pattern: .blank))
         page.strokes = strokes
         let clip = try ElementClip.capture(
-          title: "Saved element", page: page,
+          title: tr("Saved element"), page: page,
           ids: Set(strokes.map(\.id)), assets: [:])
         try add(clip)
       }
@@ -141,7 +141,7 @@ struct ElementPicker: View {
       }.frame(maxHeight: 420)
     }.buttonStyle(.plain)
       .alert(
-        "Rename element",
+        tr("Rename element"),
         isPresented: Binding(get: { renamed != nil }, set: { if !$0 { renamed = nil } })
       ) {
         TextField("Name", text: $title)

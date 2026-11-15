@@ -106,7 +106,7 @@ public actor VaultFiles {
     let safe = title.components(separatedBy: CharacterSet(charactersIn: "/\\:\n\r")).joined(
       separator: " "
     ).trimmingCharacters(in: .whitespacesAndNewlines)
-    let name = safe.isEmpty ? "Untitled" : safe
+    let name = safe.isEmpty ? coreText("Untitled") : safe
     var index = 0
     while true {
       let url = folder.appendingPathComponent(name + (index == 0 ? "" : " \(index + 1)"))

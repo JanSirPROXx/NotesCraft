@@ -61,7 +61,7 @@ struct VaultRoot: View {
       } catch { vault.error = error.localizedDescription }
     }
     .alert(
-      "NotesCraft",
+      tr("NotesCraft"),
       isPresented: Binding(get: { vault.error != nil }, set: { if !$0 { vault.error = nil } })
     ) {
       Button("OK") { vault.error = nil }
@@ -138,6 +138,14 @@ struct Library: View {
   enum CreationKind: String, Identifiable {
     case notebook, whiteboard, markdown, folder
     var id: String { rawValue }
+    var newTitle: String {
+      switch self {
+      case .notebook: tr("New notebook")
+      case .whiteboard: tr("New whiteboard")
+      case .markdown: tr("New text document")
+      case .folder: tr("New folder")
+      }
+    }
   }
   private var filtered: [VaultEntry] {
     let result = (favoritesOnly ? vault.favoriteEntries : vault.entries).filter {
@@ -188,7 +196,7 @@ struct Library: View {
     .sheet(isPresented: $settingsSheet) {
       SettingsView(
         storage: SettingsStorage(
-          activeName: vault.storages.first { $0.id == vault.activeStorageID }?.name ?? "None",
+          activeName: vault.storages.first { $0.id == vault.activeStorageID }?.name ?? tr("None"),
           addFolder: chooseFolder))
     }
     .sheet(item: $renameEntry) { entry in LibraryRenameSheet(vault: vault, entry: entry) }
@@ -344,7 +352,7 @@ struct Library: View {
     ).overlay(RoundedRectangle(cornerRadius: .corner(24)).stroke(Color.theme(.separator), lineWidth: 1))
   }
   private func navigationItem(
-    _ text: String, symbol: String, selected: Bool, action: @escaping () -> Void
+    _ text: LocalizedStringKey, symbol: String, selected: Bool, action: @escaping () -> Void
   ) -> some View {
     Button(action: action) {
       Label { Text(text).lineLimit(1).minimumScaleFactor(0.8) } icon: { Symbol(symbol) }.font(
@@ -399,11 +407,11 @@ struct Library: View {
       }
       Text(
         trashVisible
-          ? "Trash"
+          ? tr("Trash")
           : favoritesOnly
-            ? "Favorites"
+            ? tr("Favorites")
             : vault.folder?.vaultPath == vault.root?.vaultPath
-              ? "Documents" : vault.folder?.lastPathComponent ?? "Documents"
+              ? tr("Documents") : vault.folder?.lastPathComponent ?? tr("Documents")
       ).font(.theme(32, .semibold)).lineLimit(1)
       Spacer()
       HStack(spacing: 10) {
@@ -490,7 +498,7 @@ struct Library: View {
       .background(Color.theme(.surface))
       .adaptiveWidth(420)
   }
-  private func newTile(_ title: String, _ symbol: String, _ kind: CreationKind) -> some View {
+  private func newTile(_ title: LocalizedStringKey, _ symbol: String, _ kind: CreationKind) -> some View {
     Button {
       begin(kind)
     } label: {
@@ -533,7 +541,7 @@ struct Library: View {
           .frame(maxWidth: .infinity)
       }.buttonStyle(.plain)
       HStack(spacing: 6) {
-        Text(entry.kind == .folder ? "Folder" : entry.kind.rawValue.capitalized).font(
+        Text(entry.kind.title).font(
           .system(size: 11)
         ).foregroundStyle(secondary)
         entryMenu(entry)
@@ -551,7 +559,7 @@ struct Library: View {
           VaultCover(entry: entry).frame(width: 48, height: 54)
           VStack(alignment: .leading, spacing: 5) {
             Text(entry.title).font(.theme(16))
-            Text(entry.kind.rawValue.capitalized).font(.theme(.caption)).foregroundStyle(secondary)
+            Text(entry.kind.title).font(.theme(.caption)).foregroundStyle(secondary)
           }
           Spacer()
           Text(entry.modified.formatted(date: .abbreviated, time: .shortened)).font(.theme(.caption))
@@ -707,13 +715,13 @@ private struct VaultCreationSheet: View {
     _paper = State(initialValue: Paper(pattern: kind == .whiteboard ? .blank : .ruled))
     _title = State(
       initialValue: kind == .folder
-        ? "New folder"
+        ? tr("New folder")
         : kind == .whiteboard
-          ? "Untitled Whiteboard" : kind == .markdown ? "Untitled" : "Untitled Notebook")
+          ? tr("Untitled Whiteboard") : kind == .markdown ? tr("Untitled") : tr("Untitled Notebook"))
   }
   var body: some View {
     VStack(alignment: .leading, spacing: 22) {
-      Text("New \(kind.rawValue.capitalized)").font(.theme(.title2).bold())
+      Text(kind.newTitle).font(.theme(.title2).bold())
       TextField("Name", text: $title).textFieldStyle(.roundedBorder)
       // The name field stays outside the scroll view: with the keyboard up the sheet shrinks and
       // only the options scroll, so what is typed never moves out of sight.

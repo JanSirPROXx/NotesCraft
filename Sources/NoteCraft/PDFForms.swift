@@ -23,7 +23,7 @@ struct PDFFormField: Identifiable {
         annotation.widgetFieldType == .button && annotation.widgetControlType == .checkBoxControl
       guard text || choice || checkbox else { return nil }
       return PDFFormField(
-        annotationIndex: index, name: annotation.fieldName ?? "Field \(index + 1)",
+        annotationIndex: index, name: annotation.fieldName ?? tr("Field \(index + 1)"),
         checkbox: checkbox, choices: annotation.choices ?? [],
         value: annotation.widgetStringValue ?? "",
         checked: annotation.buttonWidgetState == .onState)
@@ -75,7 +75,7 @@ struct PDFFormsSheet: View {
           } else if !field.choices.isEmpty {
             Picker(field.name, selection: $field.value) {
               if !field.choices.contains(field.value) {
-                Text(field.value.isEmpty ? "Choose…" : field.value).tag(field.value)
+                Text(field.value.isEmpty ? tr("Choose…") : field.value).tag(field.value)
               }
               ForEach(field.choices, id: \.self) { Text($0).tag($0) }
             }
@@ -84,7 +84,7 @@ struct PDFFormsSheet: View {
           }
         }
         if let error { Text(error).foregroundStyle(.red) }
-      }.navigationTitle("PDF form fields")
+      }.navigationTitle(tr("PDF form fields"))
         .toolbar {
           ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
           ToolbarItem(placement: .confirmationAction) {

@@ -19,9 +19,9 @@ enum AppearanceMode: String, CaseIterable {
   case system, light, dark
   var title: String {
     switch self {
-    case .system: "System"
-    case .light: "Light"
-    case .dark: "Dark"
+    case .system: tr("System")
+    case .light: tr("Light")
+    case .dark: tr("Dark")
     }
   }
 }
@@ -298,7 +298,7 @@ enum ThemeInstallError: LocalizedError {
   case reservedID(String)
   var errorDescription: String? {
     switch self {
-    case .reservedID(let id): "“\(id)” belongs to the themes that come with the app. Choose another id."
+    case .reservedID(let id): tr("“\(id)” belongs to the themes that come with the app. Choose another id.")
     }
   }
 }
@@ -351,9 +351,9 @@ extension Image {
 
 // A title and an icon, with the icon the theme's.
 struct ThemedLabel: View {
-  let title: String
+  let title: LocalizedStringKey
   let symbol: String
-  init(_ title: String, _ symbol: String) {
+  init(_ title: LocalizedStringKey, _ symbol: String) {
     self.title = title
     self.symbol = symbol
   }
@@ -372,7 +372,10 @@ struct ThemedRoot<Content: View>: View {
   init(@ViewBuilder content: () -> Content) { self.content = content() }
   var body: some View {
     let store = ThemeStore.shared
+    let language = LanguageStore.shared
     content
+      // The language chosen in Settings, for every text SwiftUI looks up itself.
+      .environment(\.locale, language.locale)
       .preferredColorScheme(store.preferredColorScheme)
       .onAppear { store.refreshSystemScheme() }
       .onChange(of: colorScheme) { store.refreshSystemScheme() }

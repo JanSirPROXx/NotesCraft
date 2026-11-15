@@ -60,7 +60,7 @@ struct Workspace: View {
   @State private var elements = ElementLibrary.shared
   @State private var sticker: StickerChoice?
   @State private var saveElementSheet = false
-  @State private var elementName = "Element"
+  @State private var elementName = tr("Element")
   @State private var fillShapes = false
   // The shape the shapes tool inserts; nil keeps freehand drawing that snaps to exact shapes.
   @State private var shapeKind: ShapeKind?
@@ -359,9 +359,12 @@ struct Workspace: View {
     .sheet(isPresented: $appSettings) { SettingsView() }
     .sheet(isPresented: $templateSheet) {
       TemplatePicker(
-        initialPaper: page.paper,
-        onCreate: { paper in appendPage(Page(paper: paper)) },
-        onTemplate: { package in addPages(of: package) })
+        initialPaper: page.paper, pageNumber: activePage + 1,
+        // A PDF page keeps its own size: a blank sheet between two of them must not be an A4 in a
+        // book of letter pages.
+        sizeToMatch: page.backgroundPDF != nil ? page.dimensions : nil,
+        onCreate: { next, position in insertPage(next, position) },
+        onTemplate: { package, position in addPages(of: package, position) })
     }
     .sheet(isPresented: $paperSheet) {
       PaperBackgroundSheet(
@@ -464,14 +467,14 @@ struct Workspace: View {
     ) { result in if case .failure(let error) = result { errorMessage = error.localizedDescription }
     }
     .alert(
-      "Unable to complete the operation",
+      tr("Unable to complete the operation"),
       isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
     ) {
       Button("OK") { errorMessage = nil }
     } message: {
       Text(errorMessage ?? "")
     }
-    .alert("Notebook title", isPresented: $renameSheet) {
+    .alert(tr("Notebook title"), isPresented: $renameSheet) {
       TextField("Title", text: $titleDraft)
       Button("Cancel", role: .cancel) {}
       Button("Rename") { edit { $0.notebook.title = titleDraft } }
@@ -656,7 +659,7 @@ struct Workspace: View {
       },
       previousPage: { activePage = max(0, activePage - 1) },
       nextPage: { activePage = min(notebook.pages.count - 1, activePage + 1) },
-      addPage: { appendPage(InkGestures.blankPage(matching: page)) },
+      addPage: { insertPage(InkGestures.blankPage(matching: page), .after) },
       fitToWidth: { fitRequest += 1 },
       canGoBack: activePage > 0,
       canGoForward: activePage < notebook.pages.count - 1)
@@ -737,7 +740,7 @@ struct Workspace: View {
             }.frame(width: 26, height: 26).hitTarget(width: 46)
               .background(Color.theme(.quickBarText).opacity(0.2), in: RoundedRectangle(cornerRadius: .corner(7)))
           }
-          .accessibilityLabel("Shape: \(shapeKind?.title ?? "Freehand")")
+          .accessibilityLabel(tr("Shape: \(shapeKind?.title ?? tr("Freehand"))"))
           .popover(isPresented: $shapesPalette) {
             ShapePalette(selection: $shapeKind) { shapesPalette = false }
               .presentationCompactAdaptation(.popover)
@@ -759,7 +762,7 @@ struct Workspace: View {
               .background(
                 penStyle == style ? Color.theme(.secondaryAccent).opacity(0.35) : .clear,
                 in: RoundedRectangle(cornerRadius: .corner(7)))
-            }.accessibilityLabel(style == .pencil ? "Pencil" : style.rawValue.capitalized + " pen")
+            }.accessibilityLabel(style.accessibilityName)
           }
         }
         Divider().frame(height: 24)
@@ -774,7 +777,7 @@ struct Workspace: View {
           Button {
             eraserMode = mode
           } label: {
-            Text(mode.rawValue.capitalized).padding(.horizontal, 10).frame(height: 44)
+            Text(mode.title).padding(.horizontal, 10).frame(height: 44)
               .contentShape(Rectangle())
           }.foregroundStyle(
             eraserMode == mode ? Color.theme(.secondaryAccent) : Color.theme(.quickBarText))
@@ -802,7 +805,7 @@ struct Workspace: View {
       switch tool {
       case .pen:
         Picker("Pen style", selection: $penStyle) {
-          ForEach(PenStyle.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+          ForEach(PenStyle.allCases, id: \.self) { Text($0.title).tag($0) }
         }.pickerStyle(.segmented)
         if penStyle == .fountain {
           PenTipSettings(
@@ -825,7 +828,7 @@ struct Workspace: View {
           "Preset 3: \(thirdWidth.pointLabel) pt", value: $thirdWidth, in: 0.5...12, step: 0.1)
       case .eraser:
         Picker("Mode", selection: $eraserMode) {
-          ForEach(EraserMode.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+          ForEach(EraserMode.allCases, id: \.self) { Text($0.title).tag($0) }
         }
         Toggle("Erase highlighter only", isOn: $highlighterOnly)
         Toggle("Auto-deselect", isOn: $autoDeselect)
@@ -904,7 +907,7 @@ struct Workspace: View {
                 if p.bookmarked { Symbol("bookmark.fill") }
               }.font(.theme(.caption))
             }
-          }.buttonStyle(.plain).accessibilityLabel("Page \(index + 1)")
+          }.buttonStyle(.plain).accessibilityLabel(tr("Page \(index + 1)"))
             .accessibilityAddTraits(index == activePage ? .isSelected : [])
             .accessibilityIdentifier("pageThumbnail-\(index)").contextMenu {
               Button("Insert page after") {
@@ -1203,11 +1206,19 @@ struct Workspace: View {
     let next = InkGestures.blankPage(matching: last)
     trailingPage = next
   }
-  // The pages of an installed template, after the page you are on.
-  private func addPages(of template: NotebookPackage) {
+  // The pages of an installed template, where the reader chose to put them.
+  private func addPages(of template: NotebookPackage, _ position: PageInsertion) {
     var first: Int?
-    edit { first = try? $0.insertPages(of: template, after: activePage) }
+    let current = activePage
+    edit { first = try? $0.insertPages(of: template, after: position.following(current: current)) }
     if let first { activePage = first }
+  }
+  // A new page where the reader is: between two pages of a PDF as well as after the last one.
+  private func insertPage(_ next: Page, _ position: PageInsertion) {
+    var index = 0
+    let current = activePage
+    edit { index = $0.notebook.insertPage(next, position, current: current) }
+    activePage = index
   }
   private func appendPage(_ next: Page) {
     edit { $0.notebook.pages.append(next) }
@@ -1219,7 +1230,7 @@ struct Workspace: View {
     return result
   }
   private func menuRow(
-    _ title: String, _ symbol: String, role: ButtonRole? = nil, disabled: Bool = false,
+    _ title: LocalizedStringKey, _ symbol: String, role: ButtonRole? = nil, disabled: Bool = false,
     action: @escaping () -> Void
   ) -> some View {
     Button(role: role) {
@@ -1311,7 +1322,7 @@ struct Workspace: View {
         }
         Divider().padding(.vertical, 4)
         menuRow("Save as element", "star.square") {
-          elementName = "Element \(elements.clips.count + 1)"
+          elementName = tr("Element \(elements.clips.count + 1)")
           selectionMenuPresented = false
           saveElementSheet = true
         }
@@ -1480,7 +1491,7 @@ struct Workspace: View {
                   Text("Page \(result.pageNumber)").font(.theme(.caption).bold())
                   Text(result.snippet).font(.theme(.caption)).lineLimit(2)
                 }.frame(width: 190, alignment: .leading)
-              }.buttonStyle(.plain).accessibilityLabel("Search result page \(result.pageNumber)")
+              }.buttonStyle(.plain).accessibilityLabel(tr("Search result page \(result.pageNumber)"))
             }
           }
         }.frame(maxHeight: 48)
@@ -2025,20 +2036,29 @@ struct TemplatePicker: View {
   @State private var size: PaperSize = .a4
   @State private var landscape = false
   @State private var color: InkColor?
-  let onCreate: (Paper) -> Void
-  let onTemplate: (NotebookPackage) -> Void
+  @State private var position = PageInsertion.after
+  @State private var matchSize = true
+  let pageNumber: Int
+  // The size of the page being read when it is a PDF page: the new page can take it.
+  let sizeToMatch: Point?
+  let onCreate: (Page, PageInsertion) -> Void
+  let onTemplate: (NotebookPackage, PageInsertion) -> Void
   @State private var templateError: String?
   init(
-    initialPaper: Paper = Paper(), onCreate: @escaping (Paper) -> Void,
-    onTemplate: @escaping (NotebookPackage) -> Void = { _ in }
+    initialPaper: Paper = Paper(), pageNumber: Int = 1, sizeToMatch: Point? = nil,
+    onCreate: @escaping (Page, PageInsertion) -> Void,
+    onTemplate: @escaping (NotebookPackage, PageInsertion) -> Void = { _, _ in }
   ) {
     _pattern = State(initialValue: initialPaper.pattern)
     _size = State(initialValue: initialPaper.size)
     _landscape = State(initialValue: initialPaper.landscape)
     _color = State(initialValue: initialPaper.color)
+    self.pageNumber = pageNumber
+    self.sizeToMatch = sizeToMatch
     self.onCreate = onCreate
     self.onTemplate = onTemplate
   }
+  private var takesSize: Bool { sizeToMatch != nil && matchSize }
   var body: some View {
     VStack(alignment: .leading, spacing: 22) {
       HStack {
@@ -2046,15 +2066,25 @@ struct TemplatePicker: View {
         Spacer()
         Button("Cancel") { dismiss() }
       }
+      Picker("Where", selection: $position) {
+        Text("Before page \(pageNumber)").tag(PageInsertion.before)
+        Text("After page \(pageNumber)").tag(PageInsertion.after)
+        Text("At the end").tag(PageInsertion.end)
+      }.pickerStyle(.segmented).accessibilityIdentifier("pagePosition")
       templates
+      if sizeToMatch != nil {
+        Toggle("Same size as this PDF page", isOn: $matchSize).accessibilityIdentifier("matchPageSize")
+      }
       Picker("Paper size", selection: $size) {
         ForEach(PaperSize.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-      }.pickerStyle(.segmented)
-      Toggle("Landscape", isOn: $landscape)
+      }.pickerStyle(.segmented).disabled(takesSize)
+      Toggle("Landscape", isOn: $landscape).disabled(takesSize)
       PaperPatternPicker(pattern: $pattern, color: color)
       PaperColorRow(color: $color)
       Button("Add page") {
-        onCreate(Paper(size: size, pattern: pattern, landscape: landscape, color: color))
+        var next = Page(paper: Paper(size: size, pattern: pattern, landscape: landscape, color: color))
+        if takesSize { next.backgroundSize = sizeToMatch }
+        onCreate(next, position)
         dismiss()
       }.buttonStyle(.themedProminent).frame(maxWidth: .infinity, alignment: .trailing)
         .accessibilityIdentifier("confirmAddPage")
@@ -2077,7 +2107,7 @@ extension TemplatePicker {
             ForEach(store.templates) { pack in
               Button {
                 do {
-                  onTemplate(try store.notebook(of: pack.id))
+                  onTemplate(try store.notebook(of: pack.id), position)
                   dismiss()
                 } catch { templateError = error.localizedDescription }
               } label: {
@@ -2207,9 +2237,9 @@ enum ScribbleHintMode: String, CaseIterable {
   case off, sometimes, always
   var title: String {
     switch self {
-    case .off: "Off"
-    case .sometimes: "When unsure"
-    case .always: "Always"
+    case .off: tr("Off")
+    case .sometimes: tr("When unsure")
+    case .always: tr("Always")
     }
   }
   func shows(for certainty: InkGestures.ScratchOutcome.Certainty) -> Bool {

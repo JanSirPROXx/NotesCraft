@@ -310,7 +310,7 @@
       }
       scroll.contentOffset = clamped(offset)
       laidOut = true
-      scroll.accessibilityValue = "Zoom \(Int((zoom * 100).rounded())) percent"
+      scroll.accessibilityValue = tr("Zoom \(Int((zoom * 100).rounded())) percent")
       // The pages are drawn at the size they now have, not the one they had.
       if refresh { refreshHosts() } else { syncHosts() }
       place = currentPlace()
@@ -528,7 +528,7 @@
       guard !restoring else { return }
       updateInsets()
       syncHosts()
-      scroll.accessibilityValue = "Zoom \(Int((zoom * 100).rounded())) percent"
+      scroll.accessibilityValue = tr("Zoom \(Int((zoom * 100).rounded())) percent")
       if props?.showsZoomIndicator != false { zoomIndicator.show(zoom: Double(zoom)) }
     }
 

@@ -69,9 +69,9 @@ public enum Calculator {
     // A reading that is a real calculation without an answer says so; one that is no calculation
     // at all (a stroke gone wrong) is a question mark, never a made-up number.
     case .failure(.divisionByZero), .failure(.undefined):
-      return CalculationOutcome(text: "undefined", state: .done, expression: expression)
+      return CalculationOutcome(text: coreText("undefined"), state: .done, expression: expression)
     case .failure(.overflow):
-      return CalculationOutcome(text: "too large", state: .done, expression: expression)
+      return CalculationOutcome(text: coreText("too large"), state: .done, expression: expression)
     case .failure: return unsure()
     }
   }

@@ -1,0 +1,520 @@
+# One text per line: English key ‖ Deutsch ‖ Français ‖ Español ‖ Italiano
+# Placeholders (%@, %lld) must stay as they are; \n is a line break. `python3 scripts/l10n.py check` verifies this.
+%@ by %@ ‖ %@ von %@ ‖ %@ par %@ ‖ %@ de %@ ‖ %@ di %@
+%@ is too large for a theme. ‖ %@ ist zu groß für ein Theme. ‖ %@ est trop volumineux pour un thème. ‖ %@ es demasiado grande para un tema. ‖ %@ è troppo grande per un tema.
+%@ is too large. ‖ %@ ist zu groß. ‖ %@ est trop volumineux. ‖ %@ es demasiado grande. ‖ %@ è troppo grande.
+%@ paper ‖ Papier %@ ‖ Papier %@ ‖ Papel %@ ‖ Carta %@
+%lld items ‖ %lld Objekte ‖ %lld éléments ‖ %lld elementos ‖ %lld elementi
+%lld selected ‖ %lld ausgewählt ‖ %lld sélectionné(s) ‖ %lld seleccionado(s) ‖ %lld selezionato/i
+%lld symbols and %lld calculations saved ‖ %lld Symbole und %lld Rechnungen gespeichert ‖ %lld symboles et %lld calculs enregistrés ‖ %lld símbolos y %lld cálculos guardados ‖ %lld simboli e %lld calcoli salvati
+A theme is a folder ending in .notecrafttheme with a theme.json, and the fonts and icons it names. Swipe an added theme to remove it. ‖ Ein Theme ist ein Ordner mit der Endung .notecrafttheme, einer theme.json und den darin genannten Schriften und Symbolen. Wische über ein hinzugefügtes Theme, um es zu entfernen. ‖ Un thème est un dossier se terminant par .notecrafttheme, avec un fichier theme.json et les polices et icônes qu’il cite. Balayez un thème ajouté pour le supprimer. ‖ Un tema es una carpeta que termina en .notecrafttheme con un theme.json, y las fuentes e iconos que nombra. Desliza un tema añadido para quitarlo. ‖ Un tema è una cartella che termina con .notecrafttheme, con un theme.json e i font e le icone che indica. Scorri su un tema aggiunto per rimuoverlo.
+About ‖ Info ‖ À propos ‖ Acerca de ‖ Informazioni
+Accent color ‖ Akzentfarbe ‖ Couleur d’accent ‖ Color de acento ‖ Colore principale
+Actions for %@ ‖ Aktionen für %@ ‖ Actions pour %@ ‖ Acciones para %@ ‖ Azioni per %@
+Add a theme… ‖ Theme hinzufügen … ‖ Ajouter un thème… ‖ Añadir un tema… ‖ Aggiungi un tema…
+1 pack ‖ 1 Paket ‖ 1 pack ‖ 1 paquete ‖ 1 pacchetto
+%lld packs ‖ %lld Pakete ‖ %lld packs ‖ %lld paquetes ‖ %lld pacchetti
+Add Page ‖ Seite hinzufügen ‖ Ajouter une page ‖ Añadir página ‖ Aggiungi pagina
+Add page ‖ Seite hinzufügen ‖ Ajouter une page ‖ Añadir página ‖ Aggiungi pagina
+Add pages by pulling or swiping past the last one ‖ Seiten durch Ziehen oder Wischen über die letzte hinaus hinzufügen ‖ Ajouter des pages en tirant ou en balayant au-delà de la dernière ‖ Añadir páginas tirando o deslizando más allá de la última ‖ Aggiungi pagine trascinando o scorrendo oltre l’ultima
+Add storage ‖ Speicher hinzufügen ‖ Ajouter un stockage ‖ Añadir almacenamiento ‖ Aggiungi archivio
+Add storage folder ‖ Speicherordner hinzufügen ‖ Ajouter un dossier de stockage ‖ Añadir carpeta de almacenamiento ‖ Aggiungi cartella di archiviazione
+Add storage folder… ‖ Speicherordner hinzufügen … ‖ Ajouter un dossier de stockage… ‖ Añadir carpeta de almacenamiento… ‖ Aggiungi cartella di archiviazione…
+Add text ‖ Text hinzufügen ‖ Ajouter du texte ‖ Añadir texto ‖ Aggiungi testo
+Alignment ‖ Ausrichtung ‖ Alignement ‖ Alineación ‖ Allineamento
+All %lld items will be permanently deleted. This cannot be undone. ‖ Alle %lld Objekte werden endgültig gelöscht. Das lässt sich nicht rückgängig machen. ‖ Les %lld éléments seront définitivement supprimés. Cette action est irréversible. ‖ Los %lld elementos se eliminarán de forma permanente. Esta acción no se puede deshacer. ‖ Tutti i %lld elementi verranno eliminati definitivamente. L’operazione non può essere annullata.
+All ‖ Alle ‖ Toutes ‖ Todas ‖ Tutte
+All kinds ‖ Alle Arten ‖ Tous les types ‖ Todos los tipos ‖ Tutti i tipi
+Always ‖ Immer ‖ Toujours ‖ Siempre ‖ Sempre
+An item with this name already exists. Nothing was replaced. ‖ Ein Objekt mit diesem Namen existiert bereits. Es wurde nichts ersetzt. ‖ Un élément portant ce nom existe déjà. Rien n’a été remplacé. ‖ Ya existe un elemento con este nombre. No se ha reemplazado nada. ‖ Esiste già un elemento con questo nome. Non è stato sostituito nulla.
+An open canvas with two-finger pan and pinch zoom. ‖ Eine offene Fläche zum Verschieben mit zwei Fingern und Zoomen per Pinch-Geste. ‖ Un espace libre à déplacer à deux doigts et à zoomer par pincement. ‖ Un lienzo abierto con desplazamiento a dos dedos y zoom de pellizco. ‖ Una tela aperta da spostare con due dita e ingrandire con il pizzico.
+Animation: 12 × 3 = is written, lights up, and 36 appears next to it. ‖ Animation: 12 × 3 = wird geschrieben, leuchtet auf, und daneben erscheint 36. ‖ Animation : 12 × 3 = s’écrit, s’illumine, et 36 apparaît à côté. ‖ Animación: se escribe 12 × 3 =, se ilumina y aparece 36 al lado. ‖ Animazione: viene scritto 12 × 3 =, si illumina e accanto compare 36.
+Appearance ‖ Erscheinungsbild ‖ Apparence ‖ Apariencia ‖ Aspetto
+Apple Pencil ‖ Apple Pencil ‖ Apple Pencil ‖ Apple Pencil ‖ Apple Pencil
+Apple Pencil only ‖ Nur Apple Pencil ‖ Apple Pencil uniquement ‖ Solo Apple Pencil ‖ Solo Apple Pencil
+Apple Pencil writes and one finger moves the page. ‖ Der Apple Pencil schreibt, ein Finger bewegt die Seite. ‖ L’Apple Pencil écrit et un doigt déplace la page. ‖ El Apple Pencil escribe y un dedo mueve la página. ‖ L’Apple Pencil scrive e un dito sposta la pagina.
+Apply ‖ Anwenden ‖ Appliquer ‖ Aplicar ‖ Applica
+Apply to all non-PDF pages ‖ Auf alle Seiten ohne PDF anwenden ‖ Appliquer à toutes les pages non PDF ‖ Aplicar a todas las páginas que no son PDF ‖ Applica a tutte le pagine non PDF
+Arrow ‖ Pfeil ‖ Flèche ‖ Flecha ‖ Freccia
+Auto-deselect ‖ Automatisch abwählen ‖ Désélection automatique ‖ Deseleccionar automáticamente ‖ Deseleziona automaticamente
+Background ‖ Hintergrund ‖ Arrière-plan ‖ Fondo ‖ Sfondo
+Ballpoint ‖ Kugelschreiber ‖ Stylo à bille ‖ Bolígrafo ‖ Penna a sfera
+Ballpoint pen ‖ Kugelschreiber ‖ Stylo à bille ‖ Bolígrafo ‖ Penna a sfera
+Blank ‖ Blanko ‖ Vierge ‖ En blanco ‖ Bianco
+Block arrow ‖ Blockpfeil ‖ Flèche pleine ‖ Flecha de bloque ‖ Freccia a blocco
+Blue ‖ Blau ‖ Bleu ‖ Azul ‖ Blu
+Bookmark ‖ Lesezeichen ‖ Signet ‖ Marcador ‖ Segnalibro
+Bookmark a page using the bookmark button. ‖ Setze mit der Lesezeichen-Taste ein Lesezeichen auf eine Seite. ‖ Ajoutez un signet à une page avec le bouton de signet. ‖ Marca una página con el botón de marcador. ‖ Aggiungi un segnalibro a una pagina con il pulsante segnalibro.
+Bookmark page ‖ Seite mit Lesezeichen versehen ‖ Placer un signet sur la page ‖ Marcar página ‖ Aggiungi segnalibro alla pagina
+Bookmarks ‖ Lesezeichen ‖ Signets ‖ Marcadores ‖ Segnalibri
+Border ‖ Rahmen ‖ Bordure ‖ Borde ‖ Bordo
+Box width ‖ Boxbreite ‖ Largeur de la zone ‖ Ancho del cuadro ‖ Larghezza del riquadro
+Bring to front ‖ In den Vordergrund ‖ Mettre au premier plan ‖ Traer al frente ‖ Porta in primo piano
+Brush ‖ Pinsel ‖ Pinceau ‖ Pincel ‖ Pennello
+Brush pen ‖ Pinselstift ‖ Stylo pinceau ‖ Pluma de pincel ‖ Penna a pennello
+Calculation ‖ Rechnung ‖ Calcul ‖ Cálculo ‖ Calcolo
+Calculations ‖ Rechnungen ‖ Calculs ‖ Cálculos ‖ Calcoli
+Calculator ‖ Rechner ‖ Calculatrice ‖ Calculadora ‖ Calcolatrice
+Calculator pen ‖ Rechenstift ‖ Stylo calculatrice ‖ Lápiz calculadora ‖ Penna calcolatrice
+Cancel ‖ Abbrechen ‖ Annuler ‖ Cancelar ‖ Annulla
+Catalog ‖ Katalog ‖ Catalogue ‖ Catálogo ‖ Catalogo
+Catalog address ‖ Katalogadresse ‖ Adresse du catalogue ‖ Dirección del catálogo ‖ Indirizzo del catalogo
+Catalog updated %@ ‖ Katalog aktualisiert %@ ‖ Catalogue mis à jour %@ ‖ Catálogo actualizado %@ ‖ Catalogo aggiornato %@
+Category ‖ Kategorie ‖ Catégorie ‖ Categoría ‖ Categoria
+Center ‖ Zentriert ‖ Centré ‖ Centrado ‖ Centro
+Change color ‖ Farbe ändern ‖ Changer la couleur ‖ Cambiar color ‖ Cambia colore
+Check for new packs ‖ Nach neuen Paketen suchen ‖ Rechercher de nouveaux packs ‖ Buscar paquetes nuevos ‖ Cerca nuovi pacchetti
+Check mark ‖ Häkchen ‖ Coche ‖ Marca de verificación ‖ Segno di spunta
+Choose a different folder inside your storage folder. ‖ Wähle einen anderen Ordner in deinem Speicherordner. ‖ Choisissez un autre dossier dans votre dossier de stockage. ‖ Elige otra carpeta dentro de tu carpeta de almacenamiento. ‖ Scegli un’altra cartella all’interno della tua cartella di archiviazione.
+Choose a folder on this device or a connected drive.\nExisting PDFs, Markdown notes and folders appear alongside your notebooks. ‖ Wähle einen Ordner auf diesem Gerät oder einem verbundenen Laufwerk.\nVorhandene PDFs, Markdown-Notizen und Ordner erscheinen neben deinen Notizbüchern. ‖ Choisissez un dossier sur cet appareil ou un disque connecté.\nLes PDF, notes Markdown et dossiers existants apparaissent à côté de vos carnets. ‖ Elige una carpeta de este dispositivo o de una unidad conectada.\nLos PDF, las notas Markdown y las carpetas existentes aparecen junto a tus cuadernos. ‖ Scegli una cartella su questo dispositivo o su un disco collegato.\nI PDF, le note Markdown e le cartelle esistenti compaiono accanto ai tuoi quaderni.
+Choose a sticker, then tap the page. You can move, resize, rotate and recolor it. ‖ Wähle einen Sticker und tippe dann auf die Seite. Du kannst ihn verschieben, in der Größe ändern, drehen und umfärben. ‖ Choisissez un autocollant, puis touchez la page. Vous pouvez le déplacer, le redimensionner, le faire pivoter et le recolorer. ‖ Elige una pegatina y toca la página. Puedes moverla, cambiar su tamaño, girarla y cambiarle el color. ‖ Scegli un adesivo e tocca la pagina. Puoi spostarlo, ridimensionarlo, ruotarlo e cambiarne il colore.
+Choose a storage folder first. ‖ Wähle zuerst einen Speicherordner. ‖ Choisissez d’abord un dossier de stockage. ‖ Elige primero una carpeta de almacenamiento. ‖ Scegli prima una cartella di archiviazione.
+Choose destination ‖ Ziel wählen ‖ Choisir la destination ‖ Elegir destino ‖ Scegli la destinazione
+Choose it in Settings ▸ Appearance, or use it here. ‖ Wähle es unter Einstellungen ▸ Erscheinungsbild oder verwende es hier. ‖ Choisissez-le dans Réglages ▸ Apparence, ou utilisez-le ici. ‖ Elígelo en Ajustes ▸ Apariencia o úsalo aquí. ‖ Sceglilo in Impostazioni ▸ Aspetto, oppure usalo qui.
+Choose storage folder ‖ Speicherordner wählen ‖ Choisir un dossier de stockage ‖ Elegir carpeta de almacenamiento ‖ Scegli la cartella di archiviazione
+Choose… ‖ Auswählen … ‖ Choisir… ‖ Elegir… ‖ Scegli…
+Circle content to select it, then use the selection menu. ‖ Umkreise Inhalte, um sie auszuwählen, und nutze dann das Auswahlmenü. ‖ Entourez le contenu pour le sélectionner, puis utilisez le menu de sélection. ‖ Rodea el contenido para seleccionarlo y usa el menú de selección. ‖ Cerchia il contenuto per selezionarlo, poi usa il menu di selezione.
+Circle to lasso ‖ Kreis wird Lasso ‖ Cercle en lasso ‖ Círculo a lazo ‖ Cerchio come lazo
+Clear ‖ Löschen ‖ Effacer ‖ Borrar ‖ Cancella
+Clear search ‖ Suche löschen ‖ Effacer la recherche ‖ Borrar búsqueda ‖ Cancella ricerca
+Close %@ ‖ %@ schließen ‖ Fermer %@ ‖ Cerrar %@ ‖ Chiudi %@
+Classic ‖ Klassisch ‖ Classique ‖ Clásico ‖ Classico
+Cloud ‖ Wolke ‖ Nuage ‖ Nube ‖ Nuvola
+Color %@ ‖ Farbe %@ ‖ Couleur %@ ‖ Color %@ ‖ Colore %@
+Contents ‖ Inhalt ‖ Sommaire ‖ Contenido ‖ Indice
+Copy ‖ Kopieren ‖ Copier ‖ Copiar ‖ Copia
+Copy selection ‖ Auswahl kopieren ‖ Copier la sélection ‖ Copiar selección ‖ Copia selezione
+Courier ‖ Courier ‖ Courier ‖ Courier ‖ Courier
+Cream ‖ Creme ‖ Crème ‖ Crema ‖ Crema
+Create ‖ Erstellen ‖ Créer ‖ Crear ‖ Crea
+Create a notebook, whiteboard or text document with New. ‖ Erstelle mit „Neu“ ein Notizbuch, ein Whiteboard oder ein Textdokument. ‖ Créez un carnet, un tableau blanc ou un document texte avec « Nouveau ». ‖ Crea un cuaderno, una pizarra o un documento de texto con «Nuevo». ‖ Crea un quaderno, una lavagna o un documento di testo con «Nuovo».
+Cross ‖ Kreuz ‖ Croix ‖ Cruz ‖ Croce
+Custom color ‖ Eigene Farbe ‖ Couleur personnalisée ‖ Color personalizado ‖ Colore personalizzato
+Customize toolbar ‖ Werkzeugleiste anpassen ‖ Personnaliser la barre d’outils ‖ Personalizar barra de herramientas ‖ Personalizza la barra degli strumenti
+Cut ‖ Ausschneiden ‖ Couper ‖ Cortar ‖ Taglia
+Cut selection ‖ Auswahl ausschneiden ‖ Couper la sélection ‖ Cortar selección ‖ Taglia selezione
+Dark ‖ Dunkel ‖ Sombre ‖ Oscuro ‖ Scuro
+Delete ‖ Löschen ‖ Supprimer ‖ Eliminar ‖ Elimina
+Delete all ‖ Alle löschen ‖ Tout supprimer ‖ Eliminar todo ‖ Elimina tutto
+Delete all permanently ‖ Alle endgültig löschen ‖ Tout supprimer définitivement ‖ Eliminar todo permanentemente ‖ Elimina tutto definitivamente
+Delete all samples ‖ Alle Proben löschen ‖ Supprimer tous les échantillons ‖ Eliminar todas las muestras ‖ Elimina tutti i campioni
+Delete current page ‖ Aktuelle Seite löschen ‖ Supprimer la page actuelle ‖ Eliminar página actual ‖ Elimina la pagina corrente
+Delete every sample? ‖ Alle Proben löschen? ‖ Supprimer tous les échantillons ? ‖ ¿Eliminar todas las muestras? ‖ Eliminare tutti i campioni?
+Delete page ‖ Seite löschen ‖ Supprimer la page ‖ Eliminar página ‖ Elimina pagina
+Delete permanently ‖ Endgültig löschen ‖ Supprimer définitivement ‖ Eliminar permanentemente ‖ Elimina definitivamente
+Delete permanently %@ ‖ %@ endgültig löschen ‖ Supprimer définitivement %@ ‖ Eliminar %@ permanentemente ‖ Elimina %@ definitivamente
+Delete permanently? ‖ Endgültig löschen? ‖ Supprimer définitivement ? ‖ ¿Eliminar permanentemente? ‖ Eliminare definitivamente?
+Delete selection ‖ Auswahl löschen ‖ Supprimer la sélection ‖ Eliminar selección ‖ Elimina selezione
+Delete text ‖ Text löschen ‖ Supprimer le texte ‖ Eliminar texto ‖ Elimina testo
+Deleted documents and folders will appear here. ‖ Gelöschte Dokumente und Ordner erscheinen hier. ‖ Les documents et dossiers supprimés apparaîtront ici. ‖ Los documentos y carpetas eliminados aparecerán aquí. ‖ I documenti e le cartelle eliminati compariranno qui.
+Deleted items ‖ Gelöschte Objekte ‖ Éléments supprimés ‖ Elementos eliminados ‖ Elementi eliminati
+Deselect ‖ Auswahl aufheben ‖ Désélectionner ‖ Deseleccionar ‖ Deseleziona
+Diamond ‖ Raute ‖ Losange ‖ Rombo ‖ Rombo
+Discover ‖ Entdecken ‖ Découvrir ‖ Descubrir ‖ Scopri
+Dismiss ‖ Schließen ‖ Fermer ‖ Descartar ‖ Chiudi
+Document ‖ Dokument ‖ Document ‖ Documento ‖ Documento
+Documents ‖ Dokumente ‖ Documents ‖ Documentos ‖ Documenti
+Done ‖ Fertig ‖ OK ‖ Listo ‖ Fine
+Done editing text ‖ Textbearbeitung beenden ‖ Terminer la modification du texte ‖ Terminar de editar texto ‖ Termina modifica testo
+Dotted ‖ Gepunktet ‖ Pointillé ‖ Punteado ‖ Puntinato
+Drag to reorder. The shortcuts ⌘1 to ⌘9 follow this order. ‖ Zum Umsortieren ziehen. Die Kurzbefehle ⌘1 bis ⌘9 folgen dieser Reihenfolge. ‖ Faites glisser pour réorganiser. Les raccourcis ⌘1 à ⌘9 suivent cet ordre. ‖ Arrastra para reordenar. Los atajos ⌘1 a ⌘9 siguen este orden. ‖ Trascina per riordinare. Le scorciatoie da ⌘1 a ⌘9 seguono questo ordine.
+Draw a line, rectangle or circle. Closed strokes snap to geometric shapes. ‖ Zeichne eine Linie, ein Rechteck oder einen Kreis. Geschlossene Striche rasten auf geometrische Formen ein. ‖ Dessinez une ligne, un rectangle ou un cercle. Les traits fermés s’alignent sur des formes géométriques. ‖ Dibuja una línea, un rectángulo o un círculo. Los trazos cerrados se ajustan a formas geométricas. ‖ Disegna una linea, un rettangolo o un cerchio. I tratti chiusi si agganciano a forme geometriche.
+Draw and hold for shapes ‖ Zeichnen und halten für Formen ‖ Dessiner et maintenir pour des formes ‖ Dibujar y mantener para formas ‖ Disegna e tieni premuto per le forme
+Draw straight lines ‖ Gerade Linien zeichnen ‖ Tracer des lignes droites ‖ Dibujar líneas rectas ‖ Disegna linee rette
+Drawing canvas ‖ Zeichenfläche ‖ Zone de dessin ‖ Lienzo de dibujo ‖ Area di disegno
+Drawing is locked. Use the scroll view to read your pages. ‖ Das Zeichnen ist gesperrt. Scrolle, um deine Seiten zu lesen. ‖ Le dessin est verrouillé. Faites défiler pour lire vos pages. ‖ El dibujo está bloqueado. Desplázate para leer tus páginas. ‖ Il disegno è bloccato. Scorri per leggere le tue pagine.
+Drop ‖ Tropfen ‖ Goutte ‖ Gota ‖ Goccia
+Duplicate ‖ Duplizieren ‖ Dupliquer ‖ Duplicar ‖ Duplica
+Duplicate page ‖ Seite duplizieren ‖ Dupliquer la page ‖ Duplicar página ‖ Duplica pagina
+e.g. 12×3+4 ‖ z. B. 12×3+4 ‖ p. ex. 12×3+4 ‖ p. ej. 12×3+4 ‖ ad es. 12×3+4
+Edit ‖ Bearbeiten ‖ Modifier ‖ Editar ‖ Modifica
+Edit calculation ‖ Rechnung bearbeiten ‖ Modifier le calcul ‖ Editar cálculo ‖ Modifica calcolo
+Edit text ‖ Text bearbeiten ‖ Modifier le texte ‖ Editar texto ‖ Modifica testo
+Element ‖ Element ‖ Élément ‖ Elemento ‖ Elemento
+Element %lld ‖ Element %lld ‖ Élément %lld ‖ Elemento %lld ‖ Elemento %lld
+Elements ‖ Elemente ‖ Éléments ‖ Elementos ‖ Elementi
+Ellipse ‖ Ellipse ‖ Ellipse ‖ Elipse ‖ Ellisse
+Emoji ‖ Emoji ‖ Émoji ‖ Emoji ‖ Emoji
+Emoji %@ ‖ Emoji %@ ‖ Émoji %@ ‖ Emoji %@ ‖ Emoji %@
+Empty Trash ‖ Papierkorb leeren ‖ Vider la corbeille ‖ Vaciar la papelera ‖ Svuota il cestino
+Empty Trash permanently? ‖ Papierkorb endgültig leeren? ‖ Vider définitivement la corbeille ? ‖ ¿Vaciar la papelera permanentemente? ‖ Svuotare definitivamente il cestino?
+Enter a name without slashes, colons or a leading dot. ‖ Gib einen Namen ohne Schrägstriche, Doppelpunkte oder führenden Punkt ein. ‖ Saisissez un nom sans barres obliques, deux-points ni point initial. ‖ Introduce un nombre sin barras, dos puntos ni punto inicial. ‖ Inserisci un nome senza barre, due punti o punto iniziale.
+Enter the password to create an unlocked PDF copy in the same folder. Your encrypted original stays unchanged. ‖ Gib das Passwort ein, um eine entsperrte PDF-Kopie im selben Ordner zu erstellen. Dein verschlüsseltes Original bleibt unverändert. ‖ Saisissez le mot de passe pour créer une copie PDF déverrouillée dans le même dossier. Votre original chiffré reste inchangé. ‖ Introduce la contraseña para crear una copia desbloqueada del PDF en la misma carpeta. El original cifrado no se modifica. ‖ Inserisci la password per creare una copia PDF sbloccata nella stessa cartella. L’originale cifrato resta invariato.
+Entire stroke ‖ Ganzer Strich ‖ Trait entier ‖ Trazo completo ‖ Tratto intero
+Erase highlighter only ‖ Nur Textmarker radieren ‖ Effacer uniquement le surligneur ‖ Borrar solo resaltador ‖ Cancella solo evidenziatore
+Erased  ·  Keep as ink ‖ Radiert  ·  Als Tinte behalten ‖ Effacé  ·  Garder comme encre ‖ Borrado  ·  Conservar como tinta ‖ Cancellato  ·  Mantieni come inchiostro
+Eraser ‖ Radierer ‖ Gomme ‖ Borrador ‖ Gomma
+Export current page ‖ Aktuelle Seite exportieren ‖ Exporter la page actuelle ‖ Exportar página actual ‖ Esporta la pagina corrente
+Export PDF ‖ PDF exportieren ‖ Exporter en PDF ‖ Exportar PDF ‖ Esporta PDF
+Fast GPU ink ‖ Schnelle GPU-Tinte ‖ Encre GPU rapide ‖ Tinta GPU rápida ‖ Inchiostro GPU veloce
+Fast GPU ink draws the line you are writing on the GPU for the lowest latency. What a double tap or squeeze of the Pencil does follows Settings ▸ Apple Pencil. ‖ Die schnelle GPU-Tinte zeichnet die Linie, die du gerade schreibst, auf der GPU, für die geringste Latenz. Was ein Doppeltippen oder Drücken des Pencils bewirkt, folgt den Einstellungen ▸ Apple Pencil. ‖ L’encre GPU rapide dessine le trait en cours sur le GPU pour une latence minimale. Ce que font un double toucher ou une pression du Pencil suit Réglages ▸ Apple Pencil. ‖ La tinta GPU rápida dibuja en la GPU el trazo que escribes, para la mínima latencia. Lo que hacen el doble toque o la pulsación del Pencil sigue Ajustes ▸ Apple Pencil. ‖ L’inchiostro GPU veloce disegna sulla GPU il tratto che stai scrivendo, per la latenza più bassa. Ciò che fanno il doppio tocco o la pressione della Pencil segue Impostazioni ▸ Apple Pencil.
+Favorite ‖ Favorit ‖ Favori ‖ Favorito ‖ Preferito
+Favorite %@ ‖ %@ als Favorit markieren ‖ Mettre %@ en favori ‖ Marcar %@ como favorito ‖ Aggiungi %@ ai preferiti
+Favorites ‖ Favoriten ‖ Favoris ‖ Favoritos ‖ Preferiti
+Field %lld ‖ Feld %lld ‖ Champ %lld ‖ Campo %lld ‖ Campo %lld
+File ‖ Datei ‖ Fichier ‖ Archivo ‖ File
+Files ‖ Dateien ‖ Fichiers ‖ Archivos ‖ File
+Fill ‖ Füllung ‖ Remplissage ‖ Relleno ‖ Riempimento
+Fill closed shapes ‖ Geschlossene Formen füllen ‖ Remplir les formes fermées ‖ Rellenar formas cerradas ‖ Riempi le forme chiuse
+Fill off ‖ Füllung aus ‖ Remplissage désactivé ‖ Relleno desactivado ‖ Riempimento disattivato
+Fill on ‖ Füllung ein ‖ Remplissage activé ‖ Relleno activado ‖ Riempimento attivato
+Fill PDF forms ‖ PDF-Formulare ausfüllen ‖ Remplir les formulaires PDF ‖ Rellenar formularios PDF ‖ Compila moduli PDF
+Fit to Width ‖ An Breite anpassen ‖ Ajuster à la largeur ‖ Ajustar al ancho ‖ Adatta alla larghezza
+Fit to width ‖ An Breite anpassen ‖ Ajuster à la largeur ‖ Ajustar al ancho ‖ Adatta alla larghezza
+Flag ‖ Flagge ‖ Drapeau ‖ Bandera ‖ Bandiera
+Folder ‖ Ordner ‖ Dossier ‖ Carpeta ‖ Cartella
+Font ‖ Schrift ‖ Police ‖ Fuente ‖ Font
+Font size ‖ Schriftgröße ‖ Taille de police ‖ Tamaño de fuente ‖ Dimensione del font
+Fountain ‖ Füller ‖ Stylo plume ‖ Pluma estilográfica ‖ Stilografica
+Fountain pen ‖ Füller ‖ Stylo plume ‖ Pluma estilográfica ‖ Penna stilografica
+Freehand ‖ Freihand ‖ Main levée ‖ Mano alzada ‖ A mano libera
+Freehand (snaps to exact shapes) ‖ Freihand (rastet auf exakte Formen ein) ‖ Main levée (s’aligne sur des formes exactes) ‖ Mano alzada (se ajusta a formas exactas) ‖ A mano libera (si aggancia a forme esatte)
+Georgia ‖ Georgia ‖ Georgia ‖ Georgia ‖ Georgia
+Get ‖ Laden ‖ Obtenir ‖ Obtener ‖ Ottieni
+Getting… ‖ Wird geladen … ‖ Téléchargement… ‖ Obteniendo… ‖ Download in corso…
+Go ‖ Los ‖ OK ‖ Ir ‖ Vai
+Got it ‖ Verstanden ‖ Compris ‖ Entendido ‖ Capito
+Gray ‖ Grau ‖ Gris ‖ Gris ‖ Grigio
+Grid · 2.5 mm ‖ Raster · 2,5 mm ‖ Quadrillage · 2,5 mm ‖ Cuadrícula · 2,5 mm ‖ Griglia · 2,5 mm
+Grid · 5 mm ‖ Raster · 5 mm ‖ Quadrillage · 5 mm ‖ Cuadrícula · 5 mm ‖ Griglia · 5 mm
+Handwriting ‖ Handschrift ‖ Écriture manuscrite ‖ Escritura a mano ‖ Scrittura a mano
+Heart ‖ Herz ‖ Cœur ‖ Corazón ‖ Cuore
+Helvetica ‖ Helvetica ‖ Helvetica ‖ Helvetica ‖ Helvetica
+Hex color, e.g. #265DD4 ‖ Hex-Farbe, z. B. #265DD4 ‖ Couleur hexadécimale, p. ex. #265DD4 ‖ Color hexadecimal, p. ej. #265DD4 ‖ Colore esadecimale, ad es. #265DD4
+Hex, e.g. #265DD4 ‖ Hex, z. B. #265DD4 ‖ Hexa, p. ex. #265DD4 ‖ Hex, p. ej. #265DD4 ‖ Esadecimale, ad es. #265DD4
+Hexagon ‖ Sechseck ‖ Hexagone ‖ Hexágono ‖ Esagono
+Highlighter ‖ Textmarker ‖ Surligneur ‖ Resaltador ‖ Evidenziatore
+Hold the pen still at the end of a line to straighten it into a shape. Scribble over ink to erase it. Hold the pen still on a loop you drew to select what it encloses. Stabilization steadies the line you write. ‖ Halte den Stift am Ende einer Linie still, um sie zu einer Form zu begradigen. Kritzle über Tinte, um sie zu radieren. Halte den Stift still auf einer gezeichneten Schleife, um auszuwählen, was sie umschließt. Die Stabilisierung beruhigt die Linie, die du schreibst. ‖ Maintenez le stylet immobile à la fin d’un trait pour le redresser en forme. Griffonnez sur l’encre pour l’effacer. Maintenez le stylet immobile sur une boucle dessinée pour sélectionner ce qu’elle entoure. La stabilisation adoucit le trait que vous écrivez. ‖ Mantén el lápiz quieto al final de una línea para enderezarla en una forma. Garabatea sobre la tinta para borrarla. Mantén el lápiz quieto sobre un bucle que dibujaste para seleccionar lo que encierra. La estabilización suaviza el trazo que escribes. ‖ Tieni ferma la penna alla fine di una linea per raddrizzarla in una forma. Scarabocchia sull’inchiostro per cancellarlo. Tieni ferma la penna su un anello che hai disegnato per selezionare ciò che racchiude. La stabilizzazione rende più regolare il tratto che scrivi.
+Home ‖ Zuhause ‖ Maison ‖ Hogar ‖ Casa
+Horizontal ‖ Horizontal ‖ Horizontal ‖ Horizontal ‖ Orizzontale
+How it works ‖ So funktioniert es ‖ Comment ça marche ‖ Cómo funciona ‖ Come funziona
+Image ‖ Bild ‖ Image ‖ Imagen ‖ Immagine
+Images ‖ Bilder ‖ Images ‖ Imágenes ‖ Immagini
+Import ‖ Importieren ‖ Importer ‖ Importar ‖ Importa
+Import into notebook ‖ In Notizbuch importieren ‖ Importer dans le carnet ‖ Importar al cuaderno ‖ Importa nel quaderno
+Import PDF ‖ PDF importieren ‖ Importer un PDF ‖ Importar PDF ‖ Importa PDF
+Importing… ‖ Wird importiert … ‖ Importation… ‖ Importando… ‖ Importazione…
+In a notebook, New page ▸ Your templates adds its pages. “New notebook” starts one from it. ‖ In einem Notizbuch fügt „Neue Seite“ ▸ „Deine Vorlagen“ ihre Seiten hinzu. „Neues Notizbuch“ startet ein Notizbuch daraus. ‖ Dans un carnet, Nouvelle page ▸ Vos modèles ajoute ses pages. « Nouveau carnet » en démarre un à partir de celui-ci. ‖ En un cuaderno, Nueva página ▸ Tus plantillas añade sus páginas. «Nuevo cuaderno» crea uno a partir de ella. ‖ In un quaderno, Nuova pagina ▸ I tuoi modelli aggiunge le sue pagine. «Nuovo quaderno» ne avvia uno a partire da esso.
+In use ‖ In Verwendung ‖ Utilisé ‖ En uso ‖ In uso
+Infinite scrolling ‖ Endloses Scrollen ‖ Défilement infini ‖ Desplazamiento infinito ‖ Scorrimento infinito
+Infinite scrolling is one long sheet that grows as you write, so pages do not turn. ‖ Endloses Scrollen ist ein langes Blatt, das beim Schreiben wächst, daher wird nicht umgeblättert. ‖ Le défilement infini est une longue feuille qui grandit à mesure que vous écrivez ; les pages ne se tournent donc pas. ‖ El desplazamiento infinito es una hoja larga que crece mientras escribes, por lo que las páginas no se pasan. ‖ Lo scorrimento infinito è un unico foglio lungo che cresce mentre scrivi, quindi le pagine non si girano.
+Ink ‖ Tinte ‖ Encre ‖ Tinta ‖ Inchiostro
+Ink color %@ ‖ Tintenfarbe %@ ‖ Couleur d’encre %@ ‖ Color de tinta %@ ‖ Colore inchiostro %@
+Insert ‖ Einfügen ‖ Insérer ‖ Insertar ‖ Inserisci
+Insert image from ‖ Bild einfügen aus ‖ Insérer une image depuis ‖ Insertar imagen desde ‖ Inserisci immagine da
+Insert page after ‖ Seite einfügen nach ‖ Insérer une page après ‖ Insertar página después ‖ Inserisci pagina dopo
+Installed ‖ Installiert ‖ Installés ‖ Instalados ‖ Installati
+Installed packs ‖ Installierte Pakete ‖ Packs installés ‖ Paquetes instalados ‖ Pacchetti installati
+Invalid or missing notebook asset: %@. ‖ Ungültiges oder fehlendes Notizbuch-Medium: %@. ‖ Ressource du carnet invalide ou manquante : %@. ‖ Recurso del cuaderno no válido o ausente: %@. ‖ Risorsa del quaderno non valida o mancante: %@.
+Keep pulling to add a page ‖ Weiter ziehen, um eine Seite hinzuzufügen ‖ Continuez à tirer pour ajouter une page ‖ Sigue tirando para añadir una página ‖ Continua a trascinare per aggiungere una pagina
+Landscape ‖ Querformat ‖ Paysage ‖ Horizontal ‖ Orizzontale
+Language ‖ Sprache ‖ Langue ‖ Idioma ‖ Lingua
+Large squares ‖ Große Quadrate ‖ Grands carreaux ‖ Cuadros grandes ‖ Quadri grandi
+Larger text ‖ Größerer Text ‖ Texte plus grand ‖ Texto más grande ‖ Testo più grande
+Lasso ‖ Lasso ‖ Lasso ‖ Lazo ‖ Lazo
+Last modified ‖ Zuletzt geändert ‖ Dernière modification ‖ Última modificación ‖ Ultima modifica
+Left ‖ Links ‖ Gauche ‖ Izquierda ‖ Sinistra
+Library locations ‖ Speicherorte der Bibliothek ‖ Emplacements de la bibliothèque ‖ Ubicaciones de la biblioteca ‖ Posizioni della libreria
+License ‖ Lizenz ‖ Licence ‖ Licencia ‖ Licenza
+Life ‖ Leben ‖ Vie ‖ Vida ‖ Vita
+Light ‖ Hell ‖ Clair ‖ Claro ‖ Chiaro
+Light or dark as the iPad is set. A theme that is only light or only dark keeps its own. ‖ Hell oder dunkel, wie es am iPad eingestellt ist. Ein Theme, das nur hell oder nur dunkel ist, behält seinen eigenen Modus. ‖ Clair ou sombre selon le réglage de l’iPad. Un thème uniquement clair ou uniquement sombre garde le sien. ‖ Claro u oscuro según el ajuste del iPad. Un tema que es solo claro o solo oscuro mantiene el suyo. ‖ Chiaro o scuro come impostato sull’iPad. Un tema solo chiaro o solo scuro mantiene il proprio.
+Lightning ‖ Blitz ‖ Éclair ‖ Rayo ‖ Fulmine
+Line ‖ Linie ‖ Ligne ‖ Línea ‖ Linea
+Line width ‖ Linienstärke ‖ Épaisseur du trait ‖ Grosor de línea ‖ Spessore della linea
+Lined ‖ Liniert ‖ Ligné ‖ Rayado ‖ A righe
+Marketplace ‖ Marktplatz ‖ Boutique ‖ Mercado ‖ Marketplace
+Mint ‖ Mint ‖ Menthe ‖ Menta ‖ Menta
+Mode ‖ Modus ‖ Mode ‖ Modo ‖ Modalità
+Mono ‖ Mono ‖ Mono ‖ Mono ‖ Mono
+Moon ‖ Mond ‖ Lune ‖ Luna ‖ Luna
+More ‖ Mehr ‖ Plus ‖ Más ‖ Altro
+More text options ‖ Weitere Textoptionen ‖ Plus d’options de texte ‖ Más opciones de texto ‖ Altre opzioni di testo
+Move ‖ Bewegen ‖ Déplacer ‖ Mover ‖ Sposta
+Move earlier ‖ Früher einordnen ‖ Déplacer plus tôt ‖ Mover antes ‖ Sposta prima
+Move here ‖ Hierher bewegen ‖ Déplacer ici ‖ Mover aquí ‖ Sposta qui
+Move later ‖ Später einordnen ‖ Déplacer plus tard ‖ Mover después ‖ Sposta dopo
+Move to Trash ‖ In den Papierkorb legen ‖ Mettre à la corbeille ‖ Mover a la papelera ‖ Sposta nel cestino
+Move “%@” ‖ „%@“ bewegen ‖ Déplacer « %@ » ‖ Mover «%@» ‖ Sposta «%@»
+Moved to Trash ‖ In den Papierkorb gelegt ‖ Mis à la corbeille ‖ Movido a la papelera ‖ Spostato nel cestino
+My elements ‖ Meine Elemente ‖ Mes éléments ‖ Mis elementos ‖ I miei elementi
+Name ‖ Name ‖ Nom ‖ Nombre ‖ Nome
+Navigate document ‖ Im Dokument navigieren ‖ Naviguer dans le document ‖ Navegar por el documento ‖ Naviga nel documento
+New ‖ Neu ‖ Nouveau ‖ Nuevo ‖ Nuovo
+New folder ‖ Neuer Ordner ‖ Nouveau dossier ‖ Nueva carpeta ‖ Nuova cartella
+New notebook ‖ Neues Notizbuch ‖ Nouveau carnet ‖ Nuevo cuaderno ‖ Nuovo quaderno
+New page ‖ Neue Seite ‖ Nouvelle page ‖ Nueva página ‖ Nuova pagina
+New text document ‖ Neues Textdokument ‖ Nouveau document texte ‖ Nuevo documento de texto ‖ Nuovo documento di testo
+New whiteboard ‖ Neues Whiteboard ‖ Nouveau tableau blanc ‖ Nueva pizarra ‖ Nuova lavagna
+Next Page ‖ Nächste Seite ‖ Page suivante ‖ Página siguiente ‖ Pagina successiva
+No documents here yet ‖ Hier gibt es noch keine Dokumente ‖ Aucun document ici pour le moment ‖ Aún no hay documentos aquí ‖ Nessun documento qui per ora
+No editable fields on this page ‖ Keine bearbeitbaren Felder auf dieser Seite ‖ Aucun champ modifiable sur cette page ‖ No hay campos editables en esta página ‖ Nessun campo modificabile in questa pagina
+No fill ‖ Keine Füllung ‖ Sans remplissage ‖ Sin relleno ‖ Nessun riempimento
+No matches in searchable text ‖ Keine Treffer im durchsuchbaren Text ‖ Aucun résultat dans le texte recherchable ‖ Sin coincidencias en el texto buscable ‖ Nessuna corrispondenza nel testo ricercabile
+No matching deleted items ‖ Keine passenden gelöschten Objekte ‖ Aucun élément supprimé correspondant ‖ No hay elementos eliminados coincidentes ‖ Nessun elemento eliminato corrispondente
+No matching files ‖ Keine passenden Dateien ‖ Aucun fichier correspondant ‖ No hay archivos coincidentes ‖ Nessun file corrispondente
+No subfolders. You can move here. ‖ Keine Unterordner. Du kannst hierher bewegen. ‖ Aucun sous-dossier. Vous pouvez déplacer ici. ‖ No hay subcarpetas. Puedes mover aquí. ‖ Nessuna sottocartella. Puoi spostare qui.
+None ‖ Keiner ‖ Aucun ‖ Ninguno ‖ Nessuno
+Notebook ‖ Notizbuch ‖ Carnet ‖ Cuaderno ‖ Quaderno
+Notebook title ‖ Titel des Notizbuchs ‖ Titre du carnet ‖ Título del cuaderno ‖ Titolo del quaderno
+NotesCraft ‖ NotesCraft ‖ NotesCraft ‖ NotesCraft ‖ NotesCraft
+NotesCraft uses the language of this iPad unless you choose one here. What the system itself shows, such as the file picker, always follows the iPad. ‖ NotesCraft verwendet die Sprache dieses iPads, sofern du hier keine andere wählst. Was das System selbst anzeigt, etwa die Dateiauswahl, folgt immer dem iPad. ‖ NotesCraft utilise la langue de cet iPad, sauf si vous en choisissez une ici. Ce que le système affiche lui-même, comme le sélecteur de fichiers, suit toujours l’iPad. ‖ NotesCraft usa el idioma de este iPad, a menos que elijas otro aquí. Lo que muestra el propio sistema, como el selector de archivos, siempre sigue al iPad. ‖ NotesCraft usa la lingua di questo iPad, a meno che tu non ne scelga una qui. Ciò che mostra il sistema stesso, come il selettore di file, segue sempre l’iPad.
+Nothing installed yet ‖ Noch nichts installiert ‖ Rien d’installé pour le moment ‖ Aún no hay nada instalado ‖ Ancora nulla di installato
+Nothing saved yet ‖ Noch nichts gespeichert ‖ Rien d’enregistré pour le moment ‖ Aún no hay nada guardado ‖ Ancora nulla di salvato
+of %lld ‖ von %lld ‖ sur %lld ‖ de %lld ‖ di %lld
+Off ‖ Aus ‖ Désactivé ‖ Desactivado ‖ Disattivato
+OK ‖ OK ‖ OK ‖ OK ‖ OK
+One finger draws and two fingers move the page. ‖ Ein Finger zeichnet, zwei Finger bewegen die Seite. ‖ Un doigt dessine et deux doigts déplacent la page. ‖ Un dedo dibuja y dos dedos mueven la página. ‖ Un dito disegna e due dita spostano la pagina.
+Notebooks are plain .notecraft packages in the folder you chose, so Files, iCloud Drive and other apps can see and back them up. ‖ Notizbücher sind einfache .notecraft-Pakete in dem Ordner, den du gewählt hast, sodass Dateien, iCloud Drive und andere Apps sie sehen und sichern können. ‖ Les carnets sont de simples paquets .notecraft dans le dossier choisi ; Fichiers, iCloud Drive et d’autres apps peuvent donc les voir et les sauvegarder. ‖ Los cuadernos son simples paquetes .notecraft en la carpeta que elegiste, así que Archivos, iCloud Drive y otras apps pueden verlos y respaldarlos. ‖ I quaderni sono semplici pacchetti .notecraft nella cartella che hai scelto, quindi File, iCloud Drive e altre app possono vederli ed eseguirne il backup.
+Open ‖ Öffnen ‖ Ouvrir ‖ Abrir ‖ Apri
+Open %@ ‖ %@ öffnen ‖ Ouvrir %@ ‖ Abrir %@ ‖ Apri %@
+Open a notebook, choose the Stickers tool and look under your elements. ‖ Öffne ein Notizbuch, wähle das Sticker-Werkzeug und sieh unter deinen Elementen nach. ‖ Ouvrez un carnet, choisissez l’outil Autocollants et regardez parmi vos éléments. ‖ Abre un cuaderno, elige la herramienta de pegatinas y busca entre tus elementos. ‖ Apri un quaderno, scegli lo strumento Adesivi e guarda tra i tuoi elementi.
+OPEN DOCUMENTS ‖ OFFENE DOKUMENTE ‖ DOCUMENTS OUVERTS ‖ DOCUMENTOS ABIERTOS ‖ DOCUMENTI APERTI
+Open unlocked copy ‖ Entsperrte Kopie öffnen ‖ Ouvrir la copie déverrouillée ‖ Abrir copia desbloqueada ‖ Apri la copia sbloccata
+Opening your library… ‖ Deine Bibliothek wird geöffnet … ‖ Ouverture de votre bibliothèque… ‖ Abriendo tu biblioteca… ‖ Apertura della tua libreria…
+Packs are downloaded from a folder on a web server (https only) that holds an index.json, the packs and their previews. Every pack is checked against the size and hash in the index before it is opened, and a pack never holds code. See docs/MARKETPLACE.md. ‖ Pakete werden aus einem Ordner auf einem Webserver (nur https) geladen, der eine index.json, die Pakete und ihre Vorschauen enthält. Jedes Paket wird vor dem Öffnen anhand von Größe und Hash im Index geprüft, und ein Paket enthält nie Code. Siehe docs/MARKETPLACE.md. ‖ Les packs sont téléchargés depuis un dossier d’un serveur web (https uniquement) qui contient un index.json, les packs et leurs aperçus. Chaque pack est vérifié d’après la taille et le hash de l’index avant d’être ouvert, et un pack ne contient jamais de code. Voir docs/MARKETPLACE.md. ‖ Los paquetes se descargan de una carpeta de un servidor web (solo https) que contiene un index.json, los paquetes y sus vistas previas. Cada paquete se comprueba con el tamaño y el hash del índice antes de abrirse, y un paquete nunca contiene código. Consulta docs/MARKETPLACE.md. ‖ I pacchetti vengono scaricati da una cartella su un server web (solo https) che contiene un index.json, i pacchetti e le loro anteprime. Ogni pacchetto viene verificato rispetto a dimensione e hash dell’indice prima di essere aperto, e un pacchetto non contiene mai codice. Vedi docs/MARKETPLACE.md.
+Packs that came with the app ‖ Pakete, die mit der App geliefert wurden ‖ Packs fournis avec l’app ‖ Paquetes que vienen con la app ‖ Pacchetti inclusi con l’app
+Packs you get show up here, with a way to take them away again. ‖ Pakete, die du lädst, erscheinen hier, mit der Möglichkeit, sie wieder zu entfernen. ‖ Les packs que vous obtenez apparaissent ici, avec un moyen de les retirer. ‖ Los paquetes que obtienes aparecen aquí, con una forma de quitarlos. ‖ I pacchetti che ottieni compaiono qui, con un modo per rimuoverli.
+Page ‖ Seite ‖ Page ‖ Página ‖ Pagina
+Page %lld ‖ Seite %lld ‖ Page %lld ‖ Página %lld ‖ Pagina %lld
+Page number ‖ Seitenzahl ‖ Numéro de page ‖ Número de página ‖ Numero di pagina
+Page scrubber ‖ Seitenschieber ‖ Curseur de pages ‖ Control de páginas ‖ Scorrimento pagine
+Page template ‖ Seitenvorlage ‖ Modèle de page ‖ Plantilla de página ‖ Modello di pagina
+Page templates from the Marketplace in the library show up here. ‖ Seitenvorlagen vom Marktplatz in der Bibliothek erscheinen hier. ‖ Les modèles de page de la boutique de la bibliothèque apparaissent ici. ‖ Las plantillas de página del mercado de la biblioteca aparecen aquí. ‖ I modelli di pagina del Marketplace nella libreria compaiono qui.
+Pages ‖ Seiten ‖ Pages ‖ Páginas ‖ Pagine
+Pages scroll in a column and zoom together, like a long document. ‖ Seiten scrollen in einer Spalte und zoomen gemeinsam, wie ein langes Dokument. ‖ Les pages défilent en colonne et se zooment ensemble, comme un long document. ‖ Las páginas se desplazan en una columna y se amplían juntas, como un documento largo. ‖ Le pagine scorrono in colonna e si ingrandiscono insieme, come un documento lungo.
+Pages turn one at a time, side by side. ‖ Seiten werden einzeln umgeblättert, nebeneinander. ‖ Les pages se tournent une à une, côte à côte. ‖ Las páginas se pasan de una en una, una al lado de otra. ‖ Le pagine si girano una alla volta, affiancate.
+Paper background ‖ Papierhintergrund ‖ Fond du papier ‖ Fondo del papel ‖ Sfondo della carta
+Paper color ‖ Papierfarbe ‖ Couleur du papier ‖ Color del papel ‖ Colore della carta
+Paper size ‖ Papiergröße ‖ Format du papier ‖ Tamaño del papel ‖ Formato della carta
+Password-protected PDF ‖ Passwortgeschütztes PDF ‖ PDF protégé par mot de passe ‖ PDF protegido con contraseña ‖ PDF protetto da password
+Paste ‖ Einsetzen ‖ Coller ‖ Pegar ‖ Incolla
+Paste ink ‖ Tinte einsetzen ‖ Coller l’encre ‖ Pegar tinta ‖ Incolla inchiostro
+PDF ‖ PDF ‖ PDF ‖ PDF ‖ PDF
+PDF form fields ‖ PDF-Formularfelder ‖ Champs de formulaire PDF ‖ Campos de formulario PDF ‖ Campi modulo PDF
+PDF password ‖ PDF-Passwort ‖ Mot de passe du PDF ‖ Contraseña del PDF ‖ Password del PDF
+Pen ‖ Stift ‖ Stylo ‖ Pluma ‖ Penna
+Pen and gestures ‖ Stift und Gesten ‖ Stylet et gestes ‖ Lápiz y gestos ‖ Penna e gesti
+Pen style ‖ Stiftart ‖ Style de stylo ‖ Estilo de pluma ‖ Stile della penna
+Pencil ‖ Bleistift ‖ Crayon ‖ Lápiz ‖ Matita
+Pentagon ‖ Fünfeck ‖ Pentagone ‖ Pentágono ‖ Pentagono
+Photo library ‖ Fotomediathek ‖ Photothèque ‖ Fototeca ‖ Libreria foto
+Planner ‖ Planer ‖ Agenda ‖ Agenda ‖ Planner
+Planners ‖ Planer ‖ Agendas ‖ Agendas ‖ Planner
+Plus ‖ Plus ‖ Plus ‖ Más ‖ Più
+Precision ‖ Präzision ‖ Précision ‖ Precisión ‖ Precisione
+Preset 1: %@ pt ‖ Voreinstellung 1: %@ pt ‖ Préréglage 1 : %@ pt ‖ Ajuste 1: %@ pt ‖ Preimpostazione 1: %@ pt
+Preset 2: %@ pt ‖ Voreinstellung 2: %@ pt ‖ Préréglage 2 : %@ pt ‖ Ajuste 2: %@ pt ‖ Preimpostazione 2: %@ pt
+Preset 3: %@ pt ‖ Voreinstellung 3: %@ pt ‖ Préréglage 3 : %@ pt ‖ Ajuste 3: %@ pt ‖ Preimpostazione 3: %@ pt
+Pressure sensitivity ‖ Druckempfindlichkeit ‖ Sensibilité à la pression ‖ Sensibilidad a la presión ‖ Sensibilità alla pressione
+Preview ‖ Vorschau ‖ Aperçu ‖ Vista previa ‖ Anteprima
+Previous Page ‖ Vorherige Seite ‖ Page précédente ‖ Página anterior ‖ Pagina precedente
+Radius ‖ Radius ‖ Rayon ‖ Radio ‖ Raggio
+Read only ‖ Nur lesen ‖ Lecture seule ‖ Solo lectura ‖ Sola lettura
+Rectangle ‖ Rechteck ‖ Rectangle ‖ Rectángulo ‖ Rettangolo
+Redo ‖ Wiederholen ‖ Rétablir ‖ Rehacer ‖ Ripeti
+Refresh folder ‖ Ordner aktualisieren ‖ Actualiser le dossier ‖ Actualizar carpeta ‖ Aggiorna cartella
+Remove ‖ Entfernen ‖ Retirer ‖ Quitar ‖ Rimuovi
+Remove answer ‖ Antwort entfernen ‖ Retirer la réponse ‖ Quitar respuesta ‖ Rimuovi risposta
+Remove bookmark ‖ Lesezeichen entfernen ‖ Retirer le signet ‖ Quitar marcador ‖ Rimuovi segnalibro
+Remove favorite ‖ Favorit entfernen ‖ Retirer des favoris ‖ Quitar favorito ‖ Rimuovi dai preferiti
+Remove favorite %@ ‖ %@ aus Favoriten entfernen ‖ Retirer %@ des favoris ‖ Quitar %@ de favoritos ‖ Rimuovi %@ dai preferiti
+Remove from saved ‖ Aus Gespeichertem entfernen ‖ Retirer des enregistrés ‖ Quitar de guardados ‖ Rimuovi dai salvati
+Remove “%@”? ‖ „%@“ entfernen? ‖ Retirer « %@ » ? ‖ ¿Quitar «%@»? ‖ Rimuovere «%@»?
+Rename ‖ Umbenennen ‖ Renommer ‖ Renombrar ‖ Rinomina
+Rename element ‖ Element umbenennen ‖ Renommer l’élément ‖ Renombrar elemento ‖ Rinomina elemento
+Rename notebook ‖ Notizbuch umbenennen ‖ Renommer le carnet ‖ Renombrar cuaderno ‖ Rinomina quaderno
+Reset toolbar ‖ Werkzeugleiste zurücksetzen ‖ Réinitialiser la barre d’outils ‖ Restablecer barra de herramientas ‖ Ripristina la barra degli strumenti
+Restore ‖ Wiederherstellen ‖ Restaurer ‖ Restaurar ‖ Ripristina
+Restore items to their original folder. Items stay here until you delete them permanently. ‖ Objekte in ihren ursprünglichen Ordner zurücklegen. Objekte bleiben hier, bis du sie endgültig löschst. ‖ Remettre les éléments dans leur dossier d’origine. Les éléments restent ici jusqu’à leur suppression définitive. ‖ Restaura los elementos a su carpeta original. Los elementos permanecen aquí hasta que los elimines permanentemente. ‖ Ripristina gli elementi nella cartella originale. Gli elementi restano qui finché non li elimini definitivamente.
+Retry save ‖ Speichern erneut versuchen ‖ Réessayer l’enregistrement ‖ Reintentar guardado ‖ Riprova a salvare
+Right ‖ Rechts ‖ Droite ‖ Derecha ‖ Destra
+Right angle ‖ Rechter Winkel ‖ Angle droit ‖ Ángulo recto ‖ Angolo retto
+Right triangle ‖ Rechtwinkliges Dreieck ‖ Triangle rectangle ‖ Triángulo rectángulo ‖ Triangolo rettangolo
+Round ‖ Rund ‖ Rond ‖ Redondo ‖ Tondo
+Rounded rectangle ‖ Abgerundetes Rechteck ‖ Rectangle arrondi ‖ Rectángulo redondeado ‖ Rettangolo arrotondato
+Save ‖ Sichern ‖ Enregistrer ‖ Guardar ‖ Salva
+Save a copy ‖ Kopie sichern ‖ Enregistrer une copie ‖ Guardar una copia ‖ Salva una copia
+Save a lasso selection (… menu) to build your own collection. ‖ Sichere eine Lasso-Auswahl (Menü …), um eine eigene Sammlung aufzubauen. ‖ Enregistrez une sélection au lasso (menu …) pour créer votre propre collection. ‖ Guarda una selección con lazo (menú …) para crear tu propia colección. ‖ Salva una selezione con il lazo (menu …) per creare la tua raccolta.
+Save as element ‖ Als Element sichern ‖ Enregistrer comme élément ‖ Guardar como elemento ‖ Salva come elemento
+Save element ‖ Element sichern ‖ Enregistrer l’élément ‖ Guardar elemento ‖ Salva elemento
+Save failed ‖ Sichern fehlgeschlagen ‖ Échec de l’enregistrement ‖ Error al guardar ‖ Salvataggio non riuscito
+Saved ‖ Gesichert ‖ Enregistré ‖ Guardado ‖ Salvato
+Saved element ‖ Gesichertes Element ‖ Élément enregistré ‖ Elemento guardado ‖ Elemento salvato
+Saved packs ‖ Gesicherte Pakete ‖ Packs enregistrés ‖ Paquetes guardados ‖ Pacchetti salvati
+Saving… ‖ Wird gesichert … ‖ Enregistrement… ‖ Guardando… ‖ Salvataggio…
+Scan documents ‖ Dokumente scannen ‖ Numériser des documents ‖ Escanear documentos ‖ Scansiona documenti
+Screenshot ‖ Bildschirmfoto ‖ Capture d’écran ‖ Captura de pantalla ‖ Schermata
+Scribble hint ‖ Kritzel-Hinweis ‖ Indication de griffonnage ‖ Aviso de garabato ‖ Suggerimento scarabocchio
+Scribble to erase ‖ Kritzeln zum Radieren ‖ Griffonner pour effacer ‖ Garabatear para borrar ‖ Scarabocchia per cancellare
+Scrolling direction ‖ Scrollrichtung ‖ Sens de défilement ‖ Dirección de desplazamiento ‖ Direzione di scorrimento
+Search ‖ Suchen ‖ Rechercher ‖ Buscar ‖ Cerca
+Search library ‖ Bibliothek durchsuchen ‖ Rechercher dans la bibliothèque ‖ Buscar en la biblioteca ‖ Cerca nella libreria
+Search marketplace ‖ Marktplatz durchsuchen ‖ Rechercher dans la boutique ‖ Buscar en el mercado ‖ Cerca nel Marketplace
+Search packs ‖ Pakete durchsuchen ‖ Rechercher des packs ‖ Buscar paquetes ‖ Cerca pacchetti
+Search PDF text and text boxes ‖ PDF-Text und Textfelder durchsuchen ‖ Rechercher dans le texte du PDF et les zones de texte ‖ Buscar en el texto del PDF y en los cuadros de texto ‖ Cerca nel testo del PDF e nei riquadri di testo
+Search result page %lld ‖ Suchergebnis Seite %lld ‖ Résultat de recherche page %lld ‖ Resultado de búsqueda, página %lld ‖ Risultato di ricerca pagina %lld
+Search text ‖ Text suchen ‖ Rechercher du texte ‖ Buscar texto ‖ Cerca testo
+Second color ‖ Zweite Farbe ‖ Deuxième couleur ‖ Segundo color ‖ Secondo colore
+Selection actions ‖ Auswahlaktionen ‖ Actions de sélection ‖ Acciones de selección ‖ Azioni di selezione
+Send to back ‖ In den Hintergrund ‖ Mettre à l’arrière-plan ‖ Enviar al fondo ‖ Porta in secondo piano
+Sepia ‖ Sepia ‖ Sépia ‖ Sepia ‖ Seppia
+Settings ‖ Einstellungen ‖ Réglages ‖ Ajustes ‖ Impostazioni
+Shape: %@ ‖ Form: %@ ‖ Forme : %@ ‖ Forma: %@ ‖ Forma: %@
+Shapes ‖ Formen ‖ Formes ‖ Formas ‖ Forme
+Share samples ‖ Proben teilen ‖ Partager les échantillons ‖ Compartir muestras ‖ Condividi campioni
+Show ‖ Anzeigen ‖ Afficher ‖ Mostrar ‖ Mostra
+Show page number while scrolling ‖ Seitenzahl beim Scrollen anzeigen ‖ Afficher le numéro de page pendant le défilement ‖ Mostrar el número de página al desplazarse ‖ Mostra il numero di pagina durante lo scorrimento
+Show zoom while zooming ‖ Zoom beim Zoomen anzeigen ‖ Afficher le zoom pendant le zoom ‖ Mostrar el zoom al ampliar ‖ Mostra lo zoom durante l’ingrandimento
+Size ‖ Größe ‖ Taille ‖ Tamaño ‖ Dimensione
+Skip ‖ Überspringen ‖ Passer ‖ Omitir ‖ Salta
+Smaller text ‖ Kleinerer Text ‖ Texte plus petit ‖ Texto más pequeño ‖ Testo più piccolo
+Solid ‖ Deckend ‖ Plein ‖ Sólido ‖ Pieno
+Speech bubble ‖ Sprechblase ‖ Bulle ‖ Bocadillo ‖ Fumetto
+Star ‖ Stern ‖ Étoile ‖ Estrella ‖ Stella
+Stickers ‖ Sticker ‖ Autocollants ‖ Pegatinas ‖ Adesivi
+Storage ‖ Speicher ‖ Stockage ‖ Almacenamiento ‖ Archiviazione
+Storage folder ‖ Speicherordner ‖ Dossier de stockage ‖ Carpeta de almacenamiento ‖ Cartella di archiviazione
+STORAGE FOLDERS ‖ SPEICHERORDNER ‖ DOSSIERS DE STOCKAGE ‖ CARPETAS DE ALMACENAMIENTO ‖ CARTELLE DI ARCHIVIAZIONE
+Stroke ‖ Strich ‖ Trait ‖ Trazo ‖ Tratto
+Stroke stabilization ‖ Strichstabilisierung ‖ Stabilisation du trait ‖ Estabilización del trazo ‖ Stabilizzazione del tratto
+Study ‖ Lernen ‖ Études ‖ Estudio ‖ Studio
+Sun ‖ Sonne ‖ Soleil ‖ Sol ‖ Sole
+Switch to Eraser ‖ Zum Radierer wechseln ‖ Passer à la gomme ‖ Cambiar al borrador ‖ Passa alla gomma
+Symbols ‖ Symbole ‖ Symboles ‖ Símbolos ‖ Simboli
+System ‖ System ‖ Système ‖ Sistema ‖ Sistema
+Tap the heart on a pack to keep it here. ‖ Tippe auf das Herz bei einem Paket, um es hier zu behalten. ‖ Touchez le cœur d’un pack pour le garder ici. ‖ Toca el corazón de un paquete para guardarlo aquí. ‖ Tocca il cuore su un pacchetto per tenerlo qui.
+Tap the page to place a shape, or drag to size it. Then drag, stretch or rotate it. ‖ Tippe auf die Seite, um eine Form zu platzieren, oder ziehe sie auf. Danach kannst du sie bewegen, dehnen oder drehen. ‖ Touchez la page pour placer une forme, ou faites glisser pour la dimensionner. Vous pouvez ensuite la déplacer, l’étirer ou la faire pivoter. ‖ Toca la página para colocar una forma, o arrastra para darle tamaño. Luego puedes moverla, estirarla o girarla. ‖ Tocca la pagina per inserire una forma, oppure trascina per dimensionarla. Poi puoi spostarla, allungarla o ruotarla.
+Tap the page to type a text box. ‖ Tippe auf die Seite, um ein Textfeld zu schreiben. ‖ Touchez la page pour saisir une zone de texte. ‖ Toca la página para escribir un cuadro de texto. ‖ Tocca la pagina per scrivere un riquadro di testo.
+Teach your handwriting ‖ Handschrift antrainieren ‖ Apprendre votre écriture ‖ Enseñar tu escritura ‖ Insegna la tua scrittura
+Templates ‖ Vorlagen ‖ Modèles ‖ Plantillas ‖ Modelli
+Text ‖ Text ‖ Texte ‖ Texto ‖ Testo
+Text boxes ‖ Textfelder ‖ Zones de texte ‖ Cuadros de texto ‖ Riquadri di testo
+Text color ‖ Textfarbe ‖ Couleur du texte ‖ Color del texto ‖ Colore del testo
+Text Doc ‖ Textdokument ‖ Doc texte ‖ Doc. de texto ‖ Doc. di testo
+Text document ‖ Textdokument ‖ Document texte ‖ Documento de texto ‖ Documento di testo
+Text fields, choices and checkboxes are supported. Signature and radio fields need another PDF editor. ‖ Textfelder, Auswahlfelder und Ankreuzfelder werden unterstützt. Signatur- und Optionsfelder benötigen einen anderen PDF-Editor. ‖ Les champs de texte, les choix et les cases à cocher sont pris en charge. Les champs de signature et les boutons radio nécessitent un autre éditeur PDF. ‖ Se admiten campos de texto, opciones y casillas. Los campos de firma y de opción necesitan otro editor de PDF. ‖ Sono supportati campi di testo, scelte e caselle di controllo. I campi firma e i pulsanti di opzione richiedono un altro editor PDF.
+The .%@ extension is kept automatically. ‖ Die Endung .%@ bleibt automatisch erhalten. ‖ L’extension .%@ est conservée automatiquement. ‖ La extensión .%@ se conserva automáticamente. ‖ L’estensione .%@ viene mantenuta automaticamente.
+The catalog address has to start with https://. ‖ Die Katalogadresse muss mit https:// beginnen. ‖ L’adresse du catalogue doit commencer par https://. ‖ La dirección del catálogo debe empezar por https://. ‖ L’indirizzo del catalogo deve iniziare con https://.
+The catalog answered with an error (%lld). ‖ Der Katalog hat mit einem Fehler geantwortet (%lld). ‖ Le catalogue a répondu par une erreur (%lld). ‖ El catálogo respondió con un error (%lld). ‖ Il catalogo ha risposto con un errore (%lld).
+The catalog could not be reached. Check your connection and try again. ‖ Der Katalog war nicht erreichbar. Prüfe deine Verbindung und versuche es erneut. ‖ Le catalogue est inaccessible. Vérifiez votre connexion et réessayez. ‖ No se pudo acceder al catálogo. Comprueba tu conexión e inténtalo de nuevo. ‖ Impossibile raggiungere il catalogo. Controlla la connessione e riprova.
+The catalog could not be read. ‖ Der Katalog konnte nicht gelesen werden. ‖ Le catalogue n’a pas pu être lu. ‖ No se pudo leer el catálogo. ‖ Impossibile leggere il catalogo.
+The catalog is too large. ‖ Der Katalog ist zu groß. ‖ Le catalogue est trop volumineux. ‖ El catálogo es demasiado grande. ‖ Il catalogo è troppo grande.
+The catalog lists “%@” twice. ‖ Der Katalog führt „%@“ doppelt auf. ‖ Le catalogue liste « %@ » deux fois. ‖ El catálogo incluye «%@» dos veces. ‖ Il catalogo elenca «%@» due volte.
+The catalog uses format %lld, which this version cannot read. ‖ Der Katalog verwendet Format %lld, das diese Version nicht lesen kann. ‖ Le catalogue utilise le format %lld, que cette version ne peut pas lire. ‖ El catálogo usa el formato %lld, que esta versión no puede leer. ‖ Il catalogo usa il formato %lld, che questa versione non può leggere.
+The color “%@” is “%@”, which is not a color like #RRGGBB. ‖ Die Farbe „%@“ ist „%@“, das ist keine Farbe wie #RRGGBB. ‖ La couleur « %@ » vaut « %@ », ce qui n’est pas une couleur de type #RRGGBB. ‖ El color «%@» es «%@», que no es un color como #RRGGBB. ‖ Il colore «%@» è «%@», che non è un colore come #RRGGBB.
+The download is larger than the catalog said it would be. ‖ Der Download ist größer, als der Katalog angegeben hat. ‖ Le téléchargement est plus volumineux que ce que le catalogue indiquait. ‖ La descarga es más grande de lo que indicaba el catálogo. ‖ Il download è più grande di quanto indicato dal catalogo.
+The download is not the size the catalog promised. ‖ Der Download hat nicht die Größe, die der Katalog versprochen hat. ‖ Le téléchargement n’a pas la taille promise par le catalogue. ‖ La descarga no tiene el tamaño que prometía el catálogo. ‖ Il download non ha la dimensione promessa dal catalogo.
+The download is not what the catalog promised, so it was thrown away. ‖ Der Download entspricht nicht dem Versprochenen im Katalog und wurde verworfen. ‖ Le téléchargement ne correspond pas à ce que promettait le catalogue ; il a donc été jeté. ‖ La descarga no es lo que prometía el catálogo, así que se descartó. ‖ Il download non corrisponde a quanto promesso dal catalogo ed è stato scartato.
+The entry “%@” is not valid: %@. ‖ Der Eintrag „%@“ ist ungültig: %@. ‖ L’entrée « %@ » n’est pas valide : %@. ‖ La entrada «%@» no es válida: %@. ‖ La voce «%@» non è valida: %@.
+The icon “%@” must be “symbol:name” or a path to an image. ‖ Das Symbol „%@“ muss „symbol:name“ oder ein Pfad zu einem Bild sein. ‖ L’icône « %@ » doit être « symbol:nom » ou un chemin vers une image. ‖ El icono «%@» debe ser «symbol:nombre» o una ruta a una imagen. ‖ L’icona «%@» deve essere «symbol:nome» o un percorso a un’immagine.
+The notebook changed on disk. Reopen it before saving to avoid overwriting another edit. ‖ Das Notizbuch wurde auf dem Datenträger geändert. Öffne es erneut, bevor du sicherst, um eine andere Änderung nicht zu überschreiben. ‖ Le carnet a changé sur le disque. Rouvrez-le avant d’enregistrer pour ne pas écraser une autre modification. ‖ El cuaderno cambió en el disco. Vuelve a abrirlo antes de guardar para no sobrescribir otra edición. ‖ Il quaderno è cambiato sul disco. Riaprilo prima di salvare per non sovrascrivere un’altra modifica.
+The notebook package is missing or contains invalid data. ‖ Das Notizbuch-Paket fehlt oder enthält ungültige Daten. ‖ Le paquet du carnet est manquant ou contient des données non valides. ‖ Falta el paquete del cuaderno o contiene datos no válidos. ‖ Il pacchetto del quaderno manca o contiene dati non validi.
+The pack ‖ Das Paket ‖ Le pack ‖ El paquete ‖ Il pacchetto
+The pack has no pack.json. ‖ Das Paket enthält keine pack.json. ‖ Le pack ne contient pas de pack.json. ‖ El paquete no tiene pack.json. ‖ Il pacchetto non contiene pack.json.
+The pack has too many files. ‖ Das Paket enthält zu viele Dateien. ‖ Le pack contient trop de fichiers. ‖ El paquete tiene demasiados archivos. ‖ Il pacchetto contiene troppi file.
+The pack holds “%@” twice. ‖ Das Paket enthält „%@“ doppelt. ‖ Le pack contient « %@ » en double. ‖ El paquete contiene «%@» dos veces. ‖ Il pacchetto contiene «%@» due volte.
+The pack holds “%@”, a path that is not allowed. ‖ Das Paket enthält „%@“, einen nicht erlaubten Pfad. ‖ Le pack contient « %@ », un chemin non autorisé. ‖ El paquete contiene «%@», una ruta no permitida. ‖ Il pacchetto contiene «%@», un percorso non consentito.
+The pack holds “%@”, which does not belong in it. ‖ Das Paket enthält „%@“, das nicht hineingehört. ‖ Le pack contient « %@ », qui n’y a pas sa place. ‖ El paquete contiene «%@», que no le corresponde. ‖ Il pacchetto contiene «%@», che non ne fa parte.
+The pack is not of the kind it should be. ‖ Das Paket ist nicht von der erwarteten Art. ‖ Le pack n’est pas du type attendu. ‖ El paquete no es del tipo que debería ser. ‖ Il pacchetto non è del tipo previsto.
+The pack is not valid: %@. ‖ Das Paket ist ungültig: %@. ‖ Le pack n’est pas valide : %@. ‖ El paquete no es válido: %@. ‖ Il pacchetto non è valido: %@.
+The pack says another %@ than the catalog. ‖ Das Paket nennt eine andere %@ als der Katalog. ‖ Le pack indique un autre %@ que le catalogue. ‖ El paquete indica otro %@ distinto del catálogo. ‖ Il pacchetto indica un %@ diverso da quello del catalogo.
+The pack uses %@, which is not supported. ‖ Das Paket verwendet %@, was nicht unterstützt wird. ‖ Le pack utilise %@, ce qui n’est pas pris en charge. ‖ El paquete usa %@, que no se admite. ‖ Il pacchetto usa %@, che non è supportato.
+The package ‖ Das Paket ‖ Le paquet ‖ El paquete ‖ Il pacchetto
+The password is incorrect. Try again. ‖ Das Passwort ist falsch. Versuche es erneut. ‖ Le mot de passe est incorrect. Réessayez. ‖ La contraseña es incorrecta. Inténtalo de nuevo. ‖ La password non è corretta. Riprova.
+The pen goes back to reading with its stock shapes only. ‖ Der Stift liest wieder nur mit seinen Standardformen. ‖ Le stylet ne lit plus qu’avec ses formes de base. ‖ El lápiz vuelve a leer solo con sus formas de serie. ‖ La penna torna a leggere solo con le sue forme standard.
+The planner is taken away. Notebooks you started from it stay. ‖ Der Planer wird entfernt. Notizbücher, die du daraus gestartet hast, bleiben. ‖ L’agenda est retirée. Les carnets que vous en avez créés restent. ‖ La agenda se quita. Los cuadernos que creaste con ella se conservan. ‖ Il planner viene rimosso. I quaderni creati a partire da esso restano.
+The stickers are taken out of your library. Stickers already on a page stay there. ‖ Die Sticker werden aus deiner Bibliothek entfernt. Sticker, die schon auf einer Seite sind, bleiben dort. ‖ Les autocollants sont retirés de votre bibliothèque. Ceux déjà placés sur une page y restent. ‖ Las pegatinas se quitan de tu biblioteca. Las que ya están en una página se quedan allí. ‖ Gli adesivi vengono rimossi dalla tua libreria. Quelli già presenti su una pagina restano lì.
+The template is taken away. Pages you added from it stay in your notebooks. ‖ Die Vorlage wird entfernt. Seiten, die du daraus hinzugefügt hast, bleiben in deinen Notizbüchern. ‖ Le modèle est retiré. Les pages que vous en avez ajoutées restent dans vos carnets. ‖ La plantilla se quita. Las páginas que añadiste con ella se quedan en tus cuadernos. ‖ Il modello viene rimosso. Le pagine aggiunte a partire da esso restano nei tuoi quaderni.
+The theme has no name. ‖ Das Theme hat keinen Namen. ‖ Le thème n’a pas de nom. ‖ El tema no tiene nombre. ‖ Il tema non ha un nome.
+The theme has too many files. ‖ Das Theme enthält zu viele Dateien. ‖ Le thème contient trop de fichiers. ‖ El tema tiene demasiados archivos. ‖ Il tema contiene troppi file.
+The theme is taken away. If it is in use, the app goes back to the classic theme. ‖ Das Theme wird entfernt. Falls es verwendet wird, kehrt die App zum klassischen Theme zurück. ‖ Le thème est retiré. S’il est utilisé, l’app revient au thème classique. ‖ El tema se quita. Si está en uso, la app vuelve al tema clásico. ‖ Il tema viene rimosso. Se è in uso, l’app torna al tema classico.
+The theme names “%@”, which is not in it. ‖ Das Theme nennt „%@“, was nicht enthalten ist. ‖ Le thème cite « %@ », qui n’y figure pas. ‖ El tema nombra «%@», que no está incluido. ‖ Il tema indica «%@», che non è incluso.
+Theme ‖ Theme ‖ Thème ‖ Tema ‖ Tema
+Themes ‖ Themes ‖ Thèmes ‖ Temas ‖ Temi
+Themes change the colors, type and icons of the app, never what it does. ‖ Themes ändern Farben, Schrift und Symbole der App, nie ihre Funktion. ‖ Les thèmes changent les couleurs, les polices et les icônes de l’app, jamais son fonctionnement. ‖ Los temas cambian los colores, la tipografía y los iconos de la app, nunca lo que hace. ‖ I temi cambiano colori, caratteri e icone dell’app, mai ciò che fa.
+Thickness ‖ Stärke ‖ Épaisseur ‖ Grosor ‖ Spessore
+Thickness %@ points ‖ Stärke %@ Punkte ‖ Épaisseur %@ points ‖ Grosor %@ puntos ‖ Spessore %@ punti
+This cannot be undone. ‖ Das lässt sich nicht rückgängig machen. ‖ Cette action est irréversible. ‖ Esta acción no se puede deshacer. ‖ L’operazione non può essere annullata.
+This file type can be browsed, but is not editable in NotesCraft. ‖ Dieser Dateityp kann durchsucht, aber in NotesCraft nicht bearbeitet werden. ‖ Ce type de fichier peut être parcouru, mais n’est pas modifiable dans NotesCraft. ‖ Este tipo de archivo se puede explorar, pero no se puede editar en NotesCraft. ‖ Questo tipo di file può essere esplorato, ma non modificato in NotesCraft.
+This is not a NotesCraft theme: there is no readable theme.json. ‖ Das ist kein NotesCraft-Theme: Es gibt keine lesbare theme.json. ‖ Ce n’est pas un thème NotesCraft : il n’y a pas de theme.json lisible. ‖ No es un tema de NotesCraft: no hay un theme.json legible. ‖ Non è un tema NotesCraft: non c’è un theme.json leggibile.
+This is not a pack file. ‖ Das ist keine Paketdatei. ‖ Ce n’est pas un fichier de pack. ‖ No es un archivo de paquete. ‖ Non è un file di pacchetto.
+This notebook uses format version %lld, which this app cannot open. ‖ Dieses Notizbuch verwendet Formatversion %lld, die diese App nicht öffnen kann. ‖ Ce carnet utilise la version %lld du format, que cette app ne peut pas ouvrir. ‖ Este cuaderno usa la versión %lld del formato, que esta app no puede abrir. ‖ Questo quaderno usa la versione %lld del formato, che questa app non può aprire.
+This page is a PDF, so its own background stays. Turn on “Apply to all non-PDF pages” to change the others. ‖ Diese Seite ist ein PDF, daher bleibt ihr eigener Hintergrund. Aktiviere „Auf alle Seiten ohne PDF anwenden“, um die anderen zu ändern. ‖ Cette page est un PDF ; son fond reste donc inchangé. Activez « Appliquer à toutes les pages non PDF » pour modifier les autres. ‖ Esta página es un PDF, así que su fondo se conserva. Activa «Aplicar a todas las páginas que no son PDF» para cambiar las demás. ‖ Questa pagina è un PDF, quindi il suo sfondo resta invariato. Attiva «Applica a tutte le pagine non PDF» per cambiare le altre.
+This PDF has no table of contents. ‖ Dieses PDF hat kein Inhaltsverzeichnis. ‖ Ce PDF n’a pas de table des matières. ‖ Este PDF no tiene índice. ‖ Questo PDF non ha un indice.
+This PDF is locked. Unlock it in a PDF editor before annotating it. ‖ Dieses PDF ist gesperrt. Entsperre es in einem PDF-Editor, bevor du es beschriftest. ‖ Ce PDF est verrouillé. Déverrouillez-le dans un éditeur PDF avant de l’annoter. ‖ Este PDF está bloqueado. Desbloquéalo en un editor de PDF antes de anotarlo. ‖ Questo PDF è bloccato. Sbloccalo in un editor PDF prima di annotarlo.
+This theme could not be added ‖ Dieses Theme konnte nicht hinzugefügt werden ‖ Ce thème n’a pas pu être ajouté ‖ No se pudo añadir este tema ‖ Impossibile aggiungere questo tema
+This theme uses format %lld, which this version cannot read. ‖ Dieses Theme verwendet Format %lld, das diese Version nicht lesen kann. ‖ Ce thème utilise le format %lld, que cette version ne peut pas lire. ‖ Este tema usa el formato %lld, que esta versión no puede leer. ‖ Questo tema usa il formato %lld, che questa versione non può leggere.
+Tip flatness ‖ Spitzenabflachung ‖ Aplatissement de la pointe ‖ Aplanamiento de la punta ‖ Appiattimento della punta
+Tip sharpness ‖ Spitzenschärfe ‖ Finesse de la pointe ‖ Nitidez de la punta ‖ Nitidezza della punta
+Title ‖ Titel ‖ Titre ‖ Título ‖ Titolo
+Toggle grid or list ‖ Raster oder Liste umschalten ‖ Basculer entre grille et liste ‖ Alternar cuadrícula o lista ‖ Passa tra griglia ed elenco
+too large ‖ zu groß ‖ trop grand ‖ demasiado grande ‖ troppo grande
+Toolbar ‖ Werkzeugleiste ‖ Barre d’outils ‖ Barra de herramientas ‖ Barra degli strumenti
+Tools ‖ Werkzeuge ‖ Outils ‖ Herramientas ‖ Strumenti
+Trash ‖ Papierkorb ‖ Corbeille ‖ Papelera ‖ Cestino
+Trash is empty ‖ Der Papierkorb ist leer ‖ La corbeille est vide ‖ La papelera está vacía ‖ Il cestino è vuoto
+Triangle ‖ Dreieck ‖ Triangle ‖ Triángulo ‖ Triangolo
+Try again ‖ Erneut versuchen ‖ Réessayer ‖ Reintentar ‖ Riprova
+Try another search. ‖ Versuche eine andere Suche. ‖ Essayez une autre recherche. ‖ Prueba con otra búsqueda. ‖ Prova un’altra ricerca.
+Type here ‖ Hier tippen ‖ Saisir ici ‖ Escribe aquí ‖ Scrivi qui
+Unable to close “%@” because its changes could not be saved. ‖ „%@“ kann nicht geschlossen werden, weil seine Änderungen nicht gesichert werden konnten. ‖ Impossible de fermer « %@ » car ses modifications n’ont pas pu être enregistrées. ‖ No se puede cerrar «%@» porque sus cambios no se pudieron guardar. ‖ Impossibile chiudere «%@» perché le sue modifiche non sono state salvate.
+Unable to complete the operation ‖ Der Vorgang konnte nicht abgeschlossen werden ‖ Impossible de terminer l’opération ‖ No se pudo completar la operación ‖ Impossibile completare l’operazione
+Unable to display image ‖ Bild kann nicht angezeigt werden ‖ Impossible d’afficher l’image ‖ No se puede mostrar la imagen ‖ Impossibile visualizzare l’immagine
+Unable to open %@. Re-add the folder to restore access. %@ ‖ %@ kann nicht geöffnet werden. Füge den Ordner erneut hinzu, um den Zugriff wiederherzustellen. %@ ‖ Impossible d’ouvrir %@. Ajoutez à nouveau le dossier pour rétablir l’accès. %@ ‖ No se puede abrir %@. Vuelve a añadir la carpeta para restaurar el acceso. %@ ‖ Impossibile aprire %@. Aggiungi di nuovo la cartella per ripristinare l’accesso. %@
+Unable to switch storage until open changes are saved. ‖ Der Speicher kann erst gewechselt werden, wenn offene Änderungen gesichert sind. ‖ Impossible de changer de stockage tant que les modifications ouvertes ne sont pas enregistrées. ‖ No se puede cambiar el almacenamiento hasta que se guarden los cambios abiertos. ‖ Impossibile cambiare archivio finché le modifiche aperte non sono salvate.
+undefined ‖ nicht definiert ‖ indéfini ‖ indefinido ‖ non definito
+Undo ‖ Rückgängig ‖ Annuler ‖ Deshacer ‖ Annulla
+Undo and redo ‖ Rückgängig und Wiederholen ‖ Annuler et rétablir ‖ Deshacer y rehacer ‖ Annulla e ripeti
+Unsaved changes ‖ Nicht gesicherte Änderungen ‖ Modifications non enregistrées ‖ Cambios sin guardar ‖ Modifiche non salvate
+Untitled ‖ Ohne Titel ‖ Sans titre ‖ Sin título ‖ Senza titolo
+Untitled Notebook ‖ Unbenanntes Notizbuch ‖ Carnet sans titre ‖ Cuaderno sin título ‖ Quaderno senza titolo
+Untitled notebook ‖ Unbenanntes Notizbuch ‖ Carnet sans titre ‖ Cuaderno sin título ‖ Quaderno senza titolo
+Untitled section ‖ Unbenannter Abschnitt ‖ Section sans titre ‖ Sección sin título ‖ Sezione senza titolo
+Untitled Whiteboard ‖ Unbenanntes Whiteboard ‖ Tableau blanc sans titre ‖ Pizarra sin título ‖ Lavagna senza titolo
+Up ‖ Hoch ‖ Haut ‖ Arriba ‖ Su
+Update ‖ Aktualisieren ‖ Mettre à jour ‖ Actualizar ‖ Aggiorna
+Use . for decimals, × ÷ ^ √ % and brackets. ‖ Verwende . für Dezimalstellen sowie × ÷ ^ √ % und Klammern. ‖ Utilisez . pour les décimales, ainsi que × ÷ ^ √ % et les parenthèses. ‖ Usa . para los decimales, además de × ÷ ^ √ % y paréntesis. ‖ Usa . per i decimali, oltre a × ÷ ^ √ % e parentesi.
+Use the default address ‖ Standardadresse verwenden ‖ Utiliser l’adresse par défaut ‖ Usar la dirección predeterminada ‖ Usa l’indirizzo predefinito
+Use the theme's colors ‖ Farben des Themes verwenden ‖ Utiliser les couleurs du thème ‖ Usar los colores del tema ‖ Usa i colori del tema
+Use theme ‖ Theme verwenden ‖ Utiliser le thème ‖ Usar tema ‖ Usa tema
+Use this address ‖ Diese Adresse verwenden ‖ Utiliser cette adresse ‖ Usar esta dirección ‖ Usa questo indirizzo
+Version ‖ Version ‖ Version ‖ Versión ‖ Versione
+Vertical ‖ Vertikal ‖ Vertical ‖ Vertical ‖ Verticale
+Weekly planner ‖ Wochenplaner ‖ Agenda hebdomadaire ‖ Agenda semanal ‖ Planner settimanale
+What to write ‖ Was zu schreiben ist ‖ Quoi écrire ‖ Qué escribir ‖ Cosa scrivere
+When unsure ‖ Bei Unsicherheit ‖ En cas de doute ‖ Cuando haya dudas ‖ In caso di dubbio
+Where the free themes, stickers, templates and planners are downloaded from. ‖ Woher die kostenlosen Themes, Sticker, Vorlagen und Planer geladen werden. ‖ D’où sont téléchargés les thèmes, autocollants, modèles et agendas gratuits. ‖ De dónde se descargan los temas, pegatinas, plantillas y agendas gratuitos. ‖ Da dove vengono scaricati i temi, gli adesivi, i modelli e i planner gratuiti.
+White ‖ Weiß ‖ Blanc ‖ Blanco ‖ Bianco
+Whiteboard ‖ Whiteboard ‖ Tableau blanc ‖ Pizarra ‖ Lavagna
+Width ‖ Breite ‖ Largeur ‖ Ancho ‖ Larghezza
+Work ‖ Arbeit ‖ Travail ‖ Trabajo ‖ Lavoro
+Working… ‖ Wird bearbeitet … ‖ Traitement en cours… ‖ Trabajando… ‖ Elaborazione…
+Write a calculation and end it with =. The answer is written next to it. ‖ Schreibe eine Rechnung und beende sie mit =. Die Antwort wird daneben geschrieben. ‖ Écrivez un calcul et terminez-le par =. La réponse s’écrit à côté. ‖ Escribe un cálculo y termínalo con =. La respuesta se escribe al lado. ‖ Scrivi un calcolo e terminalo con =. La risposta viene scritta accanto.
+Write a calculation, like 12 × 3 or a fraction, and end it with =. The pen lights it up and writes the answer next to it; tap an answer to correct it. ‖ Schreibe eine Rechnung, etwa 12 × 3 oder einen Bruch, und beende sie mit =. Der Stift lässt sie aufleuchten und schreibt die Antwort daneben; tippe auf eine Antwort, um sie zu korrigieren. ‖ Écrivez un calcul, comme 12 × 3 ou une fraction, et terminez-le par =. Le stylet l’illumine et écrit la réponse à côté ; touchez une réponse pour la corriger. ‖ Escribe un cálculo, como 12 × 3 o una fracción, y termínalo con =. El lápiz lo ilumina y escribe la respuesta al lado; toca una respuesta para corregirla. ‖ Scrivi un calcolo, come 12 × 3 o una frazione, e terminalo con =. La penna lo illumina e scrive la risposta accanto; tocca una risposta per correggerla.
+Write the way you write in a notebook. The pen uses what you save from the next calculation on. ‖ Schreibe so, wie du in einem Notizbuch schreibst. Der Stift nutzt, was du sicherst, ab der nächsten Rechnung. ‖ Écrivez comme dans un carnet. Le stylet utilise ce que vous enregistrez dès le prochain calcul. ‖ Escribe como lo haces en un cuaderno. El lápiz usa lo que guardes a partir del siguiente cálculo. ‖ Scrivi come scrivi in un quaderno. La penna usa ciò che salvi dal prossimo calcolo in poi.
+Write this calculation ‖ Schreibe diese Rechnung ‖ Écrivez ce calcul ‖ Escribe este cálculo ‖ Scrivi questo calcolo
+Write this symbol ‖ Schreibe dieses Symbol ‖ Écrivez ce symbole ‖ Escribe este símbolo ‖ Scrivi questo simbolo
+Yellow ‖ Gelb ‖ Jaune ‖ Amarillo ‖ Giallo
+Your notes. Your folder. ‖ Deine Notizen. Dein Ordner. ‖ Vos notes. Votre dossier. ‖ Tus notas. Tu carpeta. ‖ I tuoi appunti. La tua cartella.
+Your templates ‖ Deine Vorlagen ‖ Vos modèles ‖ Tus plantillas ‖ I tuoi modelli
+Zoom %lld percent ‖ Zoom %lld Prozent ‖ Zoom %lld pour cent ‖ Zoom %lld por ciento ‖ Zoom %lld per cento
+“%@” belongs to the themes that come with the app. Choose another id. ‖ „%@“ gehört zu den Themes, die mit der App kommen. Wähle eine andere ID. ‖ « %@ » fait partie des thèmes fournis avec l’app. Choisissez un autre identifiant. ‖ «%@» pertenece a los temas que vienen con la app. Elige otro id. ‖ «%@» appartiene ai temi inclusi con l’app. Scegli un altro id.
+“%@” in the pack is damaged. ‖ „%@“ im Paket ist beschädigt. ‖ « %@ » dans le pack est endommagé. ‖ «%@» del paquete está dañado. ‖ «%@» nel pacchetto è danneggiato.
+“%@” is a kind of file a theme cannot hold. ‖ „%@“ ist eine Dateiart, die ein Theme nicht enthalten kann. ‖ « %@ » est un type de fichier qu’un thème ne peut pas contenir. ‖ «%@» es un tipo de archivo que un tema no puede contener. ‖ «%@» è un tipo di file che un tema non può contenere.
+“%@” is not a valid theme id (lowercase letters, digits, dots, dashes; 3 to 64 characters). ‖ „%@“ ist keine gültige Theme-ID (Kleinbuchstaben, Ziffern, Punkte, Bindestriche; 3 bis 64 Zeichen). ‖ « %@ » n’est pas un identifiant de thème valide (minuscules, chiffres, points, tirets ; 3 à 64 caractères). ‖ «%@» no es un id de tema válido (minúsculas, dígitos, puntos, guiones; de 3 a 64 caracteres). ‖ «%@» non è un id di tema valido (lettere minuscole, cifre, punti, trattini; da 3 a 64 caratteri).
+“%@” is not here any more. ‖ „%@“ ist nicht mehr vorhanden. ‖ « %@ » n’est plus disponible. ‖ «%@» ya no está aquí. ‖ «%@» non è più disponibile.
+“%@” points outside the theme. ‖ „%@“ zeigt aus dem Theme hinaus. ‖ « %@ » pointe en dehors du thème. ‖ «%@» apunta fuera del tema. ‖ «%@» punta fuori dal tema.
+“New notebook” starts a notebook of its own from the planner. ‖ „Neues Notizbuch“ startet daraus ein eigenes Notizbuch aus dem Planer. ‖ « Nouveau carnet » en démarre un à partir de l’agenda. ‖ «Nuevo cuaderno» crea uno propio a partir de la agenda. ‖ «Nuovo quaderno» ne avvia uno proprio a partire dal planner.
+After page %lld ‖ Nach Seite %lld ‖ Après la page %lld ‖ Después de la página %lld ‖ Dopo la pagina %lld
+Before page %lld ‖ Vor Seite %lld ‖ Avant la page %lld ‖ Antes de la página %lld ‖ Prima della pagina %lld
+At the end ‖ Am Ende ‖ À la fin ‖ Al final ‖ In fondo
+Where ‖ Wo ‖ Où ‖ Dónde ‖ Dove
+Same size as this PDF page ‖ Gleiche Größe wie diese PDF-Seite ‖ Même taille que cette page PDF ‖ Mismo tamaño que esta página PDF ‖ Stessa dimensione di questa pagina PDF
+Pretrained model ‖ Vortrainiertes Modell ‖ Modèle pré-entraîné ‖ Modelo preentrenado ‖ Modello preaddestrato
+My handwriting ‖ Meine Handschrift ‖ Mon écriture ‖ Mi letra ‖ La mia scrittura
+Reads digits and operators out of the box. Nothing to teach. ‖ Liest Ziffern und Rechenzeichen sofort. Nichts muss beigebracht werden. ‖ Lit les chiffres et les opérateurs dès le départ. Rien à apprendre. ‖ Lee dígitos y operadores desde el primer momento. No hay nada que enseñar. ‖ Legge cifre e operatori subito. Niente da insegnare.
+Reads with the symbols you write in the trainer, and basic shapes for the rest. ‖ Liest mit den Zeichen, die du im Trainer schreibst, und mit Grundformen für den Rest. ‖ Lit avec les symboles que vous écrivez dans l’entraîneur, et des formes de base pour le reste. ‖ Lee con los símbolos que escribes en el entrenador y con formas básicas para el resto. ‖ Legge con i simboli che scrivi nell’allenatore e con forme di base per il resto.
+The pretrained model was trained on public handwriting and runs on this iPad. Write each symbol a few times in the trainer and choose My handwriting for a pen that reads your hand. Samples stay on this iPad. ‖ Das vortrainierte Modell wurde mit öffentlichen Handschriftdaten trainiert und läuft auf diesem iPad. Schreibe jedes Zeichen ein paar Mal im Trainer und wähle Meine Handschrift, damit der Stift deine Schrift liest. Die Proben bleiben auf diesem iPad. ‖ Le modèle pré-entraîné a été entraîné sur de l’écriture publique et fonctionne sur cet iPad. Écrivez chaque symbole quelques fois dans l’entraîneur et choisissez Mon écriture pour un stylo qui lit votre main. Les échantillons restent sur cet iPad. ‖ El modelo preentrenado se entrenó con escritura pública y funciona en este iPad. Escribe cada símbolo unas veces en el entrenador y elige Mi letra para un lápiz que lea tu mano. Las muestras se quedan en este iPad. ‖ Il modello preaddestrato è stato addestrato su scrittura pubblica e funziona su questo iPad. Scrivi ogni simbolo qualche volta nell’allenatore e scegli La mia scrittura per una penna che legge la tua mano. I campioni restano su questo iPad.
+The pen is reading with the pretrained model. Your samples are used once you choose My handwriting. ‖ Der Stift liest mit dem vortrainierten Modell. Deine Proben werden verwendet, sobald du Meine Handschrift wählst. ‖ Le stylo lit avec le modèle pré-entraîné. Vos échantillons sont utilisés dès que vous choisissez Mon écriture. ‖ El lápiz lee con el modelo preentrenado. Tus muestras se usan cuando eliges Mi letra. ‖ La penna legge con il modello preaddestrato. I tuoi campioni vengono usati quando scegli La mia scrittura.
+Use my handwriting ‖ Meine Handschrift verwenden ‖ Utiliser mon écriture ‖ Usar mi letra ‖ Usa la mia scrittura

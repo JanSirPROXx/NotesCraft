@@ -8,13 +8,13 @@ public enum PackageError: LocalizedError {
   case lockedPDF
   public var errorDescription: String? {
     switch self {
-    case .lockedPDF: "This PDF is locked. Unlock it in a PDF editor before annotating it."
-    case .invalidPackage: "The notebook package is missing or contains invalid data."
+    case .lockedPDF: coreText("This PDF is locked. Unlock it in a PDF editor before annotating it.")
+    case .invalidPackage: coreText("The notebook package is missing or contains invalid data.")
     case .unsupportedVersion(let v):
-      "This notebook uses format version \(v), which this app cannot open."
-    case .invalidAsset(let name): "Invalid or missing notebook asset: \(name)."
+      coreText("This notebook uses format version \(v), which this app cannot open.")
+    case .invalidAsset(let name): coreText("Invalid or missing notebook asset: \(name).")
     case .conflict:
-      "The notebook changed on disk. Reopen it before saving to avoid overwriting another edit."
+      coreText("The notebook changed on disk. Reopen it before saving to avoid overwriting another edit.")
     }
   }
 }

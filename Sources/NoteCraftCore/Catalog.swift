@@ -11,18 +11,18 @@ public enum PackKind: String, Codable, CaseIterable, Sendable {
 
   public var title: String {
     switch self {
-    case .theme: "Theme"
-    case .sticker: "Stickers"
-    case .template: "Page template"
-    case .planner: "Planner"
+    case .theme: coreText("Theme")
+    case .sticker: coreText("Stickers")
+    case .template: coreText("Page template")
+    case .planner: coreText("Planner")
     }
   }
   public var plural: String {
     switch self {
-    case .theme: "Themes"
-    case .sticker: "Stickers"
-    case .template: "Templates"
-    case .planner: "Planners"
+    case .theme: coreText("Themes")
+    case .sticker: coreText("Stickers")
+    case .template: coreText("Templates")
+    case .planner: coreText("Planners")
     }
   }
   public var symbol: String {
@@ -37,7 +37,14 @@ public enum PackKind: String, Codable, CaseIterable, Sendable {
 
 public enum CatalogCategory: String, Codable, CaseIterable, Sendable {
   case home, work, study, life
-  public var title: String { rawValue.capitalized }
+  public var title: String {
+    switch self {
+    case .home: coreText("Home")
+    case .work: coreText("Work")
+    case .study: coreText("Study")
+    case .life: coreText("Life")
+    }
+  }
 }
 
 public enum CatalogError: Error, Equatable, LocalizedError {
@@ -49,11 +56,11 @@ public enum CatalogError: Error, Equatable, LocalizedError {
 
   public var errorDescription: String? {
     switch self {
-    case .notACatalog: "The catalog could not be read."
-    case .unsupportedFormat(let n): "The catalog uses format \(n), which this version cannot read."
-    case .tooMany: "The catalog is too large."
-    case .invalid(let id, let why): "The entry “\(id)” is not valid: \(why)."
-    case .duplicate(let id): "The catalog lists “\(id)” twice."
+    case .notACatalog: coreText("The catalog could not be read.")
+    case .unsupportedFormat(let n): coreText("The catalog uses format \(n), which this version cannot read.")
+    case .tooMany: coreText("The catalog is too large.")
+    case .invalid(let id, let why): coreText("The entry “\(id)” is not valid: \(why).")
+    case .duplicate(let id): coreText("The catalog lists “\(id)” twice.")
     }
   }
 }

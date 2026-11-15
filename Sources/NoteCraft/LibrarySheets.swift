@@ -66,7 +66,7 @@ struct LibraryMoveSheet: View {
             Text("No subfolders. You can move here.").foregroundStyle(.secondary)
           }
         }
-      }.padding(20).navigationTitle("Choose destination")
+      }.padding(20).navigationTitle(tr("Choose destination"))
         .toolbar {
           ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
           ToolbarItem(placement: .confirmationAction) {

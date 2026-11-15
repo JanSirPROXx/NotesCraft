@@ -17,11 +17,11 @@ enum MarketplaceError: LocalizedError, Equatable {
 
   var errorDescription: String? {
     switch self {
-    case .badAddress: "The catalog address has to start with https://."
-    case .unreachable: "The catalog could not be reached. Check your connection and try again."
-    case .server(let code): "The catalog answered with an error (\(code))."
-    case .tooLarge: "The download is larger than the catalog said it would be."
-    case .notFound(let what): "“\(what)” is not here any more."
+    case .badAddress: tr("The catalog address has to start with https://.")
+    case .unreachable: tr("The catalog could not be reached. Check your connection and try again.")
+    case .server(let code): tr("The catalog answered with an error (\(code)).")
+    case .tooLarge: tr("The download is larger than the catalog said it would be.")
+    case .notFound(let what): tr("“\(what)” is not here any more.")
     }
   }
 }

@@ -206,7 +206,7 @@ struct WidthEditor: View {
 // Sliders keep a local draft and commit on release, like WidthEditor: each tick would otherwise
 // re-evaluate the whole workspace.
 struct DraftSlider: View {
-  let title: String
+  let title: LocalizedStringKey
   @Binding var value: Double
   var display: (Double) -> String = { "\(Int(($0 * 100).rounded()))%" }
   @State private var draft = 0.0
@@ -214,7 +214,7 @@ struct DraftSlider: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
       HStack {
-        Text(title.uppercased()).font(.theme(.caption)).foregroundStyle(.secondary)
+        Text(title).textCase(.uppercase).font(.theme(.caption)).foregroundStyle(.secondary)
         Spacer()
         Text(display(draft)).font(.theme(.caption)).monospacedDigit()
       }
@@ -272,7 +272,7 @@ struct PenTipSettings: View {
       DraftSlider(title: "Pressure sensitivity", value: $pressure)
       DraftSlider(
         title: "Tip flatness", value: $flatness,
-        display: { $0 < 0.02 ? "Round" : "\(Int(($0 * 100).rounded()))%" })
+        display: { $0 < 0.02 ? tr("Round") : "\(Int(($0 * 100).rounded()))%" })
     }
     .onAppear { draftTip = PenTip(sharpness: sharpness, pressure: pressure, flatness: flatness) }
     .onChange(of: sharpness) { draftTip.sharpness = sharpness }
@@ -284,7 +284,7 @@ struct PenTipSettings: View {
 // Size slider in 0.1 pt steps. Like DraftSlider it commits on release, so dragging does not
 // re-evaluate the whole workspace on every tick.
 struct PointSlider: View {
-  let title: String
+  let title: LocalizedStringKey
   @Binding var value: Double
   var range: ClosedRange<Double>
   @State private var draft = 0.0

@@ -20,8 +20,10 @@ struct CalculatorIntroView: View {
         // Not on the container: an identifier there would replace those of the views inside it.
         Text("Calculator pen").font(.theme(.title2).bold()).accessibilityIdentifier("calculatorIntroTitle")
         Text(
-          "Write a calculation, like 12 × 3 or a fraction, and end it with =. "
-            + "The pen lights it up and writes the answer next to it; tap an answer to correct it."
+          """
+          Write a calculation, like 12 × 3 or a fraction, and end it with =. \
+          The pen lights it up and writes the answer next to it; tap an answer to correct it.
+          """
         )
         .font(.theme(.body)).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
       }

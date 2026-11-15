@@ -36,7 +36,22 @@ import SwiftUI
     return TemplateRecognizer(classifier: classifier!)
   }
 
-  func warmUp() { _ = recognizer }
+  // What reads a calculation: the network that comes with the app, or the matcher with the
+  // reader's own symbols.
+  func recognizer(for mode: CalculatorRecognition) -> any ExpressionRecognizing {
+    switch mode {
+    case .pretrained: PretrainedRecognizer()
+    case .personal: recognizer
+    }
+  }
+
+  // Building either takes a moment, which is better spent before the first "=" than after it.
+  func warmUp() {
+    switch CalculatorRecognition.current {
+    case .pretrained: _ = SymbolNet.bundled
+    case .personal: _ = recognizer
+    }
+  }
 
   func add(kind: CorpusSample.Kind, label: String, strokes: [[Point]]) {
     guard !strokes.isEmpty, !label.isEmpty else { return }

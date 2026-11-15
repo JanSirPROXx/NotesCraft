@@ -25,7 +25,7 @@ struct PDFChapter: Identifiable {
           $0.backgroundPDF == name && $0.backgroundPage == number
         }?.id
         chapters.append(
-          PDFChapter(title: node.label ?? "Untitled section", pageID: id, depth: depth))
+          PDFChapter(title: node.label ?? tr("Untitled section"), pageID: id, depth: depth))
         for i in 0..<node.numberOfChildren {
           if let child = node.child(at: i) { visit(child, depth: depth + 1) }
         }
@@ -110,7 +110,7 @@ struct DocumentNavigator: View {
             }
           }
         }
-      }.padding(.top, 16).navigationTitle("Navigate document")
+      }.padding(.top, 16).navigationTitle(tr("Navigate document"))
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
     }.frame(minWidth: 380, minHeight: 450).themedSheet()
       .onAppear {

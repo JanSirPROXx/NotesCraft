@@ -13,7 +13,13 @@ struct MarketplaceView: View {
   enum Tab: String, CaseIterable, Identifiable {
     case discover, saved, installed
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String {
+      switch self {
+      case .discover: tr("Discover")
+      case .saved: tr("Saved")
+      case .installed: tr("Installed")
+      }
+    }
   }
 
   @State private var search = ""
@@ -124,7 +130,7 @@ struct MarketplaceView: View {
           Button(option.plural, systemImage: Icon.name(option.symbol)) { kind = option }
         }
       } label: {
-        Label(kind?.plural ?? "All kinds", systemImage: Icon.name("line.3.horizontal.decrease"))
+        Label(kind?.plural ?? tr("All kinds"), systemImage: Icon.name("line.3.horizontal.decrease"))
       }.foregroundStyle(secondary).accessibilityIdentifier("marketplaceKind")
     }
   }
@@ -132,7 +138,7 @@ struct MarketplaceView: View {
   private var categories: some View {
     ScrollView(.horizontal, showsIndicators: false) {
       HStack(spacing: 10) {
-        chip("All", selected: category == nil) { category = nil }
+        chip(tr("All"), selected: category == nil) { category = nil }
         ForEach(CatalogCategory.allCases, id: \.self) { option in
           chip(option.title, selected: category == option) { category = option }
         }
@@ -178,7 +184,7 @@ struct MarketplaceView: View {
 
   private var footer: some View {
     HStack {
-      Text("\(entries.count) \(entries.count == 1 ? "pack" : "packs")")
+      Text(entries.count == 1 ? tr("1 pack") : tr("\(entries.count) packs"))
       Spacer()
       if let updated = store.updated {
         Text("Catalog updated \(updated.formatted(.relative(presentation: .named)))")
@@ -354,10 +360,10 @@ struct PackPage: View {
 
   private var removalNote: String {
     switch entry.kind {
-    case .theme: "The theme is taken away. If it is in use, the app goes back to the classic theme."
-    case .sticker: "The stickers are taken out of your library. Stickers already on a page stay there."
-    case .template: "The template is taken away. Pages you added from it stay in your notebooks."
-    case .planner: "The planner is taken away. Notebooks you started from it stay."
+    case .theme: tr("The theme is taken away. If it is in use, the app goes back to the classic theme.")
+    case .sticker: tr("The stickers are taken out of your library. Stickers already on a page stay there.")
+    case .template: tr("The template is taken away. Pages you added from it stay in your notebooks.")
+    case .planner: tr("The planner is taken away. Notebooks you started from it stay.")
     }
   }
 
@@ -400,7 +406,7 @@ struct PackPage: View {
       Color.theme(.field), in: RoundedRectangle(cornerRadius: .corner(12)))
   }
 
-  private func detail(_ name: String, _ value: String) -> some View {
+  private func detail(_ name: LocalizedStringKey, _ value: String) -> some View {
     HStack {
       Text(name).foregroundStyle(secondary)
       Spacer()
@@ -445,9 +451,11 @@ struct MarketplaceSettings: View {
         Text("Catalog")
       } footer: {
         Text(
-          "Packs are downloaded from a folder on a web server (https only) that holds an index.json, "
-            + "the packs and their previews. Every pack is checked against the size and hash in the "
-            + "index before it is opened, and a pack never holds code. See docs/MARKETPLACE.md.")
+          """
+          Packs are downloaded from a folder on a web server (https only) that holds an index.json, \
+          the packs and their previews. Every pack is checked against the size and hash in the \
+          index before it is opened, and a pack never holds code. See docs/MARKETPLACE.md.
+          """)
       }
       Section {
         LabeledContent("Installed packs", value: "\(store.installed.count)")
@@ -456,7 +464,7 @@ struct MarketplaceSettings: View {
           .disabled(!store.canRefresh || store.status == .loading)
         if case .failed(let why) = store.status { Text(why).font(.theme(13)).foregroundStyle(Color.theme(.danger)) }
       }
-    }.navigationTitle("Marketplace")
+    }.navigationTitle(tr("Marketplace"))
   }
 
   private func apply() {

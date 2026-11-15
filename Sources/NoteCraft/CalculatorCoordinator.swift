@@ -70,7 +70,8 @@ import SwiftUI
     var activity = CalculatorActivity(pageID: pageID, gathering: gathering, color: color)
     activities.append(activity)
     let started = ContinuousClock.now
-    let recognizer: any ExpressionRecognizing = recognizerOverride ?? CalculatorCorpusStore.shared.recognizer
+    let recognizer: any ExpressionRecognizing =
+      recognizerOverride ?? CalculatorCorpusStore.shared.recognizer(for: CalculatorRecognition.current)
     let reading = await Task.detached(priority: .userInitiated) { await recognizer.read(gathering) }.value
     let outcome = Calculator.outcome(for: reading)
     let spent = started.duration(to: .now)

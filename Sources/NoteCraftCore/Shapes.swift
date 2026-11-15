@@ -24,30 +24,30 @@ public enum ShapeKind: String, Codable, CaseIterable, Sendable {
   public var isLinear: Bool { [.line, .arrow].contains(self) }
   public var title: String {
     switch self {
-    case .line: "Line"
-    case .arrow: "Arrow"
-    case .rightAngle: "Right angle"
-    case .rectangle: "Rectangle"
-    case .roundedRectangle: "Rounded rectangle"
-    case .ellipse: "Ellipse"
-    case .triangle: "Triangle"
-    case .rightTriangle: "Right triangle"
-    case .diamond: "Diamond"
-    case .pentagon: "Pentagon"
-    case .hexagon: "Hexagon"
-    case .star: "Star"
-    case .heart: "Heart"
-    case .check: "Check mark"
-    case .cross: "Cross"
-    case .plus: "Plus"
-    case .bolt: "Lightning"
-    case .cloud: "Cloud"
-    case .speechBubble: "Speech bubble"
-    case .moon: "Moon"
-    case .sun: "Sun"
-    case .blockArrow: "Block arrow"
-    case .flag: "Flag"
-    case .drop: "Drop"
+    case .line: coreText("Line")
+    case .arrow: coreText("Arrow")
+    case .rightAngle: coreText("Right angle")
+    case .rectangle: coreText("Rectangle")
+    case .roundedRectangle: coreText("Rounded rectangle")
+    case .ellipse: coreText("Ellipse")
+    case .triangle: coreText("Triangle")
+    case .rightTriangle: coreText("Right triangle")
+    case .diamond: coreText("Diamond")
+    case .pentagon: coreText("Pentagon")
+    case .hexagon: coreText("Hexagon")
+    case .star: coreText("Star")
+    case .heart: coreText("Heart")
+    case .check: coreText("Check mark")
+    case .cross: coreText("Cross")
+    case .plus: coreText("Plus")
+    case .bolt: coreText("Lightning")
+    case .cloud: coreText("Cloud")
+    case .speechBubble: coreText("Speech bubble")
+    case .moon: coreText("Moon")
+    case .sun: coreText("Sun")
+    case .blockArrow: coreText("Block arrow")
+    case .flag: coreText("Flag")
+    case .drop: coreText("Drop")
     }
   }
   // Size used when the page is tapped instead of dragged.

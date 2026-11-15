@@ -44,7 +44,7 @@ struct WorkspaceTab: Identifiable {
   var document: NoteDocument
   var markdown: String = ""
   var dirty = false
-  var status = "Saved"
+  var status = tr("Saved")
   var saving = false
   var stamp: FileStamp?
   var currentPageIndex = 0
@@ -114,7 +114,7 @@ struct WorkspaceTab: Identifiable {
       await save(session)
     }
     guard !sessions.contains(where: \.dirty) else {
-      error = "Unable to switch storage until open changes are saved."
+      error = tr("Unable to switch storage until open changes are saved.")
       return
     }
     let scoped = url.startAccessingSecurityScopedResource()
@@ -161,7 +161,7 @@ struct WorkspaceTab: Identifiable {
   func selectStorage(_ storage: SavedStorage) async {
     do { await choose(try resolveBookmark(storage.bookmark), storageID: storage.id) } catch {
       self.error =
-        "Unable to open \(storage.name). Re-add the folder to restore access. \(error.localizedDescription)"
+        tr("Unable to open \(storage.name). Re-add the folder to restore access. \(error.localizedDescription)")
     }
   }
   func restoreLastStorage() async {
@@ -372,7 +372,7 @@ struct WorkspaceTab: Identifiable {
             notebook: Notebook(title: entry.title, pages: [page]), assets: [name: snapshot.data]),
           stamp: snapshot.stamp)
       default:
-        error = "This file type can be browsed, but is not editable in NotesCraft."
+        error = tr("This file type can be browsed, but is not editable in NotesCraft.")
         return
       }
       if let position = readingPositions[session.url.vaultPath] {
@@ -421,7 +421,7 @@ struct WorkspaceTab: Identifiable {
     guard session.entryKind != .image else { return }
     session.generation += 1
     session.dirty = true
-    session.status = "Unsaved changes"
+    session.status = tr("Unsaved changes")
     session.saveTask?.cancel()
     session.saveTask = Task {
       try? await Task.sleep(for: .milliseconds(600))
@@ -432,7 +432,7 @@ struct WorkspaceTab: Identifiable {
   func save(_ session: VaultSession) async {
     guard session.entryKind != .image, session.dirty, !session.saving, !managing else { return }
     session.saving = true
-    session.status = "Saving…"
+    session.status = tr("Saving…")
     let generation = session.generation
     if session.entryKind != .markdown {
       // Applied to the live document too, so the broken reference stops resurfacing.
@@ -462,9 +462,9 @@ struct WorkspaceTab: Identifiable {
       session.savedRevision = snapshot.notebook.revision
       session.lastSavedGeneration = generation
       session.dirty = session.generation != generation
-      session.status = session.dirty ? "Unsaved changes" : "Saved"
+      session.status = session.dirty ? tr("Unsaved changes") : tr("Saved")
     } catch {
-      session.status = "Save failed"
+      session.status = tr("Save failed")
       // Every later edit retries the save; one dialog per distinct failure is enough.
       if session.lastFailure != error.localizedDescription { self.error = error.localizedDescription }
       session.lastFailure = error.localizedDescription
@@ -526,7 +526,7 @@ struct WorkspaceTab: Identifiable {
     while session.saving { try? await Task.sleep(for: .milliseconds(20)) }
     await save(session)
     guard !session.dirty else {
-      error = "Unable to close \"\(session.title)\" because its changes could not be saved."
+      error = tr("Unable to close “\(session.title)” because its changes could not be saved.")
       return
     }
     let position = sessions.firstIndex { $0.id == id } ?? 0
@@ -618,7 +618,7 @@ struct WorkspaceTab: Identifiable {
   // A notebook that is already made, a planner say, saved to the folder and opened.
   func create(from package: NotebookPackage) async {
     guard let folder else {
-      error = "Choose a storage folder first."
+      error = tr("Choose a storage folder first.")
       return
     }
     let url = await files.availableURL(in: folder, title: package.notebook.title, extension: "notecraft")

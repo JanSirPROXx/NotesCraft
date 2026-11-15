@@ -6,7 +6,10 @@ import SwiftUI
 // calculations are kept to test the pen against. It is shown full screen: a sheet takes a swipe
 // across the pad for a swipe to close it, and cancels the stroke.
 struct CalculatorTrainer: View {
-  private enum Mode: String, CaseIterable { case symbols = "Symbols", calculations = "Calculations" }
+  private enum Mode: CaseIterable {
+    case symbols, calculations
+    var title: String { self == .symbols ? tr("Symbols") : tr("Calculations") }
+  }
 
   @State private var store = CalculatorCorpusStore.shared
   @State private var mode = Mode.symbols
@@ -15,6 +18,7 @@ struct CalculatorTrainer: View {
   @State private var page = CalculatorTrainer.blankPage()
   @State private var rounds: UInt64 = 0
   @State private var confirmDelete = false
+  @AppStorage(Preferences.calculatorRecognition) private var recognition = CalculatorRecognition.pretrained
   @Environment(\.dismiss) private var dismiss
 
   private static func blankPage() -> Page {
@@ -25,8 +29,17 @@ struct CalculatorTrainer: View {
 
   var body: some View {
     VStack(spacing: 14) {
+      // The samples are only read when the pen is set to the reader's own handwriting.
+      if recognition == .pretrained {
+        HStack(spacing: 12) {
+          Text("The pen is reading with the pretrained model. Your samples are used once you choose My handwriting.")
+            .font(.theme(.caption)).opacity(0.8)
+          Button("Use my handwriting") { recognition = .personal }
+            .buttonStyle(.bordered).accessibilityIdentifier("trainerUsePersonal")
+        }.frame(maxWidth: 640)
+      }
       Picker("What to write", selection: $mode) {
-        ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+        ForEach(Mode.allCases, id: \.self) { Text($0.title).tag($0) }
       }.pickerStyle(.segmented).frame(maxWidth: 360)
         .onChange(of: mode) { next() }
 
@@ -74,7 +87,10 @@ struct CalculatorTrainer: View {
       Spacer(minLength: 0)
     }
     .padding(24).frame(maxWidth: .infinity)
-    .navigationTitle("Teach your handwriting")
+    // Nothing around the pad may move under the pen: not a sheet that a swipe closes, not a list.
+    .interactiveDismissDisabled()
+    .scrollDisabled(true)
+    .navigationTitle(tr("Teach your handwriting"))
     #if os(iOS)
       .navigationBarTitleDisplayMode(.inline)
     #endif
@@ -84,7 +100,7 @@ struct CalculatorTrainer: View {
       }
     }
     .onAppear { if prompt.isEmpty { next() } }
-    .confirmationDialog("Delete every sample?", isPresented: $confirmDelete, titleVisibility: .visible) {
+    .confirmationDialog(tr("Delete every sample?"), isPresented: $confirmDelete, titleVisibility: .visible) {
       Button("Delete all", role: .destructive) { store.removeAll() }
     } message: {
       Text("The pen goes back to reading with its stock shapes only.")

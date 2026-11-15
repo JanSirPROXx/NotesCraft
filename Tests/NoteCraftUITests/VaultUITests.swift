@@ -205,12 +205,16 @@ final class VaultUITests: XCTestCase {
     let inheritedZoom = currentZoom.value as? String
     XCTAssertNotEqual(inheritedZoom, "Zoom 100 percent")
     app.buttons["newPageButton"].tap()
+    // This flow reads the notebook from its end, so the pages go there; a new page otherwise
+    // follows the one being read (PageInsertUITests).
+    app.buttons["At the end"].tap()
     app.buttons["confirmAddPage"].tap()
     // The whole document zooms, so a new page is at the zoom the paper already has.
     let afterNewPage = try visibleZoomSurface(app)
     XCTAssertEqual(afterNewPage.value as? String, inheritedZoom)
     capture(app, name: "New page at the zoom of the document")
     app.buttons["newPageButton"].tap()
+    app.buttons["At the end"].tap()
     app.buttons["confirmAddPage"].tap()
     // Zooming out to fit makes the pages step one at a time again.
     let surface = try visibleZoomSurface(app)
