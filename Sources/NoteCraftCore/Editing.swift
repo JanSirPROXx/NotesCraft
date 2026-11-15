@@ -559,3 +559,39 @@ public enum ShapePreset: String, CaseIterable, Sendable {
     }
   }
 }
+
+// Where a page that is added goes, relative to the one being read. A PDF is annotated in place, so
+// a blank sheet for notes has to be able to land between two of its pages and not only after the
+// last one.
+public enum PageInsertion: String, CaseIterable, Sendable {
+  case before, after, end
+
+  // The index the new page ends up at, for a notebook of `count` pages read at page `current`.
+  public func index(current: Int, count: Int) -> Int {
+    switch self {
+    case .before: min(max(current, 0), count)
+    case .after: min(max(current + 1, 0), count)
+    case .end: count
+    }
+  }
+
+  // The same place as `NotebookPackage.insertPages(of:after:)` names it: the page it follows, nil
+  // for the end.
+  public func following(current: Int) -> Int? {
+    switch self {
+    case .before: current - 1
+    case .after: current
+    case .end: nil
+    }
+  }
+}
+
+extension Notebook {
+  // Puts `page` where `position` says and returns its index.
+  @discardableResult
+  public mutating func insertPage(_ page: Page, _ position: PageInsertion, current: Int) -> Int {
+    let index = position.index(current: current, count: pages.count)
+    pages.insert(page, at: index)
+    return index
+  }
+}
