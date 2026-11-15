@@ -9,3 +9,4 @@ Config/Local.xcconfig
 build/
 *.xcarchive
 *.ipa
+__pycache__/
