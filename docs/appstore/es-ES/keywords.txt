@@ -1,0 +1,1 @@
+notas,cuaderno,anotar,pizarra,markdown,boceto,diario,calculadora,escáner,estudio,dibujo,tinta

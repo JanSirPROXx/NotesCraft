@@ -1,0 +1,31 @@
+NotesCraft ist ein Notizbuch für iPad und Apple Pencil, das deine Notizen dort lässt, wo du sie haben willst: als gewöhnliche Dateien in einem Ordner deiner Wahl – auf dem iPad, in iCloud Drive oder bei einem anderen Anbieter in der Dateien-App. Kein Konto, keine Werbung, kein Tracking.
+
+SCHREIBEN WIE AUF PAPIER
+• Füller, Kugelschreiber, Pinsel und Bleistift mit Druck und Neigung
+• Textmarker, Radierer und Lasso für Handschrift, Bilder und Text
+• Strich halten: Er wird zur sauberen Linie, zum Kreis, Rechteck, Pfeil oder zur Kurve
+• Über Geschriebenes kritzeln, um es zu radieren
+• Sticker, Textfelder, Bilder und eigene, wiederverwendbare Elemente
+• Papier in vielen Stilen, Seiten senkrecht oder waagerecht, Whiteboards
+
+RECHENSTIFT
+Schreibe eine Rechnung von Hand, beende sie mit = und die Antwort steht daneben. Die Erkennung läuft auf dem iPad und zeigt ein ?, wenn sie sich nicht sicher ist, statt zu raten. In den Einstellungen kannst du ihr deine eigene Handschrift beibringen.
+
+MIT PDFs ARBEITEN
+• Das Original-PDF mit Tinte und Text kommentieren; andere Apps sehen Standard-Anmerkungen
+• PDF-Formulare ausfüllen, passwortgeschützte PDFs öffnen, Links und Inhaltsverzeichnis nutzen
+• Papierdokumente scannen, Bilder importieren, PDFs mit Vektortinte exportieren
+• Textfelder und PDF-Text durchsuchen, mit markierten Treffern
+
+ORDNUNG HALTEN
+• Ordner, Favoriten, Tabs für offene Dokumente, Papierkorb mit Wiederherstellen
+• Lesezeichen und Seitenvorschau, Seitenvorlagen und Planer
+• Kostenloser Marktplatz mit Themes, Stickern, Vorlagen und Planern
+• Hell, Dunkel und eigene Themes
+
+DEINS
+• Notizen sind offene Pakete (.notecraft), PDFs und Markdown-Dateien
+• Funktioniert offline; nur der Marktplatz nutzt das Netz
+• English, Deutsch, Français, Español und Italiano: Die Sprache wählst du in den Einstellungen
+
+Empfohlen mit Apple Pencil. Zeichnen mit dem Finger lässt sich in den Einstellungen einschalten.

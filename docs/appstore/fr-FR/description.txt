@@ -1,0 +1,31 @@
+NotesCraft est un carnet pour iPad et Apple Pencil qui garde vos notes là où vous le souhaitez : dans de simples fichiers, dans un dossier de votre choix, sur l’iPad, dans iCloud Drive ou chez un autre fournisseur de l’app Fichiers. Pas de compte, pas de publicité, pas de suivi.
+
+ÉCRIRE COMME SUR PAPIER
+• Stylo plume, stylo à bille, pinceau et crayon, avec pression et inclinaison
+• Surligneur, gomme et lasso pour l’écriture, les images et le texte
+• Maintenez un trait : il devient une ligne, un cercle, un rectangle, une flèche ou une courbe nette
+• Griffonnez sur l’écriture pour l’effacer
+• Autocollants, zones de texte, images et vos propres éléments réutilisables
+• Papier de nombreux styles, pages verticales ou horizontales, tableaux blancs
+
+STYLO CALCULATRICE
+Écrivez un calcul à la main, terminez-le par = et la réponse s’écrit à côté. La reconnaissance s’exécute sur l’iPad et affiche un ? quand elle n’est pas sûre, au lieu de deviner. Apprenez-lui votre écriture dans les Réglages.
+
+TRAVAILLER AVEC DES PDF
+• Annotez le PDF d’origine à l’encre et au texte ; les autres apps voient des annotations standard
+• Remplissez des formulaires PDF, ouvrez des PDF protégés par mot de passe, suivez liens et sommaire
+• Numérisez des documents papier, importez des images, exportez des PDF avec encre vectorielle
+• Recherchez dans les zones de texte et le texte des PDF, résultats surlignés
+
+S’ORGANISER
+• Dossiers, favoris, onglets pour les documents ouverts, corbeille avec restauration
+• Signets et miniatures de pages, modèles de pages et planners
+• Une Boutique gratuite : thèmes, autocollants, modèles et planners
+• Clair, sombre et vos propres thèmes
+
+À VOUS
+• Vos notes sont des paquets ouverts (.notecraft), des PDF et des fichiers Markdown
+• Fonctionne hors ligne ; seule la Boutique utilise le réseau
+• English, Deutsch, Français, Español et Italiano : la langue se choisit dans les Réglages
+
+Apple Pencil recommandé. Le dessin au doigt peut être activé dans les Réglages.

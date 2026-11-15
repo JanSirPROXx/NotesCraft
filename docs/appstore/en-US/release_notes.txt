@@ -1,0 +1,6 @@
+First release of NotesCraft.
+
+• Handwriting with Apple Pencil, highlighter, eraser, lasso, shapes and stickers
+• Calculator pen: write a sum, finish it with =, get the answer
+• Annotate PDFs, fill in forms, scan paper documents
+• English, Deutsch, Français, Español and Italiano

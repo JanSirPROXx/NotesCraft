@@ -1,0 +1,1 @@
+notes,notebook,annotate,whiteboard,markdown,sketch,journal,calculator,scan,study,pencil,draw,ink

@@ -1,0 +1,6 @@
+Première version de NotesCraft.
+
+• Écriture à l’Apple Pencil, surligneur, gomme, lasso, formes et autocollants
+• Stylo calculatrice : écrivez un calcul, terminez par =, obtenez la réponse
+• Annotation de PDF, formulaires, numérisation de documents papier
+• English, Deutsch, Français, Español et Italiano

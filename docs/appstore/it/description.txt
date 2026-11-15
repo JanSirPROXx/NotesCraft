@@ -1,0 +1,31 @@
+NotesCraft è un quaderno per iPad e Apple Pencil che tiene le tue note dove vuoi tu: in normali file, in una cartella a tua scelta, sull’iPad, in iCloud Drive o presso un altro fornitore nell’app File. Nessun account, nessuna pubblicità, nessun tracciamento.
+
+SCRIVI COME SU CARTA
+• Stilografica, penna a sfera, pennello e matita, con pressione e inclinazione
+• Evidenziatore, gomma e lazo per scrittura, immagini e testo
+• Tieni fermo un tratto: diventa una linea, un cerchio, un rettangolo, una freccia o una curva pulita
+• Scarabocchia sullo scritto per cancellarlo
+• Adesivi, caselle di testo, immagini ed elementi tuoi riutilizzabili
+• Carta in molti stili, pagine verticali od orizzontali, lavagne
+
+PENNA CALCOLATRICE
+Scrivi un calcolo a mano, concludilo con = e la risposta compare accanto. Il riconoscimento funziona sull’iPad e mostra un ? quando non è sicuro, invece di tirare a indovinare. Nelle Impostazioni puoi insegnargli la tua scrittura.
+
+LAVORA CON I PDF
+• Annota il PDF originale con inchiostro e testo; le altre app vedono annotazioni standard
+• Compila moduli PDF, apri PDF protetti da password, segui link e indici
+• Scansiona documenti cartacei, importa immagini, esporta PDF con inchiostro vettoriale
+• Cerca nelle caselle di testo e nel testo dei PDF, con i risultati evidenziati
+
+ORGANIZZATI
+• Cartelle, preferiti, schede per i documenti aperti, cestino con ripristino
+• Segnalibri e miniature delle pagine, modelli di pagina e agende
+• Un Marketplace gratuito con temi, adesivi, modelli e agende
+• Chiaro, scuro e temi tuoi
+
+TUO
+• Le note sono pacchetti aperti (.notecraft), PDF e file Markdown
+• Funziona offline; solo il Marketplace usa la rete
+• English, Deutsch, Français, Español e Italiano: scegli la lingua nelle Impostazioni
+
+Consigliato con Apple Pencil. Il disegno con il dito si attiva nelle Impostazioni.

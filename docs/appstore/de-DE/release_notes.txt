@@ -1,0 +1,6 @@
+Die erste Version von NotesCraft.
+
+• Handschrift mit Apple Pencil, Textmarker, Radierer, Lasso, Formen und Sticker
+• Rechenstift: Rechnung schreiben, mit = beenden, Antwort erhalten
+• PDFs kommentieren, Formulare ausfüllen, Papierdokumente scannen
+• English, Deutsch, Français, Español und Italiano

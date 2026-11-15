@@ -1,0 +1,6 @@
+Primera versión de NotesCraft.
+
+• Escritura a mano con Apple Pencil, resaltador, borrador, lazo, formas y pegatinas
+• Lápiz calculadora: escribe un cálculo, termínalo con = y obtén la respuesta
+• Anota PDF, rellena formularios, escanea documentos en papel
+• English, Deutsch, Français, Español e Italiano

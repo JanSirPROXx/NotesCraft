@@ -1,0 +1,1 @@
+note,quaderno,annotare,lavagna,markdown,schizzo,diario,calcolatrice,scanner,studio,disegno

@@ -1,0 +1,6 @@
+Prima versione di NotesCraft.
+
+• Scrittura a mano con Apple Pencil, evidenziatore, gomma, lazo, forme e adesivi
+• Penna calcolatrice: scrivi un calcolo, concludilo con = e ottieni la risposta
+• Annota PDF, compila moduli, scansiona documenti cartacei
+• English, Deutsch, Français, Español e Italiano
