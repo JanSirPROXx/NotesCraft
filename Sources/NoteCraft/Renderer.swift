@@ -144,6 +144,8 @@ private final class DecodedImages: @unchecked Sendable {
     for s in page.strokes.filter({ $0.tool == .highlighter })
       + page.strokes.filter({ $0.tool != .highlighter })
     {
+      // Tape goes on last, over the text boxes too.
+      if s.isTape { continue }
       if let cull {
         let b = s.bounds
         let pad = s.width * 2 + 2
@@ -205,6 +207,16 @@ private final class DecodedImages: @unchecked Sendable {
         UIGraphicsPopContext()
       #endif
       c.restoreGState()
+    }
+    // Tape is the top of the page whenever it was laid: it hides what is under it.
+    for s in page.strokes where s.isTape {
+      if let cull {
+        let b = s.bounds
+        guard cull.intersects(CGRect(x: b.x, y: b.y, width: b.width, height: b.height)) else {
+          continue
+        }
+      }
+      tape(s, in: c)
     }
   }
 
@@ -279,6 +291,10 @@ private final class DecodedImages: @unchecked Sendable {
   }
   nonisolated static func stroke(_ s: Stroke, in c: CGContext) {
     guard let first = s.samples.first else { return }
+    if s.isTape {
+      tape(s, in: c)
+      return
+    }
     if s.isPencil {
       pencilStrokes([s], in: c)
       return

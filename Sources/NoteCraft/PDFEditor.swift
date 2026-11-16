@@ -120,10 +120,8 @@ import SwiftUI
       func point(_ p: Point) -> CGPoint {
         CGPoint(x: p.x, y: page.dimensions.y - p.y).applying(transform)
       }
-      for stroke in page.strokes.filter({ $0.tool == .highlighter })
-        + page.strokes.filter({ $0.tool != .highlighter })
-      {
-        guard let first = stroke.samples.first else { continue }
+      func addInk(_ stroke: Stroke, alpha: Double) {
+        guard let first = stroke.samples.first else { return }
         let annotation = PDFAnnotation(bounds: bounds, forType: .ink, withProperties: nil)
         let border = PDFBorder()
         border.lineWidth = stroke.width
@@ -136,9 +134,7 @@ import SwiftUI
             path.line(to: point(Point(first.point.x + 0.01, first.point.y)))
           }
           annotation.color =
-            NSColor(
-              cgColor: PageRenderer.color(
-                stroke.color, alpha: stroke.tool == .highlighter ? 0.3 : 1)) ?? .black
+            NSColor(cgColor: PageRenderer.color(stroke.color, alpha: alpha)) ?? .black
         #else
           let path = UIBezierPath()
           path.move(to: point(first.point))
@@ -146,11 +142,15 @@ import SwiftUI
           if stroke.samples.allSatisfy({ $0.point == first.point }) {
             path.addLine(to: point(Point(first.point.x + 0.01, first.point.y)))
           }
-          annotation.color = UIColor(
-            cgColor: PageRenderer.color(stroke.color, alpha: stroke.tool == .highlighter ? 0.3 : 1))
+          annotation.color = UIColor(cgColor: PageRenderer.color(stroke.color, alpha: alpha))
         #endif
         annotation.add(path)
         source.addAnnotation(annotation)
+      }
+      for stroke in page.strokes.filter({ $0.tool == .highlighter })
+        + page.strokes.filter({ $0.tool != .highlighter }) where !stroke.isTape
+      {
+        addInk(stroke, alpha: stroke.tool == .highlighter ? 0.3 : 1)
       }
       for text in page.texts where abs(text.rotation ?? 0) < 0.0001 {
         let box = text.bounds
@@ -185,6 +185,9 @@ import SwiftUI
         annotation.border = border
         source.addAnnotation(annotation)
       }
+      // Tape goes on last, over the text: what is covered in the notebook is covered in the PDF,
+      // and a strip that is peeled back is a tint.
+      for strip in page.strokes where strip.isTape { addInk(strip, alpha: strip.isCover ? 1 : 0.2) }
       // Arbitrarily rotated text, images and fills need a vector appearance; keep interactive source annotations.
       if !page.images.isEmpty || page.strokes.contains(where: { $0.fillColor != nil })
         || page.texts.contains(where: { abs($0.rotation ?? 0) >= 0.0001 })

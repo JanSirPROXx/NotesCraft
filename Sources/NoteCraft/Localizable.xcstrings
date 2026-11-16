@@ -1901,6 +1901,34 @@
         }
       }
     },
+    "Checks": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karos"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuadros"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carreaux"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quadretti"
+          }
+        }
+      }
+    },
     "Choose a different folder inside your storage folder.": {
       "localizations": {
         "de": {
@@ -2435,6 +2463,62 @@
     },
     "Courier": {
       "shouldTranslate": false
+    },
+    "Cover all tape": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Klebebänder zudecken"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tapar todas las cintas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recouvrir tous les rubans"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copri tutti i nastri"
+          }
+        }
+      }
+    },
+    "Cover all tape on this page": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Klebebänder auf dieser Seite zudecken"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tapar todas las cintas de esta página"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recouvrir tous les rubans de cette page"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copri tutti i nastri di questa pagina"
+          }
+        }
+      }
     },
     "Cream": {
       "localizations": {
@@ -3304,6 +3388,34 @@
         }
       }
     },
+    "Dots": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Punkte"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lunares"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pois"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pois"
+          }
+        }
+      }
+    },
     "Dotted": {
       "localizations": {
         "de": {
@@ -3384,6 +3496,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Disegna una linea, un rettangolo o un cerchio. I tratti chiusi si agganciano a forme geometriche."
+          }
+        }
+      }
+    },
+    "Draw a strip over what you want to hide. Tap a strip to peel it back, and tap it again to cover it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ziehe einen Streifen über das, was du verdecken möchtest. Tippe auf einen Streifen, um ihn aufzudecken, und noch einmal, um ihn wieder zuzudecken."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Traza una tira sobre lo que quieras ocultar. Toca una tira para levantarla y tócala de nuevo para volver a tapar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tracez une bande sur ce que vous voulez masquer. Touchez une bande pour la soulever, et touchez-la de nouveau pour recouvrir."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Traccia una striscia su ciò che vuoi nascondere. Tocca una striscia per sollevarla e toccala di nuovo per coprire."
           }
         }
       }
@@ -8250,6 +8390,34 @@
         }
       }
     },
+    "Plain": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einfarbig"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liso"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uni"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tinta unita"
+          }
+        }
+      }
+    },
     "Planner": {
       "localizations": {
         "de": {
@@ -8782,6 +8950,34 @@
         }
       }
     },
+    "Remove all tape on this page": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Klebebänder auf dieser Seite entfernen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitar todas las cintas de esta página"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer tous les rubans de cette page"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rimuovi tutti i nastri da questa pagina"
+          }
+        }
+      }
+    },
     "Remove answer": {
       "localizations": {
         "de": {
@@ -9142,6 +9338,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "Riprova a salvare"
+          }
+        }
+      }
+    },
+    "Reveal all tape": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Klebebänder aufdecken"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Destapar todas las cintas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dévoiler tous les rubans"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scopri tutti i nastri"
+          }
+        }
+      }
+    },
+    "Reveal all tape on this page": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Klebebänder auf dieser Seite aufdecken"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Destapar todas las cintas de esta página"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dévoiler tous les rubans de cette page"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scopri tutti i nastri di questa pagina"
           }
         }
       }
@@ -10518,6 +10770,62 @@
         }
       }
     },
+    "Straight tape": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerades Klebeband"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cinta recta"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ruban droit"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nastro dritto"
+          }
+        }
+      }
+    },
+    "Stripes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streifen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rayas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rayures"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Righe"
+          }
+        }
+      }
+    },
     "Stroke": {
       "localizations": {
         "de": {
@@ -10794,6 +11102,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tocca la pagina per scrivere un riquadro di testo."
+          }
+        }
+      }
+    },
+    "Tape": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klebeband"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cinta"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ruban adhésif"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nastro adesivo"
+          }
+        }
+      }
+    },
+    "Tape pattern: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klebeband-Muster: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Patrón de la cinta: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Motif du ruban : %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Motivo del nastro: %@"
           }
         }
       }

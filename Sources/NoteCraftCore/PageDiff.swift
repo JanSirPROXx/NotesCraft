@@ -29,7 +29,10 @@ public enum PageDiff {
     // Pencil strokes that follow each other are drawn as one run with one grain; an edit among
     // them regroups the run, which can change pixels beyond the edit. Appending at the end of
     // the page does not.
-    if !strokes.isEmpty, old.strokes.contains(where: \.isPencil) || new.strokes.contains(where: \.isPencil) {
+    // Tape is drawn after everything else and is not part of a run, so it never regroups one.
+    if strokes.contains(where: { !$0.isTape }),
+      old.strokes.contains(where: \.isPencil) || new.strokes.contains(where: \.isPencil)
+    {
       let appendOnly =
         new.strokes.count > old.strokes.count && Array(new.strokes.prefix(old.strokes.count)) == old.strokes
       if !appendOnly { return .everything }

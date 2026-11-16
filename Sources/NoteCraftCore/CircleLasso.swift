@@ -13,7 +13,7 @@ extension InkGestures {
   // A loop is closed (or overshoots its own start), turns about once around, and is big enough to
   // enclose something. A handwritten "o", a figure eight, a spiral or an open "C" are not loops.
   static func loopPolygon(_ stroke: Stroke) -> [Point]? {
-    guard stroke.tool == .pen, stroke.shape == nil, stroke.fillColor == nil,
+    guard stroke.tool == .pen, stroke.shape == nil, stroke.fillColor == nil, !stroke.isTape,
       stroke.samples.count >= 12
     else { return nil }
     let points = stroke.samples.map(\.point)

@@ -23,6 +23,10 @@ enum Preferences {
   static let calculatorWidth = "calculatorWidth"
   static let calculatorIntroSeen = "calculatorIntroSeen"
   static let calculatorRecognition = "calculatorRecognition"
+  static let tapeColor = "tapeColorHex"
+  static let tapeWidth = "tapeWidth"
+  static let tapePattern = "tapePattern"
+  static let straightTape = "straightTape"
 }
 
 // What the calculator pen reads handwriting with: the network that comes with the app, or shapes
@@ -73,6 +77,17 @@ extension EraserMode {
   }
 }
 
+extension TapePattern {
+  var title: String {
+    switch self {
+    case .plain: tr("Plain")
+    case .stripes: tr("Stripes")
+    case .dots: tr("Dots")
+    case .checks: tr("Checks")
+    }
+  }
+}
+
 extension PenStyle {
   var title: String {
     switch self {
@@ -113,6 +128,7 @@ extension InkTool {
     case .eraser: "eraser"
     case .highlighter: "highlighter"
     case .shapes: "square.on.circle"
+    case .tape: "bandage"
     case .lasso: "lasso"
     case .elements: "star.square"
     case .image: "photo"
@@ -127,6 +143,7 @@ extension InkTool {
     case .eraser: tr("Eraser")
     case .highlighter: tr("Highlighter")
     case .shapes: tr("Shapes")
+    case .tape: tr("Tape")
     case .lasso: tr("Lasso")
     case .elements: tr("Elements")
     case .image: tr("Image")

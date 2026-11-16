@@ -21,6 +21,10 @@ public struct EraseSession: Sendable {
   private var stamp: UInt32 = 0
   private var widest = 0.0
   private var hasPieces = false
+  // The strips of tape that covered something when the gesture began. The eraser takes what can be
+  // seen: a covered strip goes as a whole, and what it hid stays for the rest of this gesture, also
+  // once the strip is gone. A strip that is peeled back is left alone and lets the eraser through.
+  private var covers: [(strip: Stroke, bounds: Rect)] = []
   private static let cellSize = 64.0
   private static let cellLimit = 256
 
@@ -28,7 +32,9 @@ public struct EraseSession: Sendable {
     entries = []
     entries.reserveCapacity(strokes.count)
     for (order, stroke) in strokes.enumerated() {
-      add(Entry(stroke: stroke, bounds: stroke.bounds, order: order))
+      let bounds = stroke.bounds
+      add(Entry(stroke: stroke, bounds: bounds, order: order))
+      if stroke.isCover { covers.append((stroke, bounds)) }
     }
   }
 
@@ -45,7 +51,9 @@ public struct EraseSession: Sendable {
     let index = Int32(entries.count)
     entries.append(entry)
     seen.append(0)
-    widest = max(widest, entry.stroke.width)
+    // A strip of tape is never drawn past its bounds and is only taken under the middle of the
+    // eraser, so its breadth must not widen the search for ink around every eraser point.
+    if !entry.stroke.isTape { widest = max(widest, entry.stroke.width) }
     let b = entry.bounds
     let c0 = Self.cell(b.x)
     let c1 = Self.cell(b.x + b.width)
@@ -91,23 +99,36 @@ public struct EraseSession: Sendable {
     let reach = radius + widest / 2
     let box = Rect(x: point.x - reach, y: point.y - reach, width: 2 * reach, height: 2 * reach)
     var dirty: Rect?
+    // The strips that can hide ink the eraser reaches from here.
+    let shelter = covers.filter { $0.bounds.intersects(box) }.map(\.strip)
     for index in candidates(in: box) {
       let entry = entries[index]
       let stroke = entry.stroke
       if highlighterOnly && stroke.tool != .highlighter { continue }
       // `bounds` already includes half the stroke width.
       let b = entry.bounds
+      if stroke.isTape {
+        // Only under the middle of the eraser: a strip is a big target right beside the writing
+        // it belongs to, and rubbing that out must not take the strip with it.
+        guard stroke.isCover, stroke.tapeCovers(point) else { continue }
+        let pad = stroke.width * 2 + 2
+        let area = Rect(x: b.x - pad, y: b.y - pad, width: b.width + 2 * pad, height: b.height + 2 * pad)
+        dirty = dirty.map { Self.union($0, area) } ?? area
+        entries[index].alive = false
+        continue
+      }
       guard point.x >= b.x - radius, point.x <= b.x + b.width + radius,
         point.y >= b.y - radius, point.y <= b.y + b.height + radius,
         Editing.strokeIsNear(stroke, point, radius + stroke.width / 2)
       else { continue }
+      let pieces = Editing.erase(stroke, at: point, radius: radius, mode: mode, covers: shelter)
+      // Only what a strip hides was in reach: nothing changed.
+      if pieces.count == 1, pieces[0].id == stroke.id { continue }
       let pad = stroke.width * 2 + 2
       let area = Rect(x: b.x - pad, y: b.y - pad, width: b.width + 2 * pad, height: b.height + 2 * pad)
       dirty = dirty.map { Self.union($0, area) } ?? area
       entries[index].alive = false
-      for piece in Editing.erase(
-        strokes: [stroke], at: point, radius: radius, mode: mode, highlighterOnly: highlighterOnly)
-      {
+      for piece in pieces {
         hasPieces = true
         add(Entry(stroke: piece, bounds: piece.bounds, order: entry.order))
       }

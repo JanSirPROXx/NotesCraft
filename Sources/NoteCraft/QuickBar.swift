@@ -56,12 +56,12 @@ enum QuickPalette {
 struct QuickColorRow: View {
   @Binding var color: InkColor
   var accent: Color
+  var palette = QuickPalette.quick
   @State private var paletteOpen = false
 
   // The non-preset color the user picked stays reachable as a sixth swatch.
   private var swatches: [InkColor] {
-    QuickPalette.quick.contains { $0.hex == color.hex } ? QuickPalette.quick
-      : QuickPalette.quick + [color]
+    palette.contains { $0.hex == color.hex } ? palette : palette + [color]
   }
   var body: some View {
     ForEach(Array(swatches.enumerated()), id: \.offset) { _, ink in

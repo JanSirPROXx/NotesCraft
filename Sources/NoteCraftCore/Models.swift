@@ -51,9 +51,10 @@ public struct InkColor: Codable, Hashable, Sendable {
   public static let yellow = InkColor(red: 0.98, green: 0.80, blue: 0.20)
 }
 public enum InkTool: String, Codable, CaseIterable, Sendable {
-  // `calculator` is a tool of the bar only: its strokes are stored as `pen` strokes with
-  // `Stroke.calculator` set, so an unknown value never makes a page unreadable in an older build.
-  case pen, eraser, highlighter, shapes, lasso, elements, image, text, calculator, readOnly
+  // `calculator` and `tape` are tools of the bar only: their strokes are stored as `pen` strokes
+  // with `Stroke.calculator` or `Stroke.tape` set, so an unknown value never makes a page
+  // unreadable in an older build.
+  case pen, eraser, highlighter, shapes, tape, lasso, elements, image, text, calculator, readOnly
 }
 public enum PenStyle: String, Codable, CaseIterable, Sendable {
   case fountain, ballpoint, brush, pencil
@@ -176,6 +177,8 @@ public struct Stroke: Codable, Equatable, Identifiable, Sendable {
   public var fillOpacity: Double?
   // Written with the calculator pen: the only ink a calculation is read from. Absent in older files.
   public var calculator = false
+  // A strip of tape instead of ink: see `Tape`. Absent in older files.
+  public var tape: Tape?
   public init(
     id: UUID = UUID(), samples: [Sample], color: InkColor = .ink, width: Double = 2,
     tool: InkTool = .pen, style: PenStyle = .ballpoint, tip: PenTip? = nil
@@ -190,6 +193,7 @@ public struct Stroke: Codable, Equatable, Identifiable, Sendable {
   }
   private enum CodingKeys: String, CodingKey {
     case id, samples, color, width, tool, style, fillColor, tip, shape, fillOpacity, calculator
+    case tape
   }
   // Parsing numbers is what made a dense notebook slow to open and to autosave (JSON decoding
   // costs ~300 ns per number and a page holds a hundred thousand samples), so a stroke's samples
@@ -216,6 +220,7 @@ public struct Stroke: Codable, Equatable, Identifiable, Sendable {
     shape = try values.decodeIfPresent(ShapeSpec.self, forKey: .shape)
     fillOpacity = try values.decodeIfPresent(Double.self, forKey: .fillOpacity)
     calculator = try values.decodeIfPresent(Bool.self, forKey: .calculator) ?? false
+    tape = try values.decodeIfPresent(Tape.self, forKey: .tape)
   }
   public func encode(to encoder: Encoder) throws {
     var values = encoder.container(keyedBy: CodingKeys.self)
@@ -230,6 +235,7 @@ public struct Stroke: Codable, Equatable, Identifiable, Sendable {
     try values.encodeIfPresent(shape, forKey: .shape)
     try values.encodeIfPresent(fillOpacity, forKey: .fillOpacity)
     if calculator { try values.encode(true, forKey: .calculator) }
+    try values.encodeIfPresent(tape, forKey: .tape)
   }
   public var bounds: Rect {
     guard let first = samples.first else { return Rect(x: 0, y: 0, width: 0, height: 0) }

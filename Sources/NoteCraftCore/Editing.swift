@@ -161,39 +161,62 @@ public enum Editing {
   public static func erase(
     strokes: [Stroke], at point: Point, radius: Double, mode: EraserMode, highlighterOnly: Bool
   ) -> [Stroke] {
-    strokes.flatMap { stroke -> [Stroke] in
+    // The eraser takes what can be seen: a covered strip of tape goes as a whole, what it hides
+    // stays, and a strip that is peeled back is left alone (see `EraseSession`).
+    let covers = strokes.filter(\.isCover)
+    return strokes.flatMap { stroke -> [Stroke] in
       if highlighterOnly && stroke.tool != .highlighter { return [stroke] }
-      let threshold = radius + stroke.width / 2
-      guard strokeIsNear(stroke, point, threshold) else { return [stroke] }
-      guard mode == .precision else { return [] }
-      var segments: [[Sample]] = [[]]
-      var dense: [Sample] = []
-      for (a, b) in zip(stroke.samples, stroke.samples.dropFirst()) {
-        let steps = Int(min(4096, max(1, ceil(a.point.distance(to: b.point) / max(1, radius / 2)))))
-        for i in 0..<steps {
-          let t = Double(i) / Double(steps)
-          dense.append(
-            Sample(
-              point: Point(
-                a.point.x + (b.point.x - a.point.x) * t, a.point.y + (b.point.y - a.point.y) * t),
-              pressure: a.pressure + (b.pressure - a.pressure) * t,
-              altitude: a.altitude + (b.altitude - a.altitude) * t))
-        }
+      if stroke.isTape { return stroke.isCover && stroke.tapeCovers(point) ? [] : [stroke] }
+      return erase(stroke, at: point, radius: radius, mode: mode, covers: covers)
+    }
+  }
+  // What is left of one stroke of ink after the eraser was at `point`; the stroke itself when
+  // nothing of it was taken. Ink under one of `covers` (strips of tape that hide it) cannot be
+  // seen, so it is not what the eraser is aimed at: a stroke goes only when a part of it that
+  // shows is in reach, and a precise eraser cuts only what shows. Judged by where the ink is, not
+  // by where the middle of the eraser is: its edge reaches under a strip long before that.
+  static func erase(
+    _ stroke: Stroke, at point: Point, radius: Double, mode: EraserMode, covers: [Stroke]
+  ) -> [Stroke] {
+    let threshold = radius + stroke.width / 2
+    guard strokeIsNear(stroke, point, threshold) else { return [stroke] }
+    if covers.isEmpty, mode != .precision { return [] }
+    var segments: [[Sample]] = [[]]
+    var dense: [Sample] = []
+    for (a, b) in zip(stroke.samples, stroke.samples.dropFirst()) {
+      let steps = Int(min(4096, max(1, ceil(a.point.distance(to: b.point) / max(1, radius / 2)))))
+      for i in 0..<steps {
+        let t = Double(i) / Double(steps)
+        dense.append(
+          Sample(
+            point: Point(
+              a.point.x + (b.point.x - a.point.x) * t, a.point.y + (b.point.y - a.point.y) * t),
+            pressure: a.pressure + (b.pressure - a.pressure) * t,
+            altitude: a.altitude + (b.altitude - a.altitude) * t))
       }
-      if let last = stroke.samples.last { dense.append(last) }
-      for sample in dense {
-        if sample.point.distance(to: point) <= radius + stroke.width / 2 {
-          if !segments[segments.count - 1].isEmpty { segments.append([]) }
-        } else {
-          segments[segments.count - 1].append(sample)
-        }
+    }
+    if let last = stroke.samples.last { dense.append(last) }
+    func taken(_ sample: Sample) -> Bool {
+      sample.point.distance(to: point) <= threshold
+        && !covers.contains { $0.tapeCovers(sample.point) }
+    }
+    if !covers.isEmpty {
+      // Only what a strip hides was in reach.
+      guard dense.contains(where: taken) else { return [stroke] }
+      if mode != .precision { return [] }
+    }
+    for sample in dense {
+      if taken(sample) {
+        if !segments[segments.count - 1].isEmpty { segments.append([]) }
+      } else {
+        segments[segments.count - 1].append(sample)
       }
-      return segments.filter { !$0.isEmpty }.map {
-        var copy = stroke
-        copy.id = UUID()
-        copy.samples = $0
-        return copy
-      }
+    }
+    return segments.filter { !$0.isEmpty }.map {
+      var copy = stroke
+      copy.id = UUID()
+      copy.samples = $0
+      return copy
     }
   }
   public static func shape(from stroke: Stroke, preset: ShapePreset = .automatic) -> Stroke {
@@ -494,8 +517,10 @@ extension InkGestures {
     return nil
   }
 
-  // Top-most object under a tap: text, then ink (outline or filled interior), then images.
+  // Top-most object under a tap: tape, then text, then ink (outline or filled interior), then
+  // images.
   public static func objectID(at point: Point, page: Page, tolerance: Double) -> UUID? {
+    if let strip = page.tape(at: point) { return strip.id }
     if let text = page.texts.last(where: { $0.contains(point) }) { return text.id }
     for stroke in page.strokes.reversed() {
       let reach = stroke.width / 2 + tolerance

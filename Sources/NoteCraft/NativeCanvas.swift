@@ -48,16 +48,28 @@ import SwiftUI
   var calculator = false
   // Calculations being worked out on this page: they light up and show waiting dots.
   var calculatorActivities: [CalculatorActivity] = []
+  // With the tape tool: the pattern of a new strip, and whether a drag lays it straight.
+  var tapePattern: TapePattern = .stripes
+  var straightTape = true
 }
 extension CanvasConfiguration {
   // What the canvas tells accessibility and UI tests; the calculations are named only when there are some.
   static func accessibilitySummary(of page: Page) -> String {
     let answers = page.texts.filter { $0.calculation != nil }.count
-    return "\(page.strokes.count) strokes" + (answers > 0 ? ", \(answers) calculations" : "")
+    let tapes = page.tapes
+    return "\(page.strokes.count - tapes.count) strokes"
+      + (answers > 0 ? ", \(answers) calculations" : "")
+      + (tapes.isEmpty ? "" : ", \(tapes.count) tapes, \(tapes.filter(\.isCover).count) covered")
   }
   var accessibilitySummary: String { Self.accessibilitySummary(of: page) }
   // Pens whose width follows the pen through a model; nil for the others.
   var widthModel: WidthModel? { tool == .pen ? WidthModel(style: style, tip: tip) : nil }
+  // The strip of tape a drag along `samples` lays down, as it is previewed and as it is committed.
+  func tapeStrip(along samples: [Sample]) -> Stroke? {
+    Stroke.tape(
+      along: samples.map(\.point), color: color, width: width, pattern: tapePattern,
+      straight: straightTape)
+  }
 }
 // What a Pencil double tap or squeeze should do, as chosen in Settings > Apple Pencil.
 enum PencilAction {
@@ -261,6 +273,9 @@ enum PencilAction {
           if oldValue?.calculatorActivities != configuration?.calculatorActivities {
             syncCalculatorEffects()
           }
+          if let oldValue, let configuration {
+            fadeToggledTape(from: oldValue.page, to: configuration.page)
+          }
         #endif
       }
     }
@@ -358,6 +373,50 @@ enum PencilAction {
         page.texts.removeAll { configuration.selection.contains($0.id) }
       }
       return .init(page: page, assets: configuration.assets)
+    }
+    // A strip of tape that was peeled back or covered again does not jump: what the tiles showed
+    // fades into what they show now. The tiles are only drawn again at the next layout, so right
+    // after the page changed they still hold the old picture, which is copied into a layer of its
+    // own above them. A page that is one bitmap (a whiteboard) changes at once.
+    private func fadeToggledTape(from old: Page, to new: Page) {
+      guard let tileView, window != nil, old.strokes.count == new.strokes.count else { return }
+      var toggled: [Stroke] = []
+      for (before, after) in zip(old.strokes, new.strokes)
+      where after.isTape && before.id == after.id && before.tape?.revealed != after.tape?.revealed {
+        toggled.append(after)
+      }
+      // Reveal all on a page full of tape is a change of the whole page, not a place to look at.
+      guard !toggled.isEmpty, toggled.count <= 24 else { return }
+      let scale = bounds.width / new.dimensions.x
+      let format = UIGraphicsImageRendererFormat()
+      format.scale = min(8, tileDensity)
+      format.opaque = true
+      for strip in toggled {
+        let box = strip.bounds
+        let rect = CGRect(
+          x: box.x * scale, y: box.y * scale, width: box.width * scale, height: box.height * scale
+        ).integral.intersection(bounds)
+        guard rect.width > 0, rect.height > 0 else { continue }
+        let picture = UIGraphicsImageRenderer(size: rect.size, format: format).image { context in
+          context.cgContext.translateBy(x: -rect.minX, y: -rect.minY)
+          tileView.layer.render(in: context.cgContext)
+        }
+        let ghost = CALayer()
+        ghost.frame = rect
+        ghost.contents = picture.cgImage
+        ghost.zPosition = 1
+        ghost.opacity = 0
+        tileView.layer.addSublayer(ghost)
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { ghost.removeFromSuperlayer() }
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = 1
+        fade.toValue = 0
+        fade.duration = 0.22
+        fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        ghost.add(fade, forKey: "fade")
+        CATransaction.commit()
+      }
     }
     override func setNeedsDisplay() {
       if tiled { inkOverlay?.setNeedsDisplay() } else { super.setNeedsDisplay() }
@@ -689,8 +748,10 @@ enum PencilAction {
     private lazy var fingerTap = UITapGestureRecognizer(
       target: self, action: #selector(fingerTapped(_:)))
     @objc private func fingerTapped(_ gesture: UITapGestureRecognizer) {
-      guard gesture.state == .ended, let configuration,
-        configuration.tool == .lasso || configuration.calculator, activeTouch == nil
+      guard gesture.state == .ended, let configuration, activeTouch == nil,
+        configuration.tool == .lasso || configuration.calculator
+          // A finger that inks reaches the tape through `finish`; peeling twice would cover it again.
+          || (configuration.tool == .tape && (configuration.pencilOnly || pencilSeen))
       else { return }
       let p = gesture.location(in: self)
       let scale = bounds.width / configuration.page.dimensions.x
@@ -1099,7 +1160,8 @@ extension DrawingView {
     if let old, let new, let pending = input.pendingStroke,
       pending.tool == .pen || pending.tool == .shapes, Self.sameAssets(old.assets, new.assets),
       old.viewport == new.viewport, input.moveStart == nil,
-      new.page.strokes.last == pending, let context = cachedPage?.context
+      new.page.strokes.last == pending, !Self.goesUnderTape(pending, on: new.page),
+      let context = cachedPage?.context
     {
       var previous = new.page
       previous.strokes.removeLast()
@@ -1130,6 +1192,14 @@ extension DrawingView {
         previous.strokes.removeLast()
         if previous == old.page {
           tiles.append(pending)
+          // On top for a moment, so the ink does not blink away, then the tiles are drawn again
+          // with the tape over it.
+          if Self.goesUnderTape(pending, on: new.page) {
+            let box = pending.bounds
+            tiles.invalidate(
+              inPageRect: CGRect(x: box.x, y: box.y, width: box.width, height: box.height)
+                .insetBy(dx: -pending.width * 2 - 2, dy: -pending.width * 2 - 2))
+          }
           guard pending.tool == .pen, pending.shape == nil else { return nil }
           return viewRect(of: pending.samples, width: pending.width, in: new)
         }
@@ -1152,6 +1222,11 @@ extension DrawingView {
         x: box.x - pad, y: box.y - pad, width: box.width + 2 * pad, height: box.height + 2 * pad)
     }
   #endif
+  // Tape is the top of the page: ink that was just written across a strip cannot simply be drawn
+  // onto the cached page, it has to end up under the strip.
+  static func goesUnderTape(_ stroke: Stroke, on page: Page) -> Bool {
+    !stroke.isTape && page.hasTape(over: stroke.bounds)
+  }
   // The cached page is out of date. A page in tiles redraws the tiles at `area` (page units), or
   // all of them.
   func dropPageCache(area: CGRect? = nil) {
@@ -1933,6 +2008,9 @@ extension DrawingView {
             spec, color: kind.stickerColor?.darkened() ?? configuration.color,
             width: kind.isSticker ? 2.5 : configuration.width, fill: kind.stickerColor,
             fillOpacity: kind.isSticker ? 1 : nil), in: c)
+      } else if configuration.tool == .tape {
+        // The strip as it will lie, so nothing shifts when the pen lifts.
+        if let strip = configuration.tapeStrip(along: samples) { PageRenderer.stroke(strip, in: c) }
       } else if [.pen, .highlighter, .shapes].contains(configuration.tool) {
         if configuration.tool == .pen, let held = input.heldResized ?? input.held {
           // Preview the committed shape itself so nothing shifts when the pen lifts.
@@ -2077,6 +2155,16 @@ extension DrawingView {
         input.pendingStroke = stroke
       }
       configuration.onStroke(stroke)
+    case .tape:
+      // A drag lays a strip; a tap peels the strip under it back, or covers it again.
+      let scale = configuration.viewport?.scale ?? bounds.width / configuration.page.dimensions.x
+      let extent = samples.reduce(0) { max($0, $1.point.distance(to: first.point)) }
+      if extent * scale >= 8, let strip = configuration.tapeStrip(along: samples) {
+        input.pendingStroke = strip
+        configuration.onStroke(strip)
+      } else {
+        configuration.onTap(first.point)
+      }
     case .eraser, .lasso: configuration.onGesture(samples.map(\.point))
     case .text, .image, .elements: configuration.onTap(first.point)
     case .readOnly:

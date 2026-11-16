@@ -87,8 +87,13 @@ extension InkGestures {
     var crossed = false
     var closeCall = false
     var affected: [Stroke] = []
+    // What a covered strip of tape hides cannot be seen, so a scribble is not meant for it.
+    let covers = strokes.filter(\.isCover)
     for stroke in strokes {
-      switch zone.verdict(for: stroke) {
+      let verdict = zone.verdict(for: stroke)
+      if case .keep = verdict { continue }
+      if stroke.isHidden(under: covers) { continue }
+      switch verdict {
       case .keep:
         break
       case .remove(let coverage):
@@ -226,7 +231,9 @@ extension InkGestures {
     }
 
     mutating func verdict(for stroke: Stroke) -> ScratchVerdict {
-      guard stroke.tool != .highlighter, !stroke.samples.isEmpty else { return .keep }
+      guard stroke.tool != .highlighter, !stroke.isTape, !stroke.samples.isEmpty else {
+        return .keep
+      }
       let box = stroke.bounds
       // A dot or i-point is hard to hit precisely with a small scrub, so it gets a wider reach.
       let isDot = box.width <= stroke.width + 4 && box.height <= stroke.width + 4

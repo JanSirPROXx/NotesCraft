@@ -65,6 +65,7 @@ Center ‖ Zentriert ‖ Centré ‖ Centrado ‖ Centro
 Change color ‖ Farbe ändern ‖ Changer la couleur ‖ Cambiar color ‖ Cambia colore
 Check for new packs ‖ Nach neuen Paketen suchen ‖ Rechercher de nouveaux packs ‖ Buscar paquetes nuevos ‖ Cerca nuovi pacchetti
 Check mark ‖ Häkchen ‖ Coche ‖ Marca de verificación ‖ Segno di spunta
+Checks ‖ Karos ‖ Carreaux ‖ Cuadros ‖ Quadretti
 Choose a different folder inside your storage folder. ‖ Wähle einen anderen Ordner in deinem Speicherordner. ‖ Choisissez un autre dossier dans votre dossier de stockage. ‖ Elige otra carpeta dentro de tu carpeta de almacenamiento. ‖ Scegli un’altra cartella all’interno della tua cartella di archiviazione.
 Choose a folder on this device or a connected drive.\nExisting PDFs, Markdown notes and folders appear alongside your notebooks. ‖ Wähle einen Ordner auf diesem Gerät oder einem verbundenen Laufwerk.\nVorhandene PDFs, Markdown-Notizen und Ordner erscheinen neben deinen Notizbüchern. ‖ Choisissez un dossier sur cet appareil ou un disque connecté.\nLes PDF, notes Markdown et dossiers existants apparaissent à côté de vos carnets. ‖ Elige una carpeta de este dispositivo o de una unidad conectada.\nLos PDF, las notas Markdown y las carpetas existentes aparecen junto a tus cuadernos. ‖ Scegli una cartella su questo dispositivo o su un disco collegato.\nI PDF, le note Markdown e le cartelle esistenti compaiono accanto ai tuoi quaderni.
 Choose a sticker, then tap the page. You can move, resize, rotate and recolor it. ‖ Wähle einen Sticker und tippe dann auf die Seite. Du kannst ihn verschieben, in der Größe ändern, drehen und umfärben. ‖ Choisissez un autocollant, puis touchez la page. Vous pouvez le déplacer, le redimensionner, le faire pivoter et le recolorer. ‖ Elige una pegatina y toca la página. Puedes moverla, cambiar su tamaño, girarla y cambiarle el color. ‖ Scegli un adesivo e tocca la pagina. Puoi spostarlo, ridimensionarlo, ruotarlo e cambiarne il colore.
@@ -85,6 +86,8 @@ Contents ‖ Inhalt ‖ Sommaire ‖ Contenido ‖ Indice
 Copy ‖ Kopieren ‖ Copier ‖ Copiar ‖ Copia
 Copy selection ‖ Auswahl kopieren ‖ Copier la sélection ‖ Copiar selección ‖ Copia selezione
 Courier ‖ Courier ‖ Courier ‖ Courier ‖ Courier
+Cover all tape ‖ Alle Klebebänder zudecken ‖ Recouvrir tous les rubans ‖ Tapar todas las cintas ‖ Copri tutti i nastri
+Cover all tape on this page ‖ Alle Klebebänder auf dieser Seite zudecken ‖ Recouvrir tous les rubans de cette page ‖ Tapar todas las cintas de esta página ‖ Copri tutti i nastri di questa pagina
 Cream ‖ Creme ‖ Crème ‖ Crema ‖ Crema
 Create ‖ Erstellen ‖ Créer ‖ Crear ‖ Crea
 Create a notebook, whiteboard or text document with New. ‖ Erstelle mit „Neu“ ein Notizbuch, ein Whiteboard oder ein Textdokument. ‖ Créez un carnet, un tableau blanc ou un document texte avec « Nouveau ». ‖ Crea un cuaderno, una pizarra o un documento de texto con «Nuevo». ‖ Crea un quaderno, una lavagna o un documento di testo con «Nuovo».
@@ -116,9 +119,11 @@ Document ‖ Dokument ‖ Document ‖ Documento ‖ Documento
 Documents ‖ Dokumente ‖ Documents ‖ Documentos ‖ Documenti
 Done ‖ Fertig ‖ OK ‖ Listo ‖ Fine
 Done editing text ‖ Textbearbeitung beenden ‖ Terminer la modification du texte ‖ Terminar de editar texto ‖ Termina modifica testo
+Dots ‖ Punkte ‖ Pois ‖ Lunares ‖ Pois
 Dotted ‖ Gepunktet ‖ Pointillé ‖ Punteado ‖ Puntinato
 Drag to reorder. The shortcuts ⌘1 to ⌘9 follow this order. ‖ Zum Umsortieren ziehen. Die Kurzbefehle ⌘1 bis ⌘9 folgen dieser Reihenfolge. ‖ Faites glisser pour réorganiser. Les raccourcis ⌘1 à ⌘9 suivent cet ordre. ‖ Arrastra para reordenar. Los atajos ⌘1 a ⌘9 siguen este orden. ‖ Trascina per riordinare. Le scorciatoie da ⌘1 a ⌘9 seguono questo ordine.
 Draw a line, rectangle or circle. Closed strokes snap to geometric shapes. ‖ Zeichne eine Linie, ein Rechteck oder einen Kreis. Geschlossene Striche rasten auf geometrische Formen ein. ‖ Dessinez une ligne, un rectangle ou un cercle. Les traits fermés s’alignent sur des formes géométriques. ‖ Dibuja una línea, un rectángulo o un círculo. Los trazos cerrados se ajustan a formas geométricas. ‖ Disegna una linea, un rettangolo o un cerchio. I tratti chiusi si agganciano a forme geometriche.
+Draw a strip over what you want to hide. Tap a strip to peel it back, and tap it again to cover it. ‖ Ziehe einen Streifen über das, was du verdecken möchtest. Tippe auf einen Streifen, um ihn aufzudecken, und noch einmal, um ihn wieder zuzudecken. ‖ Tracez une bande sur ce que vous voulez masquer. Touchez une bande pour la soulever, et touchez-la de nouveau pour recouvrir. ‖ Traza una tira sobre lo que quieras ocultar. Toca una tira para levantarla y tócala de nuevo para volver a tapar. ‖ Traccia una striscia su ciò che vuoi nascondere. Tocca una striscia per sollevarla e toccala di nuovo per coprire.
 Draw and hold for shapes ‖ Zeichnen und halten für Formen ‖ Dessiner et maintenir pour des formes ‖ Dibujar y mantener para formas ‖ Disegna e tieni premuto per le forme
 Draw straight lines ‖ Gerade Linien zeichnen ‖ Tracer des lignes droites ‖ Dibujar líneas rectas ‖ Disegna linee rette
 Drawing canvas ‖ Zeichenfläche ‖ Zone de dessin ‖ Lienzo de dibujo ‖ Area di disegno
@@ -299,6 +304,7 @@ Pen style ‖ Stiftart ‖ Style de stylo ‖ Estilo de pluma ‖ Stile della pe
 Pencil ‖ Bleistift ‖ Crayon ‖ Lápiz ‖ Matita
 Pentagon ‖ Fünfeck ‖ Pentagone ‖ Pentágono ‖ Pentagono
 Photo library ‖ Fotomediathek ‖ Photothèque ‖ Fototeca ‖ Libreria foto
+Plain ‖ Einfarbig ‖ Uni ‖ Liso ‖ Tinta unita
 Planner ‖ Planer ‖ Agenda ‖ Agenda ‖ Planner
 Planners ‖ Planer ‖ Agendas ‖ Agendas ‖ Planner
 Plus ‖ Plus ‖ Plus ‖ Más ‖ Più
@@ -315,6 +321,7 @@ Rectangle ‖ Rechteck ‖ Rectangle ‖ Rectángulo ‖ Rettangolo
 Redo ‖ Wiederholen ‖ Rétablir ‖ Rehacer ‖ Ripeti
 Refresh folder ‖ Ordner aktualisieren ‖ Actualiser le dossier ‖ Actualizar carpeta ‖ Aggiorna cartella
 Remove ‖ Entfernen ‖ Retirer ‖ Quitar ‖ Rimuovi
+Remove all tape on this page ‖ Alle Klebebänder auf dieser Seite entfernen ‖ Retirer tous les rubans de cette page ‖ Quitar todas las cintas de esta página ‖ Rimuovi tutti i nastri da questa pagina
 Remove answer ‖ Antwort entfernen ‖ Retirer la réponse ‖ Quitar respuesta ‖ Rimuovi risposta
 Remove bookmark ‖ Lesezeichen entfernen ‖ Retirer le signet ‖ Quitar marcador ‖ Rimuovi segnalibro
 Remove favorite ‖ Favorit entfernen ‖ Retirer des favoris ‖ Quitar favorito ‖ Rimuovi dai preferiti
@@ -328,6 +335,8 @@ Reset toolbar ‖ Werkzeugleiste zurücksetzen ‖ Réinitialiser la barre d’o
 Restore ‖ Wiederherstellen ‖ Restaurer ‖ Restaurar ‖ Ripristina
 Restore items to their original folder. Items stay here until you delete them permanently. ‖ Objekte in ihren ursprünglichen Ordner zurücklegen. Objekte bleiben hier, bis du sie endgültig löschst. ‖ Remettre les éléments dans leur dossier d’origine. Les éléments restent ici jusqu’à leur suppression définitive. ‖ Restaura los elementos a su carpeta original. Los elementos permanecen aquí hasta que los elimines permanentemente. ‖ Ripristina gli elementi nella cartella originale. Gli elementi restano qui finché non li elimini definitivamente.
 Retry save ‖ Speichern erneut versuchen ‖ Réessayer l’enregistrement ‖ Reintentar guardado ‖ Riprova a salvare
+Reveal all tape ‖ Alle Klebebänder aufdecken ‖ Dévoiler tous les rubans ‖ Destapar todas las cintas ‖ Scopri tutti i nastri
+Reveal all tape on this page ‖ Alle Klebebänder auf dieser Seite aufdecken ‖ Dévoiler tous les rubans de cette page ‖ Destapar todas las cintas de esta página ‖ Scopri tutti i nastri di questa pagina
 Right ‖ Rechts ‖ Droite ‖ Derecha ‖ Destra
 Right angle ‖ Rechter Winkel ‖ Angle droit ‖ Ángulo recto ‖ Angolo retto
 Right triangle ‖ Rechtwinkliges Dreieck ‖ Triangle rectangle ‖ Triángulo rectángulo ‖ Triangolo rettangolo
@@ -376,6 +385,8 @@ Stickers ‖ Sticker ‖ Autocollants ‖ Pegatinas ‖ Adesivi
 Storage ‖ Speicher ‖ Stockage ‖ Almacenamiento ‖ Archiviazione
 Storage folder ‖ Speicherordner ‖ Dossier de stockage ‖ Carpeta de almacenamiento ‖ Cartella di archiviazione
 STORAGE FOLDERS ‖ SPEICHERORDNER ‖ DOSSIERS DE STOCKAGE ‖ CARPETAS DE ALMACENAMIENTO ‖ CARTELLE DI ARCHIVIAZIONE
+Straight tape ‖ Gerades Klebeband ‖ Ruban droit ‖ Cinta recta ‖ Nastro dritto
+Stripes ‖ Streifen ‖ Rayures ‖ Rayas ‖ Righe
 Stroke ‖ Strich ‖ Trait ‖ Trazo ‖ Tratto
 Stroke stabilization ‖ Strichstabilisierung ‖ Stabilisation du trait ‖ Estabilización del trazo ‖ Stabilizzazione del tratto
 Study ‖ Lernen ‖ Études ‖ Estudio ‖ Studio
@@ -386,6 +397,8 @@ System ‖ System ‖ Système ‖ Sistema ‖ Sistema
 Tap the heart on a pack to keep it here. ‖ Tippe auf das Herz bei einem Paket, um es hier zu behalten. ‖ Touchez le cœur d’un pack pour le garder ici. ‖ Toca el corazón de un paquete para guardarlo aquí. ‖ Tocca il cuore su un pacchetto per tenerlo qui.
 Tap the page to place a shape, or drag to size it. Then drag, stretch or rotate it. ‖ Tippe auf die Seite, um eine Form zu platzieren, oder ziehe sie auf. Danach kannst du sie bewegen, dehnen oder drehen. ‖ Touchez la page pour placer une forme, ou faites glisser pour la dimensionner. Vous pouvez ensuite la déplacer, l’étirer ou la faire pivoter. ‖ Toca la página para colocar una forma, o arrastra para darle tamaño. Luego puedes moverla, estirarla o girarla. ‖ Tocca la pagina per inserire una forma, oppure trascina per dimensionarla. Poi puoi spostarla, allungarla o ruotarla.
 Tap the page to type a text box. ‖ Tippe auf die Seite, um ein Textfeld zu schreiben. ‖ Touchez la page pour saisir une zone de texte. ‖ Toca la página para escribir un cuadro de texto. ‖ Tocca la pagina per scrivere un riquadro di testo.
+Tape ‖ Klebeband ‖ Ruban adhésif ‖ Cinta ‖ Nastro adesivo
+Tape pattern: %@ ‖ Klebeband-Muster: %@ ‖ Motif du ruban : %@ ‖ Patrón de la cinta: %@ ‖ Motivo del nastro: %@
 Teach your handwriting ‖ Handschrift antrainieren ‖ Apprendre votre écriture ‖ Enseñar tu escritura ‖ Insegna la tua scrittura
 Templates ‖ Vorlagen ‖ Modèles ‖ Plantillas ‖ Modelli
 Text ‖ Text ‖ Texte ‖ Texto ‖ Testo

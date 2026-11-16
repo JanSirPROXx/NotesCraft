@@ -59,6 +59,7 @@
 		5DB1043CC0543974FE336326 /* catalog in Resources */ = {isa = PBXBuildFile; fileRef = D31BE9C98A214A2EF277813C /* catalog */; };
 		5FB3F6D7D5D4A247F692DBF7 /* ZipArchive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 197E1B13953424E7468F53A0 /* ZipArchive.swift */; };
 		63503593570D1D8CDF937F25 /* CalculationEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C472370B5CC4EB7E758E048D /* CalculationEditor.swift */; };
+		65313890752FF7D8DA1AF779 /* TapeControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3320D0796E2A29337CE30FA5 /* TapeControls.swift */; };
 		6C4E643AF11E2A4A6EDC89D4 /* PageTiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37B21641AEDCABD54630F887 /* PageTiles.swift */; };
 		6DC2701A9A23835EB4B7A1E0 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 437EE9067DD04A314D81236E /* Localizable.xcstrings */; };
 		6F3BD3BB6DA25666D01D1146 /* SymbolNet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD7DEA63D417BEF38F2950BA /* SymbolNet.swift */; };
@@ -98,6 +99,7 @@
 		AFCA6FA4889F0886ED4ABB5F /* ImportEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7498B04DDA06141A375AD880 /* ImportEngine.swift */; };
 		B1278694EAC63090BE61F2EB /* InkWidths.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE42574D448530FC992981D6 /* InkWidths.swift */; };
 		B597467C5E1E5B97A1745E31 /* CalculatorModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 446857E89CCB977B45588E74 /* CalculatorModelTests.swift */; };
+		B614F4CC7E2339DE0819F676 /* Tape.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05ACE580B773FC7EF8AF5987 /* Tape.swift */; };
 		B74A2249797B9208302F73C1 /* ThemeBuiltIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD24B4A0DC63795E84732339 /* ThemeBuiltIn.swift */; };
 		B7FB8E4D750B558553524D8B /* ToolbarLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6465C672F7146612E59C45C9 /* ToolbarLayout.swift */; };
 		BB39A1B4FEC73D02F0B9F308 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 232E3E428068464856083278 /* Settings.swift */; };
@@ -107,6 +109,7 @@
 		C2D1F481499E76BBE63220CC /* NotebookDocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D444877F5E64EF227951121 /* NotebookDocumentView.swift */; };
 		C410B0FA00E91CC6E9D93300 /* VaultCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 327B668A8960E2B8A8C80F45 /* VaultCover.swift */; };
 		C516B41AFED21359E149C82E /* SymbolNetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E59A75E5C1571D5B562A3732 /* SymbolNetTests.swift */; };
+		C5B9A45099D7338AF238B901 /* TapeRendering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 964AE5669E91151DA48A1782 /* TapeRendering.swift */; };
 		C749B4E2D92EDC728A6FF056 /* ScribblePerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BEFB5FFC666C8AD680794AD /* ScribblePerformanceTests.swift */; };
 		C87DCE397B1F922A2B2A3E7F /* DocumentSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2D8EDF0ECB550E22A35AEE8 /* DocumentSearch.swift */; };
 		C89409F71FE8853E13F8E328 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB364BB9C08BDF203F68B72A /* App.swift */; };
@@ -118,6 +121,7 @@
 		DF7035D8BAD0706B7EC1E39E /* CalculatorTrainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0474DF8D4A3E3F74CB29228 /* CalculatorTrainer.swift */; };
 		DFD70495D78EC158F0FA15F0 /* NoteCraftCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4B40F8C2E15CFA183B980586 /* NoteCraftCore.framework */; };
 		E137DA07679CBEEE0D586AC0 /* InlineText.swift in Sources */ = {isa = PBXBuildFile; fileRef = F34C2411DFFD86FCA20BE3C3 /* InlineText.swift */; };
+		E37C3EFD70652D4D6E9DA08F /* TapeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD3E65A9FB77E751E5AA2562 /* TapeTests.swift */; };
 		E6329745984F10BA6A378E77 /* CalculatorEffects.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30EC408F97EC1A4C07BC34A6 /* CalculatorEffects.swift */; };
 		EA11D437FD711AEEE9A0009F /* VaultFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B18528EAB55247EA57BDEAF /* VaultFiles.swift */; };
 		EC44A781C8012FD73DB6B2C3 /* CircleLasso.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1690740D889858D8D61F1422 /* CircleLasso.swift */; };
@@ -189,6 +193,7 @@
 		0387B60C021757736956B048 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		03AD0D48B35A52903284AFB2 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
 		04E01E9DE97CE34C23E30CDC /* Corpus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Corpus.swift; sourceTree = "<group>"; };
+		05ACE580B773FC7EF8AF5987 /* Tape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tape.swift; sourceTree = "<group>"; };
 		06224446505127FB574CE719 /* CoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreTests.swift; sourceTree = "<group>"; };
 		082B492A0CAE47C877AA7C1E /* VaultActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultActions.swift; sourceTree = "<group>"; };
 		0A0CCD92C7C9DBC3E7B1C70D /* CalculatorCorpusStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculatorCorpusStore.swift; sourceTree = "<group>"; };
@@ -214,6 +219,7 @@
 		2E92A6A387C396B6BB8052A2 /* SymbolNetWeights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolNetWeights.swift; sourceTree = "<group>"; };
 		30EC408F97EC1A4C07BC34A6 /* CalculatorEffects.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculatorEffects.swift; sourceTree = "<group>"; };
 		327B668A8960E2B8A8C80F45 /* VaultCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultCover.swift; sourceTree = "<group>"; };
+		3320D0796E2A29337CE30FA5 /* TapeControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapeControls.swift; sourceTree = "<group>"; };
 		3338F9FEC504B25F904A7165 /* PencilEstimates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PencilEstimates.swift; sourceTree = "<group>"; };
 		37B21641AEDCABD54630F887 /* PageTiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageTiles.swift; sourceTree = "<group>"; };
 		384788782D9C2B4A1449EDFF /* TabUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabUITests.swift; sourceTree = "<group>"; };
@@ -259,6 +265,7 @@
 		940A74F57C8C2CF21AC1D574 /* Library.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Library.swift; sourceTree = "<group>"; };
 		94C1C0961B9A833880D81FB8 /* NoteCraftCoreTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NoteCraftCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9554A68C960BEFE2B57745A3 /* Glyphs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Glyphs.swift; sourceTree = "<group>"; };
+		964AE5669E91151DA48A1782 /* TapeRendering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapeRendering.swift; sourceTree = "<group>"; };
 		9B5E65BF43B80AFC81DD50F6 /* FountainInk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FountainInk.swift; sourceTree = "<group>"; };
 		9CCA52BBAAC8F192B96DBAA8 /* UITestHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestHelpers.swift; sourceTree = "<group>"; };
 		A2D8EDF0ECB550E22A35AEE8 /* DocumentSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentSearch.swift; sourceTree = "<group>"; };
@@ -279,6 +286,7 @@
 		BB364BB9C08BDF203F68B72A /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		BC3F98C57C57515BE23CF610 /* ElementLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElementLibrary.swift; sourceTree = "<group>"; };
 		BD24B4A0DC63795E84732339 /* ThemeBuiltIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeBuiltIn.swift; sourceTree = "<group>"; };
+		BD3E65A9FB77E751E5AA2562 /* TapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapeTests.swift; sourceTree = "<group>"; };
 		C004B3C2A5052E666E95988A /* SymbolRecognitionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolRecognitionTests.swift; sourceTree = "<group>"; };
 		C0474DF8D4A3E3F74CB29228 /* CalculatorTrainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculatorTrainer.swift; sourceTree = "<group>"; };
 		C2A1666ADCCF23A81FF51D61 /* NotebookLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookLayoutTests.swift; sourceTree = "<group>"; };
@@ -359,6 +367,7 @@
 				2D38B019CE3F18AD600FCB7C /* ShapeRecognizer.swift */,
 				B63B23C1154FDC27E76662B8 /* Shapes.swift */,
 				BAEDCF2464F505B39B0EDDB7 /* Storage.swift */,
+				05ACE580B773FC7EF8AF5987 /* Tape.swift */,
 				5065DAF78CF6E5410A820AA1 /* Theme.swift */,
 				BD24B4A0DC63795E84732339 /* ThemeBuiltIn.swift */,
 				48B754F3B2834AAA98C7E9B6 /* ThemeFile.swift */,
@@ -415,6 +424,7 @@
 				E59A75E5C1571D5B562A3732 /* SymbolNetTests.swift */,
 				C004B3C2A5052E666E95988A /* SymbolRecognitionTests.swift */,
 				F774439CAB96F189D99FBBA6 /* SynthWriter.swift */,
+				BD3E65A9FB77E751E5AA2562 /* TapeTests.swift */,
 				D63E1AA610B0CE7819272789 /* ThemeTests.swift */,
 				E8BC9AC85E86D2733B45E486 /* TileGridTests.swift */,
 				5606E86DCC1CB0C10BA82BED /* ToolbarLayoutTests.swift */,
@@ -482,6 +492,8 @@
 				2830385451CA3D1365E2ADF2 /* ScreenshotScenes.swift */,
 				232E3E428068464856083278 /* Settings.swift */,
 				023E3898BB20FF9226135691 /* Stickers.swift */,
+				3320D0796E2A29337CE30FA5 /* TapeControls.swift */,
+				964AE5669E91151DA48A1782 /* TapeRendering.swift */,
 				082B492A0CAE47C877AA7C1E /* VaultActions.swift */,
 				327B668A8960E2B8A8C80F45 /* VaultCover.swift */,
 				032F7A0D798EAE1F763FE07D /* VaultSession.swift */,
@@ -694,6 +706,7 @@
 				C516B41AFED21359E149C82E /* SymbolNetTests.swift in Sources */,
 				839D6C96CF3DD83C85656F09 /* SymbolRecognitionTests.swift in Sources */,
 				3E0F54020FFC48C93878EAEF /* SynthWriter.swift in Sources */,
+				E37C3EFD70652D4D6E9DA08F /* TapeTests.swift in Sources */,
 				40555B9AE0FA507BB0B60545 /* ThemeTests.swift in Sources */,
 				F523DB2944F23CF416AD2702 /* TileGridTests.swift in Sources */,
 				8B056A05182AC3389B267A14 /* ToolbarLayoutTests.swift in Sources */,
@@ -742,6 +755,7 @@
 				6F3BD3BB6DA25666D01D1146 /* SymbolNet.swift in Sources */,
 				1047004B50A8651B3E2517C5 /* SymbolNetWeights.swift in Sources */,
 				7B4D2CD2BE2F996C66995826 /* SymbolRaster.swift in Sources */,
+				B614F4CC7E2339DE0819F676 /* Tape.swift in Sources */,
 				F0ACCA7B201D9F7999A4E32B /* Theme.swift in Sources */,
 				B74A2249797B9208302F73C1 /* ThemeBuiltIn.swift in Sources */,
 				2BA5A5BF940C394839DB21F5 /* ThemeFile.swift in Sources */,
@@ -789,6 +803,8 @@
 				8214887E731BD706250D9D7B /* ScreenshotScenes.swift in Sources */,
 				BB39A1B4FEC73D02F0B9F308 /* Settings.swift in Sources */,
 				DBA123D11F060779970F9E43 /* Stickers.swift in Sources */,
+				65313890752FF7D8DA1AF779 /* TapeControls.swift in Sources */,
+				C5B9A45099D7338AF238B901 /* TapeRendering.swift in Sources */,
 				2E56118CAF0505CF95D4D1F0 /* VaultActions.swift in Sources */,
 				C410B0FA00E91CC6E9D93300 /* VaultCover.swift in Sources */,
 				FD1506422A08E3D54602A0FB /* VaultSession.swift in Sources */,

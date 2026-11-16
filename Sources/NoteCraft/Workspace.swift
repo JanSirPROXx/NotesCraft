@@ -48,6 +48,14 @@ struct Workspace: View {
   @AppStorage(Preferences.calculatorWidth) private var calculatorWidth = 2.5
   @AppStorage(Preferences.calculatorIntroSeen) private var calculatorIntroSeen = false
   @State private var calculatorIntro = false
+  @AppStorage(Preferences.tapeColor) private var tapeColorHex = QuickPalette.tape[0].hex
+  @AppStorage(Preferences.tapeWidth) private var tapeWidth = 22.0
+  @AppStorage(Preferences.tapePattern) private var tapePattern = TapePattern.stripes
+  @AppStorage(Preferences.straightTape) private var straightTape = true
+  @AppStorage("tapeWidth1") private var tapeFirst = 14.0
+  @AppStorage("tapeWidth2") private var tapeSecond = 22.0
+  @AppStorage("tapeWidth3") private var tapeThird = 32.0
+  @State private var tapePatterns = false
   @AppStorage("penWidth") private var penWidth = 2.5
   @AppStorage("highlighterWidth") private var highlighterWidth = 16.0
   @AppStorage("eraserWidth") private var eraserWidth = 12.0
@@ -181,10 +189,18 @@ struct Workspace: View {
   private var accent: Color { Color.theme(.accent) }
   private var color: InkColor {
     get {
-      tool == .calculator ? InkColor(hex: calculatorColorHex) ?? .blue : InkColor(hex: colorHex) ?? .ink
+      switch tool {
+      case .calculator: InkColor(hex: calculatorColorHex) ?? .blue
+      case .tape: InkColor(hex: tapeColorHex) ?? QuickPalette.tape[0]
+      default: InkColor(hex: colorHex) ?? .ink
+      }
     }
     nonmutating set {
-      if tool == .calculator { calculatorColorHex = newValue.hex } else { colorHex = newValue.hex }
+      switch tool {
+      case .calculator: calculatorColorHex = newValue.hex
+      case .tape: tapeColorHex = newValue.hex
+      default: colorHex = newValue.hex
+      }
     }
   }
   private var colorBinding: Binding<InkColor> {
@@ -198,6 +214,7 @@ struct Workspace: View {
       case .highlighter: highlighterWidth
       case .eraser: eraserWidth
       case .calculator: calculatorWidth
+      case .tape: tapeWidth
       default: penWidth
       }
     }
@@ -206,6 +223,7 @@ struct Workspace: View {
       case .highlighter: highlighterWidth = newValue
       case .eraser: eraserWidth = newValue
       case .calculator: calculatorWidth = newValue
+      case .tape: tapeWidth = newValue
       default: penWidth = newValue
       }
     }
@@ -216,6 +234,10 @@ struct Workspace: View {
       Binding(
         get: { [highlighterFirst, highlighterSecond, highlighterThird] },
         set: { (highlighterFirst, highlighterSecond, highlighterThird) = ($0[0], $0[1], $0[2]) })
+    } else if tool == .tape {
+      Binding(
+        get: { [tapeFirst, tapeSecond, tapeThird] },
+        set: { (tapeFirst, tapeSecond, tapeThird) = ($0[0], $0[1], $0[2]) })
     } else {
       Binding(
         get: { [firstWidth, secondWidth, thirdWidth] },
@@ -772,6 +794,14 @@ struct Workspace: View {
           slots: widthSlots, width: widthBinding,
           range: tool == .highlighter ? 6...40 : 0.5...12, color: color,
           highlighter: tool == .highlighter)
+      } else if tool == .tape {
+        Divider().frame(height: 24)
+        tapeQuickControls
+        Divider().frame(height: 24)
+        QuickColorRow(color: colorBinding, accent: accent, palette: QuickPalette.tape)
+        Divider().frame(height: 24)
+        QuickWidthRow(
+          slots: widthSlots, width: widthBinding, range: 8...48, color: color, highlighter: true)
       } else if tool == .eraser {
         ForEach(EraserMode.allCases, id: \.self) { mode in
           Button {
@@ -788,7 +818,7 @@ struct Workspace: View {
         Toggle("Text", isOn: $selectTexts)
       }
       if undoRedoPosition == .right {
-        if [.pen, .highlighter, .shapes, .calculator, .eraser, .lasso].contains(tool) {
+        if [.pen, .highlighter, .shapes, .calculator, .tape, .eraser, .lasso].contains(tool) {
           Divider().frame(height: 24)
         }
         undoRedoButtons
@@ -798,6 +828,43 @@ struct Workspace: View {
       .background(Color.theme(.quickBar), in: Capsule())
       .overlay(Capsule().stroke(Color.theme(.quickBarOutline)))
       .fixedSize(horizontal: true, vertical: false)
+  }
+  // Whether a strip on the page being read still hides something.
+  private var pageHasCoveredTape: Bool { page.strokes.contains(where: \.isCover) }
+  private var pageHasTape: Bool { page.strokes.contains(where: \.isTape) }
+  @ViewBuilder private var tapeQuickControls: some View {
+    Button {
+      straightTape.toggle()
+    } label: {
+      Symbol("line.diagonal").font(.theme(18)).hitTarget(width: 38)
+        .background(
+          straightTape ? Color.theme(.secondaryAccent).opacity(0.35) : .clear,
+          in: RoundedRectangle(cornerRadius: .corner(7)))
+    }
+    .accessibilityLabel(tr("Straight tape")).accessibilityAddTraits(straightTape ? .isSelected : [])
+    .accessibilityIdentifier("straightTape")
+    Button {
+      tapePatterns.toggle()
+    } label: {
+      TapeSwatch(pattern: tapePattern, color: color).frame(width: 30, height: 16)
+        .hitTarget(width: 46)
+    }
+    .accessibilityLabel(tr("Tape pattern: \(tapePattern.title)"))
+    .accessibilityIdentifier("tapePatternButton")
+    .popover(isPresented: $tapePatterns) {
+      TapePatternPicker(selection: $tapePattern, color: color) { tapePatterns = false }
+        .padding(14).presentationCompactAdaptation(.popover)
+    }
+    // One tap starts a round of asking yourself, another one shows every answer.
+    Button {
+      setTapes(revealed: pageHasCoveredTape)
+    } label: {
+      Symbol(pageHasCoveredTape || !pageHasTape ? "eye" : "eye.slash").font(.theme(18))
+        .hitTarget(width: 38)
+    }
+    .disabled(!pageHasTape).opacity(pageHasTape ? 1 : 0.4)
+    .accessibilityLabel(pageHasCoveredTape || !pageHasTape ? tr("Reveal all tape") : tr("Cover all tape"))
+    .accessibilityIdentifier("toggleAllTape")
   }
   @ViewBuilder private var toolSettings: some View {
     VStack(alignment: .leading, spacing: 16) {
@@ -850,6 +917,26 @@ struct Workspace: View {
       case .highlighter:
         Toggle("Draw straight lines", isOn: $straightHighlight)
         PointSlider(title: "Width", value: widthBinding, range: 6...40)
+      case .tape:
+        Text("Draw a strip over what you want to hide. Tap a strip to peel it back, and tap it again to cover it.")
+          .font(.theme(.callout))
+        Toggle("Straight tape", isOn: $straightTape)
+        TapePatternPicker(selection: $tapePattern, color: color)
+        PointSlider(title: "Width", value: widthBinding, range: 8...48)
+        Divider()
+        menuRow("Reveal all tape on this page", "eye", disabled: !pageHasCoveredTape) {
+          setTapes(revealed: true)
+        }
+        menuRow(
+          "Cover all tape on this page", "eye.slash",
+          disabled: !page.strokes.contains { $0.tape?.revealed == true }
+        ) { setTapes(revealed: false) }
+        menuRow(
+          "Remove all tape on this page", "trash", role: .destructive, disabled: !pageHasTape
+        ) {
+          settings = false
+          edit { $0.notebook.pages[activePage].removeTapes() }
+        }
       case .shapes:
         Toggle("Fill closed shapes", isOn: $fillShapes)
         Text("Draw a line, rectangle or circle. Closed strokes snap to geometric shapes.").font(
@@ -1018,7 +1105,11 @@ struct Workspace: View {
         onTap: { point in
           activePage = index
           insertPoint = point
-          if tool == .readOnly { followLink(at: point, on: p) }
+          // Reading is when tape is used: a tap peels a strip back, anywhere else it follows a link.
+          if tool == .readOnly, !toggleTape(at: point, pageIndex: index, tolerance: 8 / viewScale) {
+            followLink(at: point, on: p)
+          }
+          if tool == .tape { toggleTape(at: point, pageIndex: index, tolerance: 8 / viewScale) }
           if tool == .calculator { openCalculation(at: point, on: p, tolerance: 10 / viewScale) }
           if tool == .lasso { selectObject(at: point, on: p, viewScale: viewScale) }
           if tool == .text {
@@ -1130,7 +1221,8 @@ struct Workspace: View {
         tip: PenTip(sharpness: tipSharpness, pressure: tipPressure, flatness: tipFlatness),
         stabilization: stabilization, shapeKind: tool == .shapes ? shapeKind : nil,
         calculator: tool == .calculator,
-        calculatorActivities: calculator.activities.filter { $0.pageID == p.id })
+        calculatorActivities: calculator.activities.filter { $0.pageID == p.id },
+        tapePattern: tapePattern, straightTape: straightTape)
   }
   private func pageView(
     _ p: Page, index: Int, availableWidth: Double, availableHeight: Double? = nil,
@@ -1604,6 +1696,24 @@ struct Workspace: View {
         document.package.notebook.pages[index] = cleaned
       }
     }
+  }
+  // Peels the strip of tape under a tap back, or covers it again. False when there is none.
+  @discardableResult
+  private func toggleTape(at point: Point, pageIndex: Int, tolerance: Double) -> Bool {
+    guard notebook.pages.indices.contains(pageIndex),
+      notebook.pages[pageIndex].tape(at: point, tolerance: tolerance) != nil
+    else { return false }
+    // Looking under one strip after another is one step to undo, not a history full of them.
+    edit(coalescing: "tape") {
+      $0.notebook.pages[pageIndex].toggleTape(at: point, tolerance: tolerance)
+    }
+    #if os(iOS)
+      UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    #endif
+    return true
+  }
+  private func setTapes(revealed: Bool) {
+    edit { $0.notebook.pages[activePage].setTapes(revealed: revealed) }
   }
   private func requestCalculation(after stroke: Stroke, pageIndex: Int) {
     guard pageIndex < document.package.notebook.pages.count else { return }
