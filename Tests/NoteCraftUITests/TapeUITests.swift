@@ -67,6 +67,16 @@ final class TapeUITests: XCTestCase {
     app.buttons["toggleAllTape"].tap()
     expect(canvas, says: "1 strokes, 1 tapes, 1 covered", "cover all")
 
+    // With Apple Pencil only on, as it is by default, a finger lays no tape but still peels it.
+    changeSetting(app, "Apple Pencil only")
+    onTheStrip.tap()
+    expect(canvas, says: "1 strokes, 1 tapes, 0 covered", "a finger tap peels with Pencil only on")
+    onTheStrip.tap()
+    expect(canvas, says: "1 strokes, 1 tapes, 1 covered", "and covers again, once per tap")
+    drag(canvas, 0.2, 0.5, 0.5, 0.5)
+    expect(canvas, says: "1 strokes, 1 tapes, 1 covered", "a finger drag scrolls, it lays no strip")
+    changeSetting(app, "Apple Pencil only")
+
     // Reading is when tape is used: it peels in read-only mode too.
     app.buttons["Read only"].tap()
     onTheStrip.tap()
