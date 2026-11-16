@@ -30,6 +30,8 @@ struct NoteDocument: FileDocument {
           Preferences.undoRedoPosition, Preferences.toolbarOrder, Preferences.toolbarHidden,
           Preferences.calculatorColor, Preferences.calculatorWidth, Preferences.calculatorIntroSeen,
           Preferences.calculatorRecognition,
+          Preferences.tapeColor, Preferences.tapeWidth, Preferences.tapePattern,
+          Preferences.straightTape,
           LanguageStore.defaultsKey,
           "appearanceTheme", "appearanceMode", "appearanceAccent", "appearanceSecondary",
           "savedStorages", "activeStorageID", "vaultBookmark", "readingPositions",

@@ -95,6 +95,7 @@
 		A43579F439E4E01D9F10DCE2 /* Shapes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B63B23C1154FDC27E76662B8 /* Shapes.swift */; };
 		A730C8D0B89E35777A03FFE6 /* InkSmoother.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6468239C62CD91E6D4D35465 /* InkSmoother.swift */; };
 		AF1CD09F689443B75C2D5CF7 /* VaultManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABB273F19C18B6124D82D232 /* VaultManagement.swift */; };
+		AF60D3D88654349D3A601EC0 /* TapeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DA4764446FA8FB1BDC5D743 /* TapeUITests.swift */; };
 		AF6C4E2A2EE07437E9323394 /* RealStrokeBenchmarkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B482E2B1DF4D65F493D006EA /* RealStrokeBenchmarkTests.swift */; };
 		AFCA6FA4889F0886ED4ABB5F /* ImportEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7498B04DDA06141A375AD880 /* ImportEngine.swift */; };
 		B1278694EAC63090BE61F2EB /* InkWidths.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE42574D448530FC992981D6 /* InkWidths.swift */; };
@@ -251,6 +252,7 @@
 		6622A50AFFFA9AEAA00E6A16 /* SymbolRaster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolRaster.swift; sourceTree = "<group>"; };
 		663DD69F1824E7553B014EFC /* ExpressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpressionTests.swift; sourceTree = "<group>"; };
 		6961F7917F77CAD924567EC6 /* NativeCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCanvas.swift; sourceTree = "<group>"; };
+		6DA4764446FA8FB1BDC5D743 /* TapeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapeUITests.swift; sourceTree = "<group>"; };
 		7498B04DDA06141A375AD880 /* ImportEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportEngine.swift; sourceTree = "<group>"; };
 		84C124651AE5264B8AA2F90F /* WidthTrackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidthTrackTests.swift; sourceTree = "<group>"; };
 		86F0B54A3AD9D8FC001C136B /* SampleCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleCodec.swift; sourceTree = "<group>"; };
@@ -445,6 +447,7 @@
 				1C9813A10A49C979EBB25CF3 /* PageInsertUITests.swift */,
 				0F4C8BFD47E8EEBD9510B9FB /* ScreenshotTour.swift */,
 				384788782D9C2B4A1449EDFF /* TabUITests.swift */,
+				6DA4764446FA8FB1BDC5D743 /* TapeUITests.swift */,
 				911FC0224D1D27A338273032 /* TrainerUITests.swift */,
 				9CCA52BBAAC8F192B96DBAA8 /* UITestHelpers.swift */,
 				3C0B8D61A66A011E45218373 /* VaultUITests.swift */,
@@ -823,6 +826,7 @@
 				0BA2E3D90A8BC321067A382D /* PageInsertUITests.swift in Sources */,
 				A248374E0E106BE73B0A15EC /* ScreenshotTour.swift in Sources */,
 				186A14C68451A85DF4756CD4 /* TabUITests.swift in Sources */,
+				AF60D3D88654349D3A601EC0 /* TapeUITests.swift in Sources */,
 				D4B14A325D2B8033796B430F /* TrainerUITests.swift in Sources */,
 				3CB7803D35B331D2F2FBD431 /* UITestHelpers.swift in Sources */,
 				BE09234502E9611C98BFD209 /* VaultUITests.swift in Sources */,
