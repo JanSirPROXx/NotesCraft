@@ -94,6 +94,17 @@ library. Elements preserve handwriting, images and rotated text across notebooks
 size, alignment, width, border and background; with the text tool, touch a box to select it and drag it to move it; its handles widen, scale and rotate it, a tap on the selected box edits it, and a tap beside it lets go. Images can
 be imported from Files or Photos, dropped as file URLs, moved, pinched and rotated.
 
+Tape is for learning by covering the answer. Pick the tape tool and draw a strip over a word, a
+formula or a whole line: it lies on top of everything on the page (ink, images, text boxes, a
+PDF) and hides it. Tap a strip to peel it back, tap it again to cover it; in read-only mode a
+tap does the same, so a page can be studied without a tool in hand. The eye in the bar reveals
+or covers every strip on the page for the next round. A strip is straight by default (nearly
+level or upright becomes exactly so) or follows the pen, and comes in four patterns, any color
+and any width. The eraser takes what can be seen: a covered strip goes as a whole and the
+writing it hid stays, a peeled strip lets the eraser through to the writing. Strips are moved,
+recolored and deleted with the lasso, and "Remove all tape on this page" is in the tool's
+settings. An exported PDF shows what the notebook shows: covered stays covered.
+
 Infinite scrolling (Settings, off by default) turns a notebook into one continuous vertical
 sheet: pages join without gaps, and a blank page is quietly appended below as soon as the last
 page holds anything, so writing never runs out of room. Page zoom is disabled in this mode.

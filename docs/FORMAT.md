@@ -23,6 +23,8 @@ Invalid geometry, empty notebooks, missing media and future versions are rejecte
 
 Calculator pen ([`CALCULATOR.md`](CALCULATOR.md)): a stroke written with it is stored as an ordinary `pen` stroke plus `calculator: true`, and the result is an ordinary text box that may carry a `calculation` object (`strokeIDs`, the canonical `expression`, `state` `done` or `uncertain`, `recognizerVersion`). Earlier builds ignore both keys, so they show the ink as a normal pen and the result as plain text. A stored result is never recomputed on open.
 
+Tape: a strip is stored as an ordinary `pen` stroke (style `ballpoint`) plus a `tape` object. The stroke's samples are the middle of the strip, from end to end (two samples for a straight strip), its `width` is the breadth of the strip and its `color` the color of the tape. `tape.pattern` is `plain`, `stripes`, `dots` or `checks` (an unknown value is drawn plain) and `tape.revealed` is `true` while the strip is peeled back; the key is absent while it covers. Tape is drawn after everything else on the page, text boxes included, whatever its place among the strokes; among strips, a later one lies over an earlier one. Earlier builds ignore the key and show a thick line of that color where the strip is, and lose the key when they save the page.
+
 Notebook `kind` optionally identifies `notebook` or `whiteboard`; absent values are paged
 notebooks. Optional `viewport` retains whiteboard scale and offset. Whiteboard coordinates can extend beyond the initial background dimensions.
 

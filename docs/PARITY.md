@@ -16,6 +16,7 @@ has not been established.
 - Reopens where you left off: after a restart of the iPad or the app, the open notebooks come back as tabs, on the page that was in front, in the library folder you were in (or in the library if that is where you left it).
 - Marketplace: a free community catalog (themes, stickers, page templates, planners) hosted as plain files on GitHub, browsed in the library with search, Home/Work/Study/Life tabs, product pages, Saved and Installed; packs are checked by size and hash and never hold code. No accounts or payments, so no paid packs, creator profiles or reviews. See docs/MARKETPLACE.md.
 - Horizontal page snapping and PDF/typed-text search with page navigation and highlights. Zoomed in, the pages of a row come together to a thin line and share the zoom: a swipe inside a page pans it and stops at the edge, a swipe from the edge turns to the next page at the same zoom and height, as long and as fast as a swipe at fit.
+- Tape: strips that hide what is under them and are peeled back and covered again with a tap (also in read-only mode), straight or drawn by hand, in four patterns, with reveal all, cover all and Remove All Tape. Tape is the top of the page, over typed text and PDF pages too, and the eraser never takes what a covered strip hides.
 - Pencil-only drawing remains the default; fingers navigate.
 - Library rename, move, duplicate, recoverable trash, restore, permanent deletion and
   Empty Trash; PDF sidecars and open sessions follow file operations.
@@ -64,12 +65,12 @@ tip sharpness, pressure sensitivity, tip flatness and stroke stabilization (all 
 Adjust Thickness by Speed, Reduce Latency, Draw and Hold (snap to other shapes, fill), Scribble to
 Erase and Circle to Lasso.
 
-Circle to Lasso (hold the pen on a loop) and the Pencil are built here; the Pencil is a pen style in
-the pen's quick bar rather than a separate tool in a palette.
+Circle to Lasso (hold the pen on a loop), the Pencil and Tape are built here; the Pencil is a pen
+style in the pen's quick bar rather than a separate tool in a palette.
 
 Not built yet, in the order they matter for writing:
 
-- Tape: strips that hide the content under them, with Straight Tape and Remove All Tape.
+- Tape peels and covers with a short fade; there is no peeling motion, and on a whiteboard it changes at once.
 - Laser pointer, Ruler, Timer and Sticky Notes.
 - A switch for Adjust Thickness by Speed (the fountain pen always does it).
 - Highlighter ink is a raw polyline: it does not go through the pen's smoothing yet.
