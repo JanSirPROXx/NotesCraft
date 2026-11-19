@@ -162,6 +162,17 @@ public struct LineReader: Sendable {
       return Symbol(options: [Piece(char: ".", distance: 0)], margin: 1, box: b)
     }
     if group.count > 1 {
+      // A dot is a symbol of its own, except the dots of a "÷", which has a bar between them. Left to
+      // the classifier a dot beside a digit is taken for part of it, and the "·" of "2·3" is lost.
+      let isDot = { (stroke: [Point]) -> Bool in
+        let s = box(of: [stroke])
+        return max(s.width, s.height) < 0.16 * h
+      }
+      let hasBar = group.contains { stroke in
+        let s = box(of: [stroke])
+        return s.width >= 0.35 * h && s.height <= 0.35 * s.width
+      }
+      if group.contains(where: isDot), !hasBar { return nil }
       // Strokes of one symbol touch or nearly: each is within a quarter of a digit of the others.
       // The widest symbol of several strokes is about 0.6 of a digit's height; two symbols side by
       // side are wider than that.
@@ -186,7 +197,7 @@ public struct LineReader: Sendable {
   // MARK: reading the expression
 
   private func resolve(_ input: [Symbol], height h: Double) -> Reading? {
-    var symbols = input
+    let symbols = settlingDots(input, height: h)
     let ambiguous = symbols.indices.filter { symbols[$0].options.count > 1 }
     guard ambiguous.count <= Self.mostAmbiguous else { return nil }
 
@@ -225,6 +236,48 @@ public struct LineReader: Sendable {
       confidence = min(confidence, symbol.confidence)
     }
     return Reading(expression: winner.expression, confidence: confidence)
+  }
+
+  // MARK: dots
+
+  // A dot between two numbers is a decimal point when it sits on the line (2.5) and a times sign when
+  // it sits halfway up (2·3), as people write them. How high it sits is told against the symbols on
+  // either side of it. Between the two levels it is nobody's call: both stay readings, so the
+  // reading is not trusted. Measured on one reader's pages: decimal points at 0 to 0.2 of a digit's
+  // height above its foot, times dots at 0.3 to 0.6, hardly any between.
+  static let decimalDotLevel = 0.22
+  static let timesDotLevel = 0.30
+
+  private func settlingDots(_ input: [Symbol], height h: Double) -> [Symbol] {
+    var symbols = input
+    for i in symbols.indices where symbols[i].char == "." && symbols[i].options.count == 1 {
+      let dot = symbols[i]
+      // The nearest symbol on the dot's own line on one side of it.
+      func neighbour(towards side: Double) -> Symbol? {
+        var best: (gap: Double, symbol: Symbol)?
+        for (j, s) in symbols.enumerated() where j != i && s.char != "." {
+          guard abs(s.centreY - dot.centreY) <= 0.8 * h else { continue }
+          let gap = side < 0 ? dot.centreX - (s.box.x + s.box.width) : s.box.x - dot.centreX
+          if gap >= -0.2 * h, gap < (best?.gap ?? .infinity) { best = (gap, s) }
+        }
+        return best?.symbol
+      }
+      // Only between something that ends a number and something that starts one can it be a times sign.
+      guard let left = neighbour(towards: -1), let right = neighbour(towards: 1),
+        left.char == ")" || left.char.first?.isNumber == true,
+        right.char == "(" || right.char.first?.isNumber == true
+      else { continue }
+      let foot = ((left.box.y + left.box.height) + (right.box.y + right.box.height)) / 2
+      let size = max(0.5 * h, (left.box.height + right.box.height) / 2)
+      let level = (foot - dot.centreY) / size
+      if level >= Self.timesDotLevel {
+        symbols[i].options = [Piece(char: "*", distance: 0)]
+      } else if level > Self.decimalDotLevel {
+        symbols[i].options = [Piece(char: "*", distance: 0), Piece(char: ".", distance: 0)]
+        symbols[i].margin = 0
+      }
+    }
+    return symbols
   }
 
   // A reading is only a candidate if it is a calculation, whatever it comes to.

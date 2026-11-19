@@ -180,8 +180,16 @@ wirksamste Hebel Richtung "praktisch fehlerfrei" für den eigenen Gebrauch.
 **Notation (englisch):** `.` ist immer der Dezimalpunkt, also ist `1.000` immer 1. Ein Komma ist nur als
 Tausendertrenner erlaubt, wenn genau drei Ziffern folgen (`1,000` = 1000); in jeder anderen Stellung (z. B. `1,5`)
 ist es nicht lesbar und löst die Konfidenz-Schranke aus, mit dem Vorschlag `1.5` im Korrektur-Popover.
-Absichtlich **nicht** in v1: `:` als Division (Verhältnis-Mehrdeutigkeit), `·` als Malpunkt (kollidiert mit dem
-Dezimalpunkt, Unterschied nur durch Höhe), `,` als Dezimaltrenner. Das kann später eine Einstellung werden.
+Absichtlich **nicht** in v1: `:` als Division (Verhältnis-Mehrdeutigkeit), `,` als Dezimaltrenner. Das kann später
+eine Einstellung werden.
+
+**Der Malpunkt `·`** gilt als Mal, wenn er in halber Höhe zwischen zwei Operanden steht (`2·3`), und als Dezimalpunkt,
+wenn er auf der Zeile steht (`2.3`). Entschieden wird an der Höhe über dem Fuß der Nachbarziffern, in Bruchteilen
+einer Ziffernhöhe (`LineReader.decimalDotLevel` 0,22 und `timesDotLevel` 0,30). Dazwischen ist es niemandes Wahl:
+beide Lesungen bleiben, die Lesung gilt als unsicher und endet als `?`. Gemessen an einer echten Schrift (28 Punkte
+zwischen zwei Ziffern aus 133 Goodnotes-Seiten): Dezimalpunkte bei 0 bis 0,2, Malpunkte bei 0,3 bis 0,6, dazwischen
+einer. Ein Punkt ist ein eigenes Symbol und wird nicht in die Nachbarziffer eingelesen, außer als Punkt eines `÷`
+(mit Balken). Ob die Schwellen für andere Hände passen, zeigt sich erst an deren Seiten.
 
 **Das kleine `x`:** Zwischen zwei Operanden (`3 x 4`) gilt es als Mal, sonst als Variable (`2x + 2`). Wo beides
 passt, wird die Lesart markiert (im Popover sichtbar), nicht geraten. Ein Kreuz-`×` (symmetrisch, kleiner, auf

@@ -88,6 +88,15 @@ struct SynthWriter {
 
   func estimatedWidth(_ text: String) -> Double { Double(text.count) * height * 0.8 }
 
+  // A dot, as a tap of the pen: one tiny stroke centred on `at`.
+  mutating func dot(at point: Point) {
+    var s = Stroke(
+      samples: [Sample(point: point), Sample(point: Point(point.x + 0.4, point.y + 0.3))],
+      color: .blue, width: 2.5, tool: .pen, style: .ballpoint)
+    s.calculator = true
+    strokes.append(s)
+  }
+
   // "=" after a line, as the two bars it is written with.
   mutating func equals(at x: Double, axis: Double) {
     for dy in [-0.12, 0.12] {
