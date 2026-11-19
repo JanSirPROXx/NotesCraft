@@ -42,13 +42,15 @@ private struct Writer {
     x += w + height * 0.35
   }
 
-  mutating func equals() {
+  // `shift`: how far, in widths of a bar, the second bar is pushed to the right of the first.
+  mutating func equals(shift: Double = 0) {
     let w = height * 0.55
     let mid = baseline - height / 2
     let d = height * 0.15
+    let s = shift * w
     strokes.append(stroke([(x, mid - d), (x + w / 2, mid - d - 0.4), (x + w, mid - d)]))
-    strokes.append(stroke([(x + 1, mid + d), (x + w / 2, mid + d + 0.3), (x + w + 1, mid + d)]))
-    x += w + height * 0.35
+    strokes.append(stroke([(x + 1 + s, mid + d), (x + w / 2 + s, mid + d + 0.3), (x + w + 1 + s, mid + d)]))
+    x += w + s + height * 0.35
   }
 
   mutating func gap(_ glyphs: Double) { x += height * glyphs }
@@ -178,6 +180,53 @@ private func found(_ p: Page) -> Bool { gathering(p) != nil }
   let g = try gathered(p)
   #expect(!g.strokeIDs.contains(p.strokes[0].id))
   #expect(g.strokes.count == p.strokes.count - kept)
+}
+
+// The second bar of a "=" is often pushed aside; the bars still stand over one another.
+@Test(arguments: [0.0, 0.3, 0.5, 0.65])
+func aSecondBarPushedAsideIsStillAnEqualsSign(_ shift: Double) throws {
+  var w = Writer()
+  w.digits(2); w.plus(); w.digits(2); w.equals(shift: shift)
+  let p = page(w.strokes)
+  let g = try gathered(p)
+  #expect(Set(g.strokeIDs) == Set(p.strokes.map(\.id)))
+}
+
+@Test func twoBarsThatHardlyTouchAreNoEqualsSign() throws {
+  var w = Writer()
+  w.digits(2); w.plus(); w.digits(2); w.equals(shift: 0.9)
+  #expect(!found(page(w.strokes)))
+}
+
+// People leave air in front of a "=" that they do not leave inside a line.
+@Test(arguments: [0.5, 1.5, 2.2, 2.6])
+func airInFrontOfTheEqualsSignDoesNotEndTheCalculation(_ glyphs: Double) throws {
+  var w = Writer()
+  w.digits(2); w.plus(); w.digits(2)
+  w.gap(glyphs)
+  w.equals()
+  let p = page(w.strokes)
+  let g = try gathered(p)
+  #expect(Set(g.strokeIDs) == Set(p.strokes.map(\.id)))
+}
+
+@Test func butTheSameAirInsideTheLineStillEndsIt() throws {
+  var w = Writer()
+  w.digits(2)
+  w.gap(2.2)
+  let kept = w.strokes.count
+  w.plus(); w.digits(2); w.equals()
+  let p = page(w.strokes)
+  let g = try gathered(p)
+  #expect(g.strokes.count == p.strokes.count - kept)
+}
+
+@Test func anEqualsSignFarFromEverythingFindsNoCalculation() throws {
+  var w = Writer()
+  w.digits(2); w.plus(); w.digits(2)
+  w.gap(4)
+  w.equals()
+  #expect(!found(page(w.strokes)))
 }
 
 @Test func writingAfterTheEqualsSignMakesItAnEquationNotARequest() throws {

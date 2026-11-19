@@ -296,6 +296,14 @@ Gebaut und getestet (360 Core-Tests, 3 iPad-UI-Tests):
 - `=`-Erkennung (zwei flache, übereinanderliegende Striche, der zweite eben geschrieben), Zusammenfassen der Striche
   (nur Calculator-Tinte, adaptives Zeilenband, adaptive Lücke, gelöste Rechnungen und Antworten als Grenzen, Text
   rechts vom `=` heißt Gleichung), Schrift von 6 bis 90 pt, volle Seite mit 1800 Strichen: 50 Anfragen unter einer Sekunde.
+- Abstände an echter Schrift gemessen (768 `=` auf 133 echten Seiten, ausgewertet mit dem Seitentest
+  `RealPageAuditTests`): Vor einem `=` bleibt Luft. Der nächste Strich links steht 0,25 bis 3 Ziffernhöhen entfernt,
+  bei 28 von 100 sind es 1,5 oder mehr; innerhalb einer Zeile sind zwei Nachbarn meist näher als 1,5. Deshalb gilt
+  `gapBeforeMark = 3` Ziffernhöhen vom `=` zum ersten Strich und weiter `gapInLine = 1.5` zwischen den Strichen
+  (vorher überall 1,5: bei 253 von 767 `=` wurde gar nichts gesammelt, jetzt bei 75 von 811). Der zweite Balken eines
+  `=` sitzt oft zur Seite geschoben: `barOverlap = 0.25` statt 0.55 (44 weitere Paare, von 15 angesehenen waren 14 ein
+  `=`; römische Ziffern, Unterstreichungen und Bruchstriche bleiben draußen, weil sie weiter auseinander stehen).
+  Bekannt: `⇒` beginnt mit zwei Balken und löst wie ein `=` aus, bevor die Spitze geschrieben ist.
 - Brüche (aus Phase 3a vorgezogen, nur das Zusammenfassen, nicht das Lesen): Ein flacher Strich mit Schrift darüber
   **und** darunter ist ein Bruchstrich; Zähler und Nenner bis zwei Ziffernhöhen Abstand gehören zur Rechnung, auch
   Brüche in Brüchen. Ein Minus ohne Schrift darüber und darunter bleibt ein Minus. Die Antwort steht bei einem Bruch

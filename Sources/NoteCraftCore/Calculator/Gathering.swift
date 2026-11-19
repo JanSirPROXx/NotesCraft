@@ -31,6 +31,15 @@ public struct Gathering: Equatable, Sendable {
 }
 
 public enum CalculatorTrigger {
+  // Distances in digit heights. On one reader's pages the nearest stroke in front of a "=" stands 0.25 to 3
+  // heights away (for 28 of 100 it is 1.5 or more), while inside a line two neighbours are mostly closer
+  // than 1.5. A "=" has air around it that the rest of a line does not.
+  static let gapBeforeMark = 3.0
+  static let gapInLine = 1.5
+  // How much of the shorter bar must stand over the longer one. The second bar of a "=" is often pushed
+  // aside: 44 pairs of flat strokes on those pages (768 passed before) lay between 0.25 and 0.55, and of
+  // 15 looked at 14 were a "=". What stays out are numerals (I, II), underlines and fraction bars.
+  static let barOverlap = 0.25
   // The calculation `latest` closes, if it closes one. `page` already holds `latest`.
   public static func gathering(for latest: Stroke, on page: Page) -> Gathering? {
     guard latest.calculator else { return nil }
@@ -54,7 +63,7 @@ public enum CalculatorTrigger {
     let longer = max(a.width, b.width)
     guard shorter / longer >= 0.45 else { return nil }
     let overlap = min(a.maxX, b.maxX) - max(a.minX, b.minX)
-    guard overlap >= 0.55 * shorter else { return nil }
+    guard overlap >= barOverlap * shorter else { return nil }
     let apart = abs(a.centerY - b.centerY)
     guard apart >= max(1, 0.12 * longer), apart <= 0.9 * longer else { return nil }
     let box = Rect(
@@ -99,13 +108,14 @@ public enum CalculatorTrigger {
     // read: a first pass with that guess finds the neighbours, whose height then sets the real
     // line band and the gap that still counts as the same calculation.
     var found = walk(
-      from: mark, others: others, solved: solved, barriers: barriers, half: 2.5 * w, gap: 3 * w, cy: cy)
+      from: mark, others: others, solved: solved, barriers: barriers, half: 2.5 * w, gap: 3 * w,
+      firstGap: 6 * w, cy: cy)
     guard !found.isEmpty else { return nil }
     let heights = found.map { $0.bounds.height }.sorted()
     var glyph = max(heights[min(heights.count - 1, Int(Double(heights.count) * 0.75))], w)
     found = walk(
       from: mark, others: others, solved: solved, barriers: barriers, half: 0.9 * glyph,
-      gap: 1.5 * glyph, cy: cy)
+      gap: gapInLine * glyph, firstGap: gapBeforeMark * glyph, cy: cy)
     guard !found.isEmpty else { return nil }
 
     // A fraction reaches above and below the line the "=" stands on: the writing over and under
@@ -194,7 +204,7 @@ public enum CalculatorTrigger {
   // so far stays small. A solved stroke or an answer box in the band ends the walk.
   private static func walk(
     from mark: EqualsMark, others: [Stroke], solved: [Stroke], barriers: [Rect], half: Double,
-    gap: Double, cy: Double
+    gap: Double, firstGap: Double, cy: Double
   ) -> [Stroke] {
     struct Item {
       var maxX: Double
@@ -219,7 +229,7 @@ public enum CalculatorTrigger {
     var edge = mark.bounds.x
     var taken: [Stroke] = []
     for item in items {
-      guard item.maxX >= edge - gap else { break }
+      guard item.maxX >= edge - (taken.isEmpty ? firstGap : gap) else { break }
       guard let stroke = item.stroke else { break }
       taken.append(stroke)
       edge = min(edge, item.minX)
