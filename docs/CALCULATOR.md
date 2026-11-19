@@ -323,6 +323,16 @@ Gebaut und getestet (360 Core-Tests, 3 iPad-UI-Tests):
 - Ein Finger-Tipp auf die Antwort öffnet das Korrektur-Sheet nur bei "Apple Pencil only"; ist die Einstellung aus,
   malt der Finger stattdessen.
 - Glow, Punkte und Zeiten sind nur im Simulator gesehen. Das Gefühl am iPad mit Pencil bewertest du.
+- An echten Seiten gemessen (133 Seiten, 811 `=`, `RealPageAuditTests`): Nur etwa jede zehnte Zeile ist reine
+  Arithmetik, der Rest ist Algebra mit Buchstaben, Wurzeln, Hochzahlen, `⇒` und Vektoren, also außerhalb des
+  Alphabets. Von 736 gesammelten Zeilen bleibt in 522 mindestens ein Strich, den kein Zuschnitt als Zeichen nimmt
+  (zusammen 1171 Striche, davon 483 breiter als 0,6 Ziffernhöhen). Nach Stichproben sind es überwiegend Buchstaben,
+  kaum zwei Ziffern in einem Strich. Zwei Ziffernformen dieser Schrift kennt das vortrainierte Netz nicht:
+  die **1 als „Λ“** (langer Aufstrich von links unten, dann senkrechter Abstrich; 73 von 73 angesehenen Strichen,
+  das Netz gibt `1` höchstens 0,48 und weist sie meist ab) und die **5 mit flachem Dach und Haken**, die wie ein
+  „h“ aussieht. Das ist die in der Schweiz und in Deutschland gelehrte Form. Eine Regel, die ein Λ als `1`
+  nimmt, löste nur eine Handvoll Zeilen (verifiziert 2 → 2), weil die Zeilen sonst an Buchstaben scheitern.
+  Gehört ins Training des Netzes (Augmentation dieser Formen, besser noch echte Proben), nicht in den Zuschnitt.
 
 ### Phase 2: Erkenner (geliefert), mit einer Abweichung vom Plan
 
