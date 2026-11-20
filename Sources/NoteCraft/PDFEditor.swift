@@ -57,8 +57,14 @@ import SwiftUI
     return bytes
   }
 
-  nonisolated static func export(_ package: NotebookPackage) throws -> Data {
-    if package.notebook.kind == .whiteboard { return try PageRenderer.export(package) }
+  // `afterPage` is called once each page is in the document (it may throw to stop the export, which is
+  // how a cancelled task ends it). Nothing else changes with it: a save passes none.
+  nonisolated static func export(
+    _ package: NotebookPackage, afterPage: ((ExportProgress) throws -> Void)? = nil
+  ) throws -> Data {
+    if package.notebook.kind == .whiteboard {
+      return try PageRenderer.export(package, afterPage: afterPage)
+    }
     let result = PDFDocument()
     var originals: [String: PDFDocument] = [:]
     var links:
@@ -70,7 +76,7 @@ import SwiftUI
         if pageMap[name]?[number] == nil { pageMap[name, default: [:]][number] = index }
       }
     }
-    for (index, page) in package.notebook.pages.enumerated() {
+    func build(_ index: Int, _ page: Page) throws {
       let source: PDFPage
       if let name = page.backgroundPDF {
         if originals[name] == nil, let bytes = package.assets[name] {
@@ -208,6 +214,13 @@ import SwiftUI
         source.rotation = rotation
         result.insert(source, at: index)
       }
+    }
+    let total = package.notebook.pages.count
+    for (index, page) in package.notebook.pages.enumerated() {
+      // The paths, the blank sheet and the temporary page of a page are autoreleased: draining per page
+      // keeps them from piling up over a notebook of hundreds.
+      try autoreleasepool { try build(index, page) }
+      try afterPage?(ExportProgress(completed: index + 1, total: total))
     }
     func remap(_ destination: PDFDestination?, source: PDFDocument, name: String) -> PDFDestination?
     {

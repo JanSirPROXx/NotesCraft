@@ -585,15 +585,17 @@ private final class DecodedImages: @unchecked Sendable {
     }
     c.restoreGState()
   }
-  nonisolated static func export(_ package: NotebookPackage, includePDFAnnotations: Bool = true)
-    throws -> Data
-  {
+  nonisolated static func export(
+    _ package: NotebookPackage, includePDFAnnotations: Bool = true,
+    afterPage: ((ExportProgress) throws -> Void)? = nil
+  ) throws -> Data {
     let data = NSMutableData()
     guard let consumer = CGDataConsumer(data: data),
       let c = CGContext(consumer: consumer, mediaBox: nil, nil)
     else { throw PackageError.invalidPackage }
     var documents: [String: PDFDocument] = [:]
-    for page in package.notebook.pages {
+    let total = package.notebook.pages.count
+    for (number, page) in package.notebook.pages.enumerated() {
       let area =
         package.notebook.kind == .whiteboard
         ? contentBounds(page)
@@ -619,6 +621,7 @@ private final class DecodedImages: @unchecked Sendable {
           ? CGRect(x: area.x, y: area.y, width: area.width, height: area.height) : nil)
       c.restoreGState()
       c.endPDFPage()
+      try afterPage?(ExportProgress(completed: number + 1, total: total))
     }
     c.closePDF()
     return data as Data
