@@ -24,6 +24,7 @@ Add text ‖ Text hinzufügen ‖ Ajouter du texte ‖ Añadir texto ‖ Aggiung
 Alignment ‖ Ausrichtung ‖ Alignement ‖ Alineación ‖ Allineamento
 All %lld items will be permanently deleted. This cannot be undone. ‖ Alle %lld Objekte werden endgültig gelöscht. Das lässt sich nicht rückgängig machen. ‖ Les %lld éléments seront définitivement supprimés. Cette action est irréversible. ‖ Los %lld elementos se eliminarán de forma permanente. Esta acción no se puede deshacer. ‖ Tutti i %lld elementi verranno eliminati definitivamente. L’operazione non può essere annullata.
 All ‖ Alle ‖ Toutes ‖ Todas ‖ Tutte
+All %lld pages in order, as one PDF. ‖ Alle %lld Seiten der Reihe nach in einem PDF. ‖ Les %lld pages dans l’ordre, en un seul PDF. ‖ Las %lld páginas en orden, en un solo PDF. ‖ Tutte le %lld pagine in ordine, in un unico PDF.
 All kinds ‖ Alle Arten ‖ Tous les types ‖ Todos los tipos ‖ Tutti i tipi
 Always ‖ Immer ‖ Toujours ‖ Siempre ‖ Sempre
 An item with this name already exists. Nothing was replaced. ‖ Ein Objekt mit diesem Namen existiert bereits. Es wurde nichts ersetzt. ‖ Un élément portant ce nom existe déjà. Rien n’a été remplacé. ‖ Ya existe un elemento con este nombre. No se ha reemplazado nada. ‖ Esiste già un elemento con questo nome. Non è stato sostituito nulla.
@@ -92,6 +93,7 @@ Cream ‖ Creme ‖ Crème ‖ Crema ‖ Crema
 Create ‖ Erstellen ‖ Créer ‖ Crear ‖ Crea
 Create a notebook, whiteboard or text document with New. ‖ Erstelle mit „Neu“ ein Notizbuch, ein Whiteboard oder ein Textdokument. ‖ Créez un carnet, un tableau blanc ou un document texte avec « Nouveau ». ‖ Crea un cuaderno, una pizarra o un documento de texto con «Nuevo». ‖ Crea un quaderno, una lavagna o un documento di testo con «Nuovo».
 Cross ‖ Kreuz ‖ Croix ‖ Cruz ‖ Croce
+Current page ‖ Aktuelle Seite ‖ Page actuelle ‖ Página actual ‖ Pagina corrente
 Custom color ‖ Eigene Farbe ‖ Couleur personnalisée ‖ Color personalizado ‖ Colore personalizzato
 Customize toolbar ‖ Werkzeugleiste anpassen ‖ Personnaliser la barre d’outils ‖ Personalizar barra de herramientas ‖ Personalizza la barra degli strumenti
 Cut ‖ Ausschneiden ‖ Couper ‖ Cortar ‖ Taglia
@@ -149,8 +151,7 @@ Entire stroke ‖ Ganzer Strich ‖ Trait entier ‖ Trazo completo ‖ Tratto i
 Erase highlighter only ‖ Nur Textmarker radieren ‖ Effacer uniquement le surligneur ‖ Borrar solo resaltador ‖ Cancella solo evidenziatore
 Erased  ·  Keep as ink ‖ Radiert  ·  Als Tinte behalten ‖ Effacé  ·  Garder comme encre ‖ Borrado  ·  Conservar como tinta ‖ Cancellato  ·  Mantieni come inchiostro
 Eraser ‖ Radierer ‖ Gomme ‖ Borrador ‖ Gomma
-Export current page ‖ Aktuelle Seite exportieren ‖ Exporter la page actuelle ‖ Exportar página actual ‖ Esporta la pagina corrente
-Export PDF ‖ PDF exportieren ‖ Exporter en PDF ‖ Exportar PDF ‖ Esporta PDF
+Export ‖ Exportieren ‖ Exporter ‖ Exportar ‖ Esporta
 Fast GPU ink ‖ Schnelle GPU-Tinte ‖ Encre GPU rapide ‖ Tinta GPU rápida ‖ Inchiostro GPU veloce
 Fast GPU ink draws the line you are writing on the GPU for the lowest latency. What a double tap or squeeze of the Pencil does follows Settings ▸ Apple Pencil. ‖ Die schnelle GPU-Tinte zeichnet die Linie, die du gerade schreibst, auf der GPU, für die geringste Latenz. Was ein Doppeltippen oder Drücken des Pencils bewirkt, folgt den Einstellungen ▸ Apple Pencil. ‖ L’encre GPU rapide dessine le trait en cours sur le GPU pour une latence minimale. Ce que font un double toucher ou une pression du Pencil suit Réglages ▸ Apple Pencil. ‖ La tinta GPU rápida dibuja en la GPU el trazo que escribes, para la mínima latencia. Lo que hacen el doble toque o la pulsación del Pencil sigue Ajustes ▸ Apple Pencil. ‖ L’inchiostro GPU veloce disegna sulla GPU il tratto che stai scrivendo, per la latenza più bassa. Ciò che fanno il doppio tocco o la pressione della Pencil segue Impostazioni ▸ Apple Pencil.
 Favorite ‖ Favorit ‖ Favori ‖ Favorito ‖ Preferito
@@ -282,6 +283,7 @@ Packs that came with the app ‖ Pakete, die mit der App geliefert wurden ‖ Pa
 Packs you get show up here, with a way to take them away again. ‖ Pakete, die du lädst, erscheinen hier, mit der Möglichkeit, sie wieder zu entfernen. ‖ Les packs que vous obtenez apparaissent ici, avec un moyen de les retirer. ‖ Los paquetes que obtienes aparecen aquí, con una forma de quitarlos. ‖ I pacchetti che ottieni compaiono qui, con un modo per rimuoverli.
 Page ‖ Seite ‖ Page ‖ Página ‖ Pagina
 Page %lld ‖ Seite %lld ‖ Page %lld ‖ Página %lld ‖ Pagina %lld
+Page %lld, as a PDF. ‖ Seite %lld als PDF. ‖ Page %lld, en PDF. ‖ Página %lld, en PDF. ‖ Pagina %lld, in PDF.
 Page number ‖ Seitenzahl ‖ Numéro de page ‖ Número de página ‖ Numero di pagina
 Page scrubber ‖ Seitenschieber ‖ Curseur de pages ‖ Control de páginas ‖ Scorrimento pagine
 Page template ‖ Seitenvorlage ‖ Modèle de page ‖ Plantilla de página ‖ Modello di pagina
@@ -331,6 +333,7 @@ Remove “%@”? ‖ „%@“ entfernen? ‖ Retirer « %@ » ? ‖ ¿Quitar «%
 Rename ‖ Umbenennen ‖ Renommer ‖ Renombrar ‖ Rinomina
 Rename element ‖ Element umbenennen ‖ Renommer l’élément ‖ Renombrar elemento ‖ Rinomina elemento
 Rename notebook ‖ Notizbuch umbenennen ‖ Renommer le carnet ‖ Renombrar cuaderno ‖ Rinomina quaderno
+Rendering page %lld of %lld ‖ Seite %lld von %lld wird erstellt ‖ Création de la page %lld sur %lld ‖ Creando la página %lld de %lld ‖ Creazione della pagina %lld di %lld
 Reset toolbar ‖ Werkzeugleiste zurücksetzen ‖ Réinitialiser la barre d’outils ‖ Restablecer barra de herramientas ‖ Ripristina la barra degli strumenti
 Restore ‖ Wiederherstellen ‖ Restaurer ‖ Restaurar ‖ Ripristina
 Restore items to their original folder. Items stay here until you delete them permanently. ‖ Objekte in ihren ursprünglichen Ordner zurücklegen. Objekte bleiben hier, bis du sie endgültig löschst. ‖ Remettre les éléments dans leur dossier d’origine. Les éléments restent ici jusqu’à leur suppression définitive. ‖ Restaura los elementos a su carpeta original. Los elementos permanecen aquí hasta que los elimines permanentemente. ‖ Ripristina gli elementi nella cartella originale. Gli elementi restano qui finché non li elimini definitivamente.
@@ -382,6 +385,7 @@ Solid ‖ Deckend ‖ Plein ‖ Sólido ‖ Pieno
 Speech bubble ‖ Sprechblase ‖ Bulle ‖ Bocadillo ‖ Fumetto
 Star ‖ Stern ‖ Étoile ‖ Estrella ‖ Stella
 Stickers ‖ Sticker ‖ Autocollants ‖ Pegatinas ‖ Adesivi
+Stopping… ‖ Wird abgebrochen … ‖ Arrêt… ‖ Deteniendo… ‖ Interruzione…
 Storage ‖ Speicher ‖ Stockage ‖ Almacenamiento ‖ Archiviazione
 Storage folder ‖ Speicherordner ‖ Dossier de stockage ‖ Carpeta de almacenamiento ‖ Cartella di archiviazione
 STORAGE FOLDERS ‖ SPEICHERORDNER ‖ DOSSIERS DE STOCKAGE ‖ CARPETAS DE ALMACENAMIENTO ‖ CARTELLE DI ARCHIVIAZIONE
@@ -407,6 +411,7 @@ Text color ‖ Textfarbe ‖ Couleur du texte ‖ Color del texto ‖ Colore del
 Text Doc ‖ Textdokument ‖ Doc texte ‖ Doc. de texto ‖ Doc. di testo
 Text document ‖ Textdokument ‖ Document texte ‖ Documento de texto ‖ Documento di testo
 Text fields, choices and checkboxes are supported. Signature and radio fields need another PDF editor. ‖ Textfelder, Auswahlfelder und Ankreuzfelder werden unterstützt. Signatur- und Optionsfelder benötigen einen anderen PDF-Editor. ‖ Les champs de texte, les choix et les cases à cocher sont pris en charge. Les champs de signature et les boutons radio nécessitent un autre éditeur PDF. ‖ Se admiten campos de texto, opciones y casillas. Los campos de firma y de opción necesitan otro editor de PDF. ‖ Sono supportati campi di testo, scelte e caselle di controllo. I campi firma e i pulsanti di opzione richiedono un altro editor PDF.
+That page is no longer in the notebook. ‖ Diese Seite ist nicht mehr im Notizbuch. ‖ Cette page n’est plus dans le carnet. ‖ Esa página ya no está en el cuaderno. ‖ Quella pagina non è più nel quaderno.
 The .%@ extension is kept automatically. ‖ Die Endung .%@ bleibt automatisch erhalten. ‖ L’extension .%@ est conservée automatiquement. ‖ La extensión .%@ se conserva automáticamente. ‖ L’estensione .%@ viene mantenuta automaticamente.
 The catalog address has to start with https://. ‖ Die Katalogadresse muss mit https:// beginnen. ‖ L’adresse du catalogue doit commencer par https://. ‖ La dirección del catálogo debe empezar por https://. ‖ L’indirizzo del catalogo deve iniziare con https://.
 The catalog answered with an error (%lld). ‖ Der Katalog hat mit einem Fehler geantwortet (%lld). ‖ Le catalogue a répondu par une erreur (%lld). ‖ El catálogo respondió con un error (%lld). ‖ Il catalogo ha risposto con un errore (%lld).
@@ -446,6 +451,7 @@ The theme names “%@”, which is not in it. ‖ Das Theme nennt „%@“, was 
 Theme ‖ Theme ‖ Thème ‖ Tema ‖ Tema
 Themes ‖ Themes ‖ Thèmes ‖ Temas ‖ Temi
 Themes change the colors, type and icons of the app, never what it does. ‖ Themes ändern Farben, Schrift und Symbole der App, nie ihre Funktion. ‖ Les thèmes changent les couleurs, les polices et les icônes de l’app, jamais son fonctionnement. ‖ Los temas cambian los colores, la tipografía y los iconos de la app, nunca lo que hace. ‖ I temi cambiano colori, caratteri e icone dell’app, mai ciò che fa.
+There are no pages to export. ‖ Es gibt keine Seiten zum Exportieren. ‖ Il n’y a aucune page à exporter. ‖ No hay páginas que exportar. ‖ Non ci sono pagine da esportare.
 Thickness ‖ Stärke ‖ Épaisseur ‖ Grosor ‖ Spessore
 Thickness %@ points ‖ Stärke %@ Punkte ‖ Épaisseur %@ points ‖ Grosor %@ puntos ‖ Spessore %@ punti
 This cannot be undone. ‖ Das lässt sich nicht rückgängig machen. ‖ Cette action est irréversible. ‖ Esta acción no se puede deshacer. ‖ L’operazione non può essere annullata.
@@ -495,11 +501,13 @@ Use this address ‖ Diese Adresse verwenden ‖ Utiliser cette adresse ‖ Usar
 Version ‖ Version ‖ Version ‖ Versión ‖ Versione
 Vertical ‖ Vertikal ‖ Vertical ‖ Vertical ‖ Verticale
 Weekly planner ‖ Wochenplaner ‖ Agenda hebdomadaire ‖ Agenda semanal ‖ Planner settimanale
+What to export ‖ Was exportiert wird ‖ Ce qu’il faut exporter ‖ Qué exportar ‖ Cosa esportare
 What to write ‖ Was zu schreiben ist ‖ Quoi écrire ‖ Qué escribir ‖ Cosa scrivere
 When unsure ‖ Bei Unsicherheit ‖ En cas de doute ‖ Cuando haya dudas ‖ In caso di dubbio
 Where the free themes, stickers, templates and planners are downloaded from. ‖ Woher die kostenlosen Themes, Sticker, Vorlagen und Planer geladen werden. ‖ D’où sont téléchargés les thèmes, autocollants, modèles et agendas gratuits. ‖ De dónde se descargan los temas, pegatinas, plantillas y agendas gratuitos. ‖ Da dove vengono scaricati i temi, gli adesivi, i modelli e i planner gratuiti.
 White ‖ Weiß ‖ Blanc ‖ Blanco ‖ Bianco
 Whiteboard ‖ Whiteboard ‖ Tableau blanc ‖ Pizarra ‖ Lavagna
+Whole notebook ‖ Ganzes Notizbuch ‖ Carnet entier ‖ Cuaderno completo ‖ Quaderno intero
 Width ‖ Breite ‖ Largeur ‖ Ancho ‖ Larghezza
 Work ‖ Arbeit ‖ Travail ‖ Trabajo ‖ Lavoro
 Working… ‖ Wird bearbeitet … ‖ Traitement en cours… ‖ Trabajando… ‖ Elaborazione…
@@ -508,6 +516,7 @@ Write a calculation, like 12 × 3 or a fraction, and end it with =. The pen ligh
 Write the way you write in a notebook. The pen uses what you save from the next calculation on. ‖ Schreibe so, wie du in einem Notizbuch schreibst. Der Stift nutzt, was du sicherst, ab der nächsten Rechnung. ‖ Écrivez comme dans un carnet. Le stylet utilise ce que vous enregistrez dès le prochain calcul. ‖ Escribe como lo haces en un cuaderno. El lápiz usa lo que guardes a partir del siguiente cálculo. ‖ Scrivi come scrivi in un quaderno. La penna usa ciò che salvi dal prossimo calcolo in poi.
 Write this calculation ‖ Schreibe diese Rechnung ‖ Écrivez ce calcul ‖ Escribe este cálculo ‖ Scrivi questo calcolo
 Write this symbol ‖ Schreibe dieses Symbol ‖ Écrivez ce symbole ‖ Escribe este símbolo ‖ Scrivi questo simbolo
+Writing the PDF… ‖ PDF wird geschrieben … ‖ Écriture du PDF… ‖ Escribiendo el PDF… ‖ Scrittura del PDF…
 Yellow ‖ Gelb ‖ Jaune ‖ Amarillo ‖ Giallo
 Your notes. Your folder. ‖ Deine Notizen. Dein Ordner. ‖ Vos notes. Votre dossier. ‖ Tus notas. Tu carpeta. ‖ I tuoi appunti. La tua cartella.
 Your templates ‖ Deine Vorlagen ‖ Vos modèles ‖ Tus plantillas ‖ I tuoi modelli

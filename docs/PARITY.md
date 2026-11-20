@@ -38,7 +38,7 @@ has not been established.
 - The user-provided NotesCraft artwork is configured as the iPad and macOS app icon.
 - The bottom status/zoom bar is removed. A page indicator fades after navigation or strong scrolling. While the notebook is zoomed, a pill at the bottom left shows the zoom (100% is fit to width) with a button that fits the width again (⌘0 does the same). The scroll bar is a handle on the edge that appears while the notebook scrolls and can be dragged to run through the pages, with the page in a bubble beside it.
 - Password entry opens a separate unlocked PDF copy. Page-number navigation, bookmarks,
-  PDF table of contents, single-page export and basic form filling are available.
+  PDF table of contents, export of the current page or the whole notebook (off the main actor, with progress and cancel) and basic form filling are available.
 - Export preserves outlines and remaps internal link destinations after page reordering;
   links/outline leaves targeting removed pages are disabled/omitted.
 

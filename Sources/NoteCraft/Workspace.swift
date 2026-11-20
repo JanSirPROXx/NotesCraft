@@ -111,6 +111,14 @@ struct Workspace: View {
   @State private var exporter = false
   @State private var exportData = Data()
   @State private var exportType: UTType = .pdf
+  // nil offers the notebook's title (the screenshot's name); a PDF export names the page it holds.
+  @State private var exportName: String?
+  @State private var exportSheet = false
+  @State private var exportChoice = ExportChoice.page
+  @State private var exportJob = ExportJob()
+  // What a finished export hands over once its sheet is gone: a file picker presented while the
+  // sheet is still on its way out is dropped, so it waits for `onDismiss`.
+  @State private var exportOutcome: Result<(Data, String), any Error>?
   @State private var selectInk = true
   @State private var selectImages = true
   @State private var selectTexts = true
@@ -379,6 +387,11 @@ struct Workspace: View {
   var body: some View {
     syncedContent
     .sheet(isPresented: $appSettings) { SettingsView() }
+    .sheet(isPresented: $exportSheet, onDismiss: handOverExport) {
+      ExportSheet(
+        pageNumber: activePage + 1, pageCount: notebook.pages.count, choice: $exportChoice,
+        job: exportJob, onExport: startExport, onClose: { exportSheet = false })
+    }
     .sheet(isPresented: $templateSheet) {
       TemplatePicker(
         initialPaper: page.paper, pageNumber: activePage + 1,
@@ -485,7 +498,7 @@ struct Workspace: View {
     )
     .fileExporter(
       isPresented: $exporter, document: NotebookExport(data: exportData), contentType: exportType,
-      defaultFilename: notebook.title
+      defaultFilename: exportName ?? notebook.title
     ) { result in if case .failure(let error) = result { errorMessage = error.localizedDescription }
     }
     .alert(
@@ -518,15 +531,8 @@ struct Workspace: View {
       Button("Fill PDF forms", systemImage: Icon.name("rectangle.and.pencil.and.ellipsis")) {
         pdfForms = true
       }.disabled(page.backgroundPDF == nil)
-      Button("Export current page", systemImage: Icon.name("square.and.arrow.up")) {
-        do {
-          var single = document.package
-          single.notebook.pages = [page]
-          exportData = try PDFEditor.export(single)
-          exportType = .pdf
-          exporter = true
-        } catch { errorMessage = error.localizedDescription }
-      }
+      Button("Export", systemImage: Icon.name("square.and.arrow.up")) { exportSheet = true }
+        .accessibilityIdentifier("exportMenu")
       Divider()
       Button("Import PDF", systemImage: Icon.name("doc")) {
         importType = .pdf
@@ -579,15 +585,38 @@ struct Workspace: View {
   }
   private var exportButton: some View {
     Button {
-      do {
-        exportData = try PDFEditor.export(document.package)
-        exportType = .pdf
-        exporter = true
-      } catch { errorMessage = error.localizedDescription }
+      exportSheet = true
     } label: {
       Symbol("square.and.arrow.up").font(.theme(20)).hitTarget()
     }
-    .accessibilityLabel("Export PDF")
+    .accessibilityLabel("Export").accessibilityIdentifier("exportButton")
+  }
+  // Renders off the main actor; the sheet stays up with its progress until the PDF is ready.
+  private func startExport() {
+    let scope: ExportScope = notebook.pages.count > 1 && exportChoice == .notebook ? .notebook : .page(activePage)
+    do {
+      let plan = try ExportPlan(scope: scope, notebook: notebook)
+      let title = notebook.title
+      exportJob.start(document.package, plan: plan) { result in
+        exportOutcome = result.map { ($0, plan.fileName(title: title)) }
+        exportSheet = false
+      }
+    } catch {
+      exportOutcome = .failure(error)
+      exportSheet = false
+    }
+  }
+  private func handOverExport() {
+    defer { exportOutcome = nil }
+    switch exportOutcome {
+    case .success(let (data, name))?:
+      exportData = data
+      exportName = name
+      exportType = .pdf
+      exporter = true
+    case .failure(let error)?: errorMessage = error.localizedDescription
+    case nil: break
+    }
   }
 
   private var tabBar: some View {
@@ -1423,6 +1452,7 @@ struct Workspace: View {
             exportData = try PageRenderer.screenshot(
               page, assets: document.package.assets, bounds: selectionBounds())
             exportType = .png
+            exportName = nil
             exporter = true
           } catch { errorMessage = error.localizedDescription }
         }

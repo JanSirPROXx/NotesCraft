@@ -722,6 +722,34 @@
         }
       }
     },
+    "All %lld pages in order, as one PDF.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle %lld Seiten der Reihe nach in einem PDF."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las %lld páginas en orden, en un solo PDF."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les %lld pages dans l’ordre, en un seul PDF."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tutte le %lld pagine in ordine, in un unico PDF."
+          }
+        }
+      }
+    },
     "All kinds": {
       "localizations": {
         "de": {
@@ -2632,6 +2660,34 @@
         }
       }
     },
+    "Current page": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktuelle Seite"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Página actual"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page actuelle"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pagina corrente"
+          }
+        }
+      }
+    },
     "Custom color": {
       "localizations": {
         "de": {
@@ -4175,58 +4231,30 @@
         }
       }
     },
-    "Export PDF": {
+    "Export": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "PDF exportieren"
+            "value": "Exportieren"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Exportar PDF"
+            "value": "Exportar"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Exporter en PDF"
+            "value": "Exporter"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Esporta PDF"
-          }
-        }
-      }
-    },
-    "Export current page": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aktuelle Seite exportieren"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Exportar página actual"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Exporter la page actuelle"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Esporta la pagina corrente"
+            "value": "Esporta"
           }
         }
       }
@@ -7858,6 +7886,34 @@
         }
       }
     },
+    "Page %lld, as a PDF.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seite %lld als PDF."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Página %lld, en PDF."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page %lld, en PDF."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pagina %lld, in PDF."
+          }
+        }
+      }
+    },
     "Page number": {
       "localizations": {
         "de": {
@@ -9226,6 +9282,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rinomina quaderno"
+          }
+        }
+      }
+    },
+    "Rendering page %lld of %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seite %lld von %lld wird erstellt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creando la página %lld de %lld"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Création de la page %lld sur %lld"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creazione della pagina %lld di %lld"
           }
         }
       }
@@ -10714,6 +10798,34 @@
         }
       }
     },
+    "Stopping…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird abgebrochen …"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deteniendo…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrêt…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interruzione…"
+          }
+        }
+      }
+    },
     "Storage": {
       "localizations": {
         "de": {
@@ -11382,6 +11494,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sono supportati campi di testo, scelte e caselle di controllo. I campi firma e i pulsanti di opzione richiedono un altro editor PDF."
+          }
+        }
+      }
+    },
+    "That page is no longer in the notebook.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Seite ist nicht mehr im Notizbuch."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esa página ya no está en el cuaderno."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette page n’est plus dans le carnet."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quella pagina non è più nel quaderno."
           }
         }
       }
@@ -12530,6 +12670,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "I temi cambiano colori, caratteri e icone dell’app, mai ciò che fa."
+          }
+        }
+      }
+    },
+    "There are no pages to export.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es gibt keine Seiten zum Exportieren."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No hay páginas que exportar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il n’y a aucune page à exporter."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non ci sono pagine da esportare."
           }
         }
       }
@@ -13878,6 +14046,34 @@
         }
       }
     },
+    "What to export": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was exportiert wird"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qué exportar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce qu’il faut exporter"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cosa esportare"
+          }
+        }
+      }
+    },
     "What to write": {
       "localizations": {
         "de": {
@@ -14042,6 +14238,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lavagna"
+          }
+        }
+      }
+    },
+    "Whole notebook": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ganzes Notizbuch"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuaderno completo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carnet entier"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quaderno intero"
           }
         }
       }
@@ -14266,6 +14490,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Scrivi questo simbolo"
+          }
+        }
+      }
+    },
+    "Writing the PDF…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PDF wird geschrieben …"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escribiendo el PDF…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Écriture du PDF…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scrittura del PDF…"
           }
         }
       }

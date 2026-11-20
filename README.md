@@ -118,7 +118,7 @@ The library has a free **Marketplace**: themes, sticker packs, page templates an
 Use the overflow menu for import, scan, paste, PDF forms, paper and page actions, and Settings. Settings (also the gear in the library) holds the preferences in one sheet: scrolling direction, infinite scrolling, adding pages by pulling past the last one, the page number and zoom indicators, Apple Pencil only, fast GPU ink, the pen gestures, stroke stabilization, which tools the toolbar shows and in what order, where undo and redo sit, the storage folder and the version.
 Navigate document opens a page-number jump, bookmarks and a PDF table of contents.
 PDF export retains outlines and remaps internal links after page reordering; links to
-removed pages are disabled. Export current page creates a separate one-page PDF.
+removed pages are disabled. Export (toolbar or ⋯ menu) asks for the current page or the whole notebook and makes one PDF with the pages in notebook order; it renders off the main actor with a progress bar and can be cancelled.
 Fill PDF forms edits text fields, choices and checkboxes on the current page as an undoable
 change. Read-only fields, radio buttons and signatures are not edited.
 Password-protected PDFs prompt for a password and create an unlocked working PDF copy,
@@ -154,8 +154,9 @@ filenames/titles; workspace search matches text boxes and embedded PDF text. Sca
 and handwriting are not searchable yet. See [the parity audit](docs/PARITY.md) for remaining work.
 
 120 Hz is requested on supported iPads, but physical Pencil latency and palm rejection
-still need device measurement. PDF rendering/export happens on the main actor and very
-large documents need profiling. PDF saves and editable sidecars are separate coordinated
+still need device measurement. PDF export runs off the main actor, but PDFKit holds a whole document in memory while
+it writes it (roughly 30 MB per page full of handwriting, measured on macOS), so notebooks of
+hundreds of full pages need measuring on a device. PDF saves and editable sidecars are separate coordinated
 writes, not a single transaction; a mismatched sidecar is ignored on reopen. PDFs containing
 images or filled shapes use a generated visual page with preserved native annotations.
 Encrypted originals remain unchanged; editing uses an explicitly unlocked copy.
