@@ -332,7 +332,7 @@ Gebaut und getestet (360 Core-Tests, 3 iPad-UI-Tests):
   das Netz gibt `1` höchstens 0,48 und weist sie meist ab) und die **5 mit flachem Dach und Haken**, die wie ein
   „h“ aussieht. Das ist die in der Schweiz und in Deutschland gelehrte Form. Eine Regel, die ein Λ als `1`
   nimmt, löste nur eine Handvoll Zeilen (verifiziert 2 → 2), weil die Zeilen sonst an Buchstaben scheitern.
-  Gehört ins Training des Netzes (Augmentation dieser Formen, besser noch echte Proben), nicht in den Zuschnitt.
+  Das gehörte ins Training des Netzes, nicht in den Zuschnitt, und ist dort jetzt (siehe „Formen, die in diesen Daten fehlen“).
 
 ### Phase 2: Erkenner (geliefert), mit einer Abweichung vom Plan
 
@@ -415,6 +415,22 @@ diese zwei Datensätze):
   Streckung, Wellen, Zittern; Paare aus je zwei Symbolen, Gekritzel, Schrägstriche). Ein Minus darf bis etwa 20° kippen,
   ein Schrägstrich ist erst ab 30° einer: beide Bereiche dürfen sich im Training nicht überlappen (das war der erste
   Fehler: ein Minus wurde in der Hälfte der Fälle abgelehnt).
+- **Formen, die in diesen Daten fehlen.** In der Schweiz und in Deutschland schreibt man die **1 als „Λ“** (Aufstrich von
+  links unten zur Spitze, dann senkrechter Abstrich) und manche die **5 mit flachem Dach, das zuletzt kommt**. Das Netz
+  kannte beides nicht (an echten Seiten: die „Λ“-Eins las es zu 27 % als 1, nur 3 % sicher; die 5 zu 3 %).
+  Deshalb zeichnet das Skript mit `--european 0.05` selbst „Λ“-Einsen (`european_one`, 5 % der gezeichneten Ziffern) und
+  mischt mit `--mine` echte Striche von diesen Seiten in den Ziffernvorrat (`goodnotes_labels.py`: 400 „Λ“-Einsen und
+  101 5er, die eine Formregel findet, dazu was das alte Netz mit mindestens 0,97 als Ziffer las, höchstens 250 je Ziffer,
+  damit nichts außer den zwei neuen Formen die Striche einer Hand verrät; sie sind per Hand angesehen, nicht beschriftet).
+  Seiten, deren Nummer durch 4 teilbar ist, bleiben zurück und werden nie trainiert. Auf ihnen (123 „Λ“-Einsen, 37
+  5er mit Dach): **„Λ“-Eins 27 % → 100 % richtig (sicher 3 % → 97 %), 5 mit Dach 3 % → 78 % (sicher 73 %)**; alle anderen
+  Ziffern dieser Hand bleiben richtig. Der Preis: MNIST 97,56 → 97,36 %, Operatoren 99,9 → 99,8 %, zwei Symbole als
+  eines geschnitten werden zu 96,8 statt 97,2 % abgelehnt, 0,46 statt 0,29 % echte Ziffern gelten als „kein Symbol“;
+  Pendigits (neue Schreiber) 98,43 → 98,57 %. Falsch **und** sicher: 7 statt 4 von 3498 Ziffern, bei den 300 Rechnungen
+  unverändert 4 (dieselben); das ist im Rauschen, aber nicht besser. Die neuen Tests (`SymbolNetTests`) lesen eine
+  gebaute „Λ“-Eins und eine 5 mit Dach als sicher und fallen mit den alten Gewichten durch.
+  Auf den Seiten selbst ändert das kaum etwas (bestätigte Rechnungen 2 → 2), weil fast alle Zeilen Algebra sind.
+  Gewichte neu machen: `python3 scripts/symbols/train_symbols.py --data <dir> --mine <reader.json> --european 0.05`.
 - `SymbolRaster` und `render` im Skript sind derselbe Algorithmus; `SymbolNetTests` vergleicht beide an festen Strichen.
   Ändert sich einer, muss der andere folgen und das Netz neu trainiert werden.
 
@@ -424,8 +440,8 @@ mit `gzip -d` entpackt):
 
 | | Vortrainiertes Modell | Stock-Formen |
 | --- | --- | --- |
-| einzelne Ziffern (3498 von 14 Schreibern) | **98,0 %** richtig, 1,2 % abgelehnt | 63,8 % richtig |
-| 300 Rechnungen aus diesen Ziffern und gezeichneten Operatoren | 228 richtig **und** sicher, 45 richtig aber unsicher (`?`), 8 falsch aber unsicher, 17 nicht gelesen, **2 falsch und sicher** | 0 richtig und sicher |
+| einzelne Ziffern (3498 von 14 Schreibern) | **98,2 %** richtig, 1,2 % abgelehnt, 7 falsch und sicher | 63,8 % richtig |
+| 300 Rechnungen aus diesen Ziffern und gezeichneten Operatoren | 238 richtig **und** sicher, 34 richtig aber unsicher (`?`), 5 falsch aber unsicher, 19 nicht gelesen, **4 falsch und sicher** | 0 richtig und sicher |
 
 Die zwei falschen und sicheren Lesungen waren beide eine 9, die als 7 gelesen wurde. Das Netz ist bei etwa 0,1 % der
 Ziffern sicher und falsch; das lässt sich mit Schwellen nicht wegbekommen (bei Konfidenz 0,9 bleiben 2 von 3498). Anders

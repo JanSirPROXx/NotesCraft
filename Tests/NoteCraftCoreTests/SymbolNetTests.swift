@@ -55,3 +55,48 @@ private let golden: [String: ([[Point]], String)] = [
     #expect(SymbolNet.float(fromHalf: 0x0001) == Float(sign: .plus, exponent: -24, significand: 1))
   }
 }
+
+// One writes a "1" in Switzerland and Germany as a rise from the lower left to the top and a drop; the
+// pendigits and MNIST ones do not look like that, so the network is taught it (`european_one` in the
+// training script, and strokes cut from a reader's pages).
+private func leg(_ a: Point, _ b: Point, _ n: Int = 12) -> [Point] {
+  (0..<n).map { k in
+    let t = Double(k) / Double(n - 1)
+    return Point(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
+  }
+}
+
+extension SymbolNetTests {
+  private func read(_ strokes: [[Point]]) -> SymbolCandidates? { NeuralSymbolClassifier().candidates(strokes) }
+
+  @Test(arguments: [(0.0, 0.7, 0.5, 0.55), (0.1, 0.5, 0.6, 0.62), (0.0, 0.3, 0.45, 0.5), (0.2, 0.8, 0.5, 0.45)])
+  func aOneWrittenAsARiseAndADropIsAOne(_ shape: (Double, Double, Double, Double)) throws {
+    let (startX, startY, apexX, endX) = shape
+    let up = leg(Point(startX, startY), Point(apexX, 0))
+    let down = leg(Point(apexX, 0), Point(endX, 1))
+    let found = try #require(read([up + down.dropFirst()]))
+    #expect(found.options[0].symbol == "1")
+    #expect(found.margin >= LineReader.certainMargin)
+  }
+
+  // A stem and a belly under a flat roof that is written last, as one reader writes a "5".
+  @Test func aFiveWithAStemAndABellyUnderARoofIsAFive() throws {
+    let body =
+      leg(Point(0.05, 0.0), Point(0.08, 0.42)) + leg(Point(0.08, 0.42), Point(0.35, 0.3)).dropFirst()
+      + leg(Point(0.35, 0.3), Point(0.62, 0.55)).dropFirst() + leg(Point(0.62, 0.55), Point(0.55, 1.0)).dropFirst()
+    let roof = leg(Point(0.0, 0.0), Point(0.8, 0.0))
+    let found = try #require(read([body, roof]))
+    #expect(found.options[0].symbol == "5")
+    #expect(found.margin >= LineReader.certainMargin)
+  }
+
+  // The taught shapes must not have made the network take a stroke of the same family for a "1".
+  @Test func aVAndAnLAreNoOnes() {
+    let v = leg(Point(0.0, 0.0), Point(0.5, 1.0)) + leg(Point(0.5, 1.0), Point(1.0, 0.0)).dropFirst()
+    let l = leg(Point(0.0, 0.0), Point(0.0, 1.0)) + leg(Point(0.0, 1.0), Point(0.6, 1.0)).dropFirst()
+    for strokes in [[v], [l]] {
+      let found = read(strokes)
+      #expect(found == nil || found?.options[0].symbol != "1" || found!.margin < LineReader.certainMargin)
+    }
+  }
+}

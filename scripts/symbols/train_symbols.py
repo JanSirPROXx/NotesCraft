@@ -2,6 +2,10 @@
 """Trains the pretrained symbol network of the calculator pen and writes it as Swift source.
 
   python3 scripts/symbols/train_symbols.py --data <dir> [--out Sources/NoteCraftCore/Calculator/SymbolNetWeights.swift]
+      [--mine <reader.json> --european 0.05]
+
+The weights in the repository were made with `--mine` (strokes of one reader, from goodnotes_labels.py) and
+`--european 0.05`; without them the script makes the network the app shipped before.
 
 `<dir>` holds the two public data sets the network learns digits from (the script downloads them
 when they are missing; nothing else is fetched):
@@ -14,6 +18,12 @@ that were cut as one, a scribble, a slanted slash), which is what lets the reade
 the strokes from a bad one. Operators and the "not a symbol" class are drawn here, procedurally, as
 strokes; every stroke sample goes through `render` below, which is the same algorithm as
 `SymbolRaster` in Sources/NoteCraftCore/Calculator/SymbolRaster.swift (a test compares the two).
+
+Two shapes taught in Switzerland and Germany are not in those sets: a "1" written as a rise from the lower
+left to the top and a straight drop ("Λ"), and a "5" with a flat roof written last. `european_one` draws the
+first; for both, `--mine` takes strokes cut from a reader's own pages (see goodnotes_labels.py), which are
+mixed in with the pendigits strokes (pages whose number divides by `--hold-out-mod` are kept back and only
+used to evaluate).
 
 What is evaluated on data the network never saw: the MNIST test set, the 14 writers of pendigits that
 are not in training, operators from other random seeds, and pairs of symbols (must be "not a symbol").
@@ -280,6 +290,18 @@ def slash(rng):
     return [line(-d, d, rng.uniform(-0.04, 0.04))]
 
 
+def european_one(rng):
+    """A "1" written as a rise from the lower left to the top and a straight drop: one stroke, two legs."""
+    r = rng.uniform
+    ax = r(-0.05, 0.15)
+    start = np.array([ax - r(0.2, 0.6), r(0.0, 0.5)])
+    apex = np.array([ax, -0.5])
+    end = np.array([ax + r(-0.06, 0.12), 0.5])
+    first = line(start, apex, r(-0.1, 0.1), n=16)
+    second = line(apex, end, r(-0.06, 0.06), n=16)
+    return [np.concatenate([first, second[1:]])]
+
+
 def place(strokes, x, y, height):
     """`strokes` (about one unit tall, centred on the origin) scaled to `height` with its centre at (x, y)."""
     ext_y = (lambda pts: pts[:, 1].max() - pts[:, 1].min())(np.concatenate([np.asarray(s) for s in strokes]))
@@ -290,11 +312,14 @@ def place(strokes, x, y, height):
 class Symbols:
     """Everything that can be written as strokes: real digits (pendigits) and drawn operators."""
 
-    def __init__(self, digits, rng):
+    def __init__(self, digits, rng, european=0.0):
         self.digits = digits  # list of (label, strokes) already smoothed and centred
         self.rng = rng
+        self.european = european  # share of the digits that are drawn Λ-shaped ones
 
     def digit(self):
+        if self.european and self.rng.random() < self.european:
+            return 1, prepare_digit(european_one(self.rng))
         label, strokes = self.digits[int(self.rng.integers(len(self.digits)))]
         return label, [np.array(s) for s in strokes]
 
@@ -413,10 +438,10 @@ _SHARED = {}
 def _chunk(job):
     seed, counts = job
     rng = np.random.default_rng(seed)
-    return build_stroke_set(Symbols(_SHARED["digits"], rng), rng, counts)
+    return build_stroke_set(Symbols(_SHARED["digits"], rng, _SHARED.get("european", 0.0)), rng, counts)
 
 
-def build_stroke_set_parallel(digits, seed, counts):
+def build_stroke_set_parallel(digits, seed, counts, european=0.0):
     """The same, spread over the cores: rendering is the slow part of the whole script."""
     import multiprocessing
     cores = os.cpu_count() or 1
@@ -425,6 +450,7 @@ def build_stroke_set_parallel(digits, seed, counts):
     for k in range(parts):
         jobs.append((seed * 1000 + k, {name: (count // parts) + (1 if k < count % parts else 0) for name, count in counts.items()}))
     _SHARED["digits"] = digits
+    _SHARED["european"] = european
     with multiprocessing.get_context("fork").Pool(cores) as pool:
         results = pool.map(_chunk, jobs)
     return np.concatenate([r[0] for r in results]), np.concatenate([r[1] for r in results])
@@ -514,6 +540,10 @@ def main():
     ap.add_argument("--epochs", type=int, default=14)
     ap.add_argument("--seed", type=int, default=20261114)
     ap.add_argument("--quick", action="store_true", help="few samples, for trying the script")
+    ap.add_argument("--mine", help="JSON of strokes cut from a reader's pages: [{label, page, strokes}], see goodnotes_labels.py")
+    ap.add_argument("--hold-out-mod", type=int, default=4, help="pages whose number divides by this are only evaluated on")
+    ap.add_argument("--european", type=float, default=0.0, help="share of the training digits drawn as Λ-shaped ones")
+    ap.add_argument("--mine-repeat", type=int, default=1, help="how often each of the reader's strokes is in the digit pool")
     args = ap.parse_args()
     os.makedirs(args.data, exist_ok=True)
     rng = np.random.default_rng(args.seed)
@@ -526,16 +556,29 @@ def main():
 
     train_digits = [(l, prepare_digit(s)) for l, s in pen["train"]]
     test_digits = [(l, prepare_digit(s)) for l, s in pen["test"]]
+    mine_train, mine_test = [], []
+    if args.mine:
+        import json
+        for item in json.load(open(args.mine)):
+            strokes = [np.asarray(st, dtype=np.float64) for st in item["strokes"] if len(st) > 0]
+            if not strokes:
+                continue
+            sample = (int(item["label"]), prepare_digit(strokes))
+            (mine_test if item["page"] % args.hold_out_mod == 0 else mine_train).append(sample)
+        train_digits = train_digits + mine_train * args.mine_repeat
+        print("reader's strokes: training", len(mine_train), np.bincount([l for l, _ in mine_train], minlength=10), "held out", len(mine_test))
     scale = 0.05 if args.quick else 1.0
     n = lambda v: max(50, int(v * scale))
     # Rendering is the slow part; the pictures are kept next to the data for the next run.
-    cache = os.path.join(args.data, f"rendered_{args.seed}_{'quick' if args.quick else 'full'}.npz")
+    tag = f"_mine{len(mine_train)}x{args.mine_repeat}_eu{args.european}" if (args.mine or args.european) else ""
+    cache = os.path.join(args.data, f"rendered_{args.seed}_{'quick' if args.quick else 'full'}{tag}.npz")
     if os.path.exists(cache):
         cached = np.load(cache)
         xs, ys = cached["xs"], cached["ys"]
     else:
         xs, ys = build_stroke_set_parallel(
-            train_digits, args.seed, {"digits": n(60000), "operators": n(48000), "reject": n(50000)})
+            train_digits, args.seed, {"digits": n(60000), "operators": n(48000), "reject": n(50000)},
+            european=args.european)
         np.savez(cache, xs=xs, ys=ys)
     mx, my = mnist["train"]
     if args.quick:
@@ -603,10 +646,21 @@ def main():
     thrown = float((ppred == REJECT).mean())
     print(f"real digits called 'not a symbol': {thrown:.4f}")
 
+    if mine_test:
+        for digit in sorted({l for l, _ in mine_test}):
+            imgs = [render(st) for l, st in mine_test if l == digit]
+            imgs = np.stack([i for i in imgs if i is not None])
+            acc, pred = accuracy(model, imgs, np.full(len(imgs), digit))
+            print(f"reader's held-out {digit}: {acc:.4f} of {len(imgs)} right, {float((pred == REJECT).mean()):.4f} called 'not a symbol'")
+
     notes = [
         f"MNIST test {mn:.4f}; pendigits, 14 writers not in training, {pn:.4f}; drawn operators {on:.4f}; pairs and scribbles refused {rn:.4f}.",
         f"seed {args.seed}, {args.epochs} epochs, stroke width {WIDTH} px.",
     ]
+    if args.mine or args.european:
+        notes.append(
+            f"also taught: Λ-shaped ones ({args.european:.0%} of the drawn digits) and {len(mine_train)} strokes of one "
+            "reader's digits (their Λ-shaped 1 and roofed 5 among them).")
     size = export_swift(model, args.out, notes)
     print("wrote", args.out, size, "bytes of weights")
     torch.save({k: v.cpu() for k, v in model.state_dict().items()}, os.path.join(args.data, "symbols.pt"))
